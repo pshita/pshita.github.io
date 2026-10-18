@@ -97,7 +97,7 @@ exports.notifyParentsOnQuizMilestone = onDocumentWritten(
 // ---------------------------------------------------------------------
 
 const REPO_OWNER = "pshita";
-const REPO_NAME = "4avot";
+const REPO_NAME = "pshita.github.io";
 const REPO_BRANCH = "main";
 
 // Lesson ids are validated by shape (matches every id already in use, e.g.
