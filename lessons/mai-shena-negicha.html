@@ -140,6 +140,24 @@ mark{background:var(--amber-l);color:inherit;padding:0 3px;border-radius:4px}
 .qgate{display:grid;gap:6px;text-align:center}.qgate p{margin:0;font-weight:700;font-size:14px;color:var(--amber-d)}
 .qbtn{width:100%;border:2px solid var(--navy);background:var(--paper);color:var(--navy);font-weight:700;font-size:16px;padding:12px;border-radius:14px}
 @media (prefers-reduced-motion:no-preference){.screen{animation:in .2s ease}@keyframes in{from{transform:translateY(6px)}to{transform:none}}}
+.intro{background:var(--cream)}
+.iband{background:var(--navy);color:var(--cream);padding:18px 18px 26px;display:flex;flex-direction:column;gap:6px;border-radius:0 0 28px 28px}
+.iline{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--soft);font-weight:500}
+.ititle{font-family:var(--text);font-size:34px;font-weight:900;line-height:1.2;text-wrap:balance}
+.iq{font-size:15px;color:#C9D1E6;line-height:1.5}
+.ibody{padding:18px;display:flex;flex-direction:column;gap:14px;flex:1}
+.icards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.icard{background:var(--paper);border:3px solid;border-radius:18px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.icard .it{font-size:20px;font-weight:800}
+.icard .is{font-size:13px;line-height:1.4}
+.icard .iw{color:#fff;font-size:13px;font-weight:700;border-radius:999px;padding:4px 10px}
+.ihead{font-size:15px;font-weight:800}
+.ist{display:flex;flex-direction:column;gap:8px}
+.irow{display:flex;align-items:center;gap:12px;background:var(--paper);border-radius:14px;padding:10px 12px}
+.inum{width:34px;height:34px;flex:none;border-radius:10px;background:var(--line);display:flex;align-items:center;justify-content:center;font-weight:800}
+.inum.f{background:var(--gold)}
+.int{font-weight:800}.ins{font-size:13px;color:var(--muted)}
+.ibody .go{margin-top:auto}
 body{margin:0}</style>
 </head>
 <body>
@@ -153,7 +171,10 @@ const LESSON={title:'״מאי שנא נגיחה״',ref:'דף ב, עמוד ב',
  prev:'https://pshita.github.io/lessons/toldah-dekeren.html',next:'https://pshita.github.io/lessons/mai-shena-gabei-adam.html',
  stations:['נגיפה ונגיחה','האחים נגיפה','האחים קרן','דחיפה שדומה לנגיחה','נגיפה בתורה ובגמרא','אבות ותולדות'],
  screens:[
- {type:'intro'},
+ {type:'intro',daf:'בבא קמא · דף ב, עמוד ב',series:'ארבעה אבות',
+  question:'מה ההבדל בין <b style="color:#F2B33D">נגיחה</b> ל<b style="color:#2BB3A3">נגיפה</b>?',
+  cards:[{t:'נגיחה',s:'ריצה ומכה חזקה בכוח עם הקרן',w:'שמות כא, לו',c:'#B5432A',icon:'run'},{t:'נגיפה',s:'דחיפה, בכל מיני איברים',w:'שמות כא, לה',c:'#1A7D72',icon:'push'}],
+  subs:['דחיפה, או ריצה ומכה חזקה','דחיפה עם הקרניים או עם הגוף','שתיהן שייכות למזיק ״קרן״','פתח בנגיפה וסיים בנגיחה','אב המזיק, ותולדה של קרן','הילד דומה לאבא']},
  {type:'read',st:0,first:1,text:['״נגיחה״ זה ריצה ומכה חזקה בכוח עם הקרן. הריצה מכפילה פי כמה את עוצמת המכה והסכנה בהתאם. לא מומלץ.','״נגיפה״ זה דחיפה. אפשר לדחוף בכל מיני איברים, עם הראש, הגוף וגם הקרניים.'],hl:['ריצה ומכה חזקה','זה דחיפה','בכל מיני איברים'],before:[{k:'cards',items:[{t:'נגיחה',s:'ריצה ומכה חזקה בכוח עם הקרן',c:'red'},{t:'נגיפה',s:'דחיפה',c:'teal'}]}],after:[{k:'pills',items:['הראש','הגוף','הקרניים']}]},
  {type:'mc',st:0,src:1,q:'מה פירוש המילה "נגיחה"?',o:['מכה חזקה עם הקרן','מכה חזקה עם הגוף','כל התשובות נכונות'],a:0},
  {type:'mc',st:0,src:1,q:'באיזה איברים ניתן לבצע נגיפה?',o:['רק בקרניים','בכל האיברים','רק ברגליים'],a:1},
@@ -227,7 +248,6 @@ const AB=['א','ב','ג'];
 function whyBox(s,r){const w=s.why||s.din;if(!w)return `<div class="fbs ${r.ok?'ok':'no'}">${r.ok?'נכון!':'התשובה הנכונה מסומנת בירוק'}</div>`;const bad=r.ok===false;return `<div class="why ${bad?'bad':''}"><b>${r.ok===null?'הסבר':bad?'לא בדיוק':'נכון!'}</b>${w}</div>`}
 
 function body(s){const r=st(s),k=LESSON.screens.indexOf(s);
- if(s.type==='intro')return `<div class="daf"><h1>${LESSON.title}</h1><p>${LESSON.ref}</p><hr></div><div class="ph">[איור: שור רץ עם הקרניים, ושור שעומד ודוחף]</div><div class="cmp"><div class="red"><strong>נגיחה</strong><span>ריצה ומכה חזקה עם הקרן</span></div><div class="teal"><strong>נגיפה</strong><span>דחיפה</span></div></div>`;
  if(s.type==='read')return (true?`<div class="flag"><span class="n">${s.st+1}</span><h2>${LESSON.stations[s.st]}</h2></div>`:'')+s.text.map(t=>`<div class="ptext tx">${pillify(hl(t,s.hl||[]),s)}</div>`).join('')+(s.quote?`<div class="srcq">${s.quote}</div>`:'')+blocks((s.after||[]).filter(x=>x.k!=='short'&&x.k!=='pills'))+blocks(s.before)+blocks((s.after||[]).filter(x=>x.k==='short'));
  if(s.type==='mc'||s.type==='judge'){let h='';
   if(s.type==='judge')h+=`<div class="q">אתה הדיין</div><div class="sides">${s.sides.map(x=>`<div class="side"><b>${x[0]}</b>${x[1]}</div>`).join('')}</div><div class="lbl">מי צודק?</div>`;else h+=`<div class="q">${s.q}</div>`;
@@ -265,7 +285,20 @@ function wire(s){const r=st(s),q=sel=>view.querySelectorAll(sel);
  q('[data-f]').forEach(b=>b.onclick=()=>{const i=+b.dataset.f;r.open[i]=!r.open[i];if(s.cards.every((_,j)=>r.open[j]))r.done=true;draw()});
  const rv=document.getElementById('reveal');if(rv)rv.onclick=()=>{r.done=true;draw()};
 }
+const ICONS={
+ run:c=>`<svg width="54" height="54" viewBox="0 0 54 54" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M30 18c4-7 12-9 16-6-5 0-8 3-9 7"/><path d="M14 30c0-7 6-12 14-12h6l6 6-3 6h-6l-4 10H17l-3-10z"/><path d="M4 22h7M2 30h8M4 38h7"/></svg>`,
+ push:c=>`<svg width="54" height="54" viewBox="0 0 54 54" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="30" y="14" width="16" height="26" rx="3"/><path d="M6 27h18M18 20l7 7-7 7"/></svg>`};
+function introScreen(s){const n=LESSON.stations.length;
+ return `<div class="screen intro">
+ <div class="iband"><div class="iline"><div>${s.daf}</div><div>${s.series}</div></div><div class="ititle">${LESSON.title}</div><div class="iq">${s.question}</div></div>
+ <div class="ibody">
+  <div class="icards">${s.cards.map(c=>`<div class="icard" style="border-color:${c.c}">${ICONS[c.icon](c.c)}<div class="it" style="color:${c.c}">${c.t}</div><div class="is">${c.s}</div><div class="iw" style="background:${c.c}">${c.w}</div></div>`).join('')}</div>
+  <div class="ihead">${n} תחנות לתשובה</div>
+  <div class="ist">${LESSON.stations.map((t,i)=>`<div class="irow"><div class="inum ${i?'':'f'}">${i+1}</div><div><div class="int">${t}</div><div class="ins">${s.subs[i]}</div></div></div>`).join('')}</div>
+  <button class="go" id="go">יוצאים לדרך</button>
+ </div></div>`}
 function drawPlay(){const list=screens();if(cur>=list.length)cur=list.length-1;const s=list[cur];
+ if(s.type==='intro'){view.innerHTML=introScreen(s);document.getElementById('go').onclick=()=>{cur++;draw();window.scrollTo(0,0)};return}
  const tabs=LESSON.stations.map((n,i)=>`<b class="${i===s.st&&s.type!=='summary'?'c':(s.type==='summary'||i<s.st?'d':'')}" title="${n}">${i+1}</b>`).join('');
  const label=(s.type==='summary'||s.type==='intro'||s.type==='gate')?'':s.type==='read'?'':`<div class="chiprow"><span class="chip">${s.final?'סיכום':LESSON.stations[s.st]}</span><span class="kind">${KIND[s.type]}</span></div>`+(grp(s)?`<div class="qcount">שאלה ${grp(s).i+1} מתוך ${grp(s).n}</div>`:'');
  const nx=list[cur+1],hasQ=s.type==='read'&&nx&&!NONQ.includes(nx.type);
