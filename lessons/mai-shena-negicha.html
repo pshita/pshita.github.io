@@ -151,12 +151,6 @@ mark{background:var(--amber-l);color:inherit;padding:0 3px;border-radius:4px}
 .icard .it{font-size:20px;font-weight:800}
 .icard .is{font-size:13px;line-height:1.4}
 .icard .iw{color:#fff;font-size:13px;font-weight:700;border-radius:999px;padding:4px 10px}
-.ihead{font-size:15px;font-weight:800}
-.ist{display:flex;flex-direction:column;gap:8px}
-.irow{display:flex;align-items:center;gap:12px;background:var(--paper);border-radius:14px;padding:10px 12px}
-.inum{width:34px;height:34px;flex:none;border-radius:10px;background:var(--line);display:flex;align-items:center;justify-content:center;font-weight:800}
-.inum.f{background:var(--gold)}
-.int{font-weight:800}.ins{font-size:13px;color:var(--muted)}
 .ibody .go{margin-top:auto}
 body{margin:0}</style>
 </head>
@@ -173,8 +167,7 @@ const LESSON={title:'״מאי שנא נגיחה״',ref:'דף ב, עמוד ב',
  screens:[
  {type:'intro',daf:'בבא קמא · דף ב, עמוד ב',series:'ארבעה אבות',
   question:'מה ההבדל בין <b style="color:#F2B33D">נגיחה</b> ל<b style="color:#2BB3A3">נגיפה</b>?',
-  cards:[{t:'נגיחה',s:'ריצה ומכה חזקה בכוח עם הקרן',w:'שמות כא, לו',c:'#B5432A',icon:'run'},{t:'נגיפה',s:'דחיפה, בכל מיני איברים',w:'שמות כא, לה',c:'#1A7D72',icon:'push'}],
-  subs:['דחיפה, או ריצה ומכה חזקה','דחיפה עם הקרניים או עם הגוף','שתיהן שייכות למזיק ״קרן״','פתח בנגיפה וסיים בנגיחה','אב המזיק, ותולדה של קרן','הילד דומה לאבא']},
+  cards:[{t:'נגיחה',s:'ריצה ומכה חזקה בכוח עם הקרן',w:'שמות כא, לו',c:'#B5432A',icon:'run'},{t:'נגיפה',s:'דחיפה, בכל מיני איברים',w:'שמות כא, לה',c:'#1A7D72',icon:'push'}]},
  {type:'read',st:0,first:1,text:['״נגיחה״ זה ריצה ומכה חזקה בכוח עם הקרן. הריצה מכפילה פי כמה את עוצמת המכה והסכנה בהתאם. לא מומלץ.','״נגיפה״ זה דחיפה. אפשר לדחוף בכל מיני איברים, עם הראש, הגוף וגם הקרניים.'],hl:['ריצה ומכה חזקה','זה דחיפה','בכל מיני איברים'],before:[{k:'cards',items:[{t:'נגיחה',s:'ריצה ומכה חזקה בכוח עם הקרן',c:'red'},{t:'נגיפה',s:'דחיפה',c:'teal'}]}],after:[{k:'pills',items:['הראש','הגוף','הקרניים']}]},
  {type:'mc',st:0,src:1,q:'מה פירוש המילה "נגיחה"?',o:['מכה חזקה עם הקרן','מכה חזקה עם הגוף','כל התשובות נכונות'],a:0},
  {type:'mc',st:0,src:1,q:'באיזה איברים ניתן לבצע נגיפה?',o:['רק בקרניים','בכל האיברים','רק ברגליים'],a:1},
@@ -288,13 +281,11 @@ function wire(s){const r=st(s),q=sel=>view.querySelectorAll(sel);
 const ICONS={
  run:c=>`<svg width="54" height="54" viewBox="0 0 54 54" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M30 18c4-7 12-9 16-6-5 0-8 3-9 7"/><path d="M14 30c0-7 6-12 14-12h6l6 6-3 6h-6l-4 10H17l-3-10z"/><path d="M4 22h7M2 30h8M4 38h7"/></svg>`,
  push:c=>`<svg width="54" height="54" viewBox="0 0 54 54" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="30" y="14" width="16" height="26" rx="3"/><path d="M6 27h18M18 20l7 7-7 7"/></svg>`};
-function introScreen(s){const n=LESSON.stations.length;
+function introScreen(s){
  return `<div class="screen intro">
  <div class="iband"><div class="iline"><div>${s.daf}</div><div>${s.series}</div></div><div class="ititle">${LESSON.title}</div><div class="iq">${s.question}</div></div>
  <div class="ibody">
   <div class="icards">${s.cards.map(c=>`<div class="icard" style="border-color:${c.c}">${ICONS[c.icon](c.c)}<div class="it" style="color:${c.c}">${c.t}</div><div class="is">${c.s}</div><div class="iw" style="background:${c.c}">${c.w}</div></div>`).join('')}</div>
-  <div class="ihead">${n} תחנות לתשובה</div>
-  <div class="ist">${LESSON.stations.map((t,i)=>`<div class="irow"><div class="inum ${i?'':'f'}">${i+1}</div><div><div class="int">${t}</div><div class="ins">${s.subs[i]}</div></div></div>`).join('')}</div>
   <button class="go" id="go">יוצאים לדרך</button>
  </div></div>`}
 function drawPlay(){const list=screens();if(cur>=list.length)cur=list.length-1;const s=list[cur];
