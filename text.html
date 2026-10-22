@@ -67,8 +67,8 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 <div id="tb" hidden></div>
 
 <script type="module">
-import { watchAuthState, getApp } from "./assets/js/auth.js";
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-functions.js";
+// Firebase is loaded only for the admin's editing, so reading never depends on it.
+let auth = null, httpsCallable = null;
 
 const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 const $ = (id) => document.getElementById(id);
@@ -86,16 +86,15 @@ async function loadIndex() {
   }));
 }
 
-const evalLesson = (src) => new Function(src + ";return LESSON")();
+const evalLesson = (src) => JSON.parse(src);
+const dataUrl = (href) => href.replace(/^lessons\/([^/]+)\.html$/, "lessons/data/$1.json");
 
-// New lessons keep their text in a LESSON object; older ones in .intro-box.
+// Lesson content lives in lessons/data/<id>.json; a page without one is
+// read from its own HTML (older format, .intro-box).
 async function loadLesson(href) {
+  const r = await fetch(dataUrl(href), { cache: "no-cache" });
+  if (r.ok) return { kind: "new", L: await r.json() };
   const html = await (await fetch(href, { cache: "no-cache" })).text();
-  const i = html.indexOf("const LESSON=");
-  if (i > -1) {
-    const j = html.indexOf("/* ===== ENGINE", i);
-    try { return { kind: "new", L: evalLesson(html.slice(i, j > -1 ? j : undefined)) }; } catch (e) {}
-  }
   const doc = new DOMParser().parseFromString(html, "text/html");
   return { kind: "old", title: (doc.querySelector(".lesson-title") || {}).textContent || href,
     ref: (doc.querySelector(".lesson-source") || {}).textContent || "", boxes: [...doc.querySelectorAll(".intro-box")] };
@@ -423,13 +422,26 @@ $("edit").onclick = async () => {
   $("edit").classList.toggle("on", EDIT);
   $("edit").textContent = EDIT ? "✓ סיום עריכה" : "✎ עריכה";
   $("save").hidden = !EDIT;
-  if (EDIT) { fns = fns || getFunctions(getApp()); say("טוען לעריכה…"); }
+  if (EDIT && !fns) {
+    try {
+      const f = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-functions.js");
+      httpsCallable = f.httpsCallable;
+      fns = f.getFunctions(auth.getApp());
+    } catch (e) {
+      EDIT = false; $("edit").classList.remove("on"); $("edit").textContent = "✎ עריכה"; $("save").hidden = true;
+      return say("לא הצלחתי לטעון את העריכה. נסו לרענן את הדף.", true);
+    }
+  }
+  if (EDIT) say("טוען לעריכה…");
   await render();
   if (EDIT) say("לוחצים על טקסט או כותרת כדי לערוך. Enter מוסיף קטע חדש.");
 };
 addEventListener("beforeunload", (e) => { if (DIRTY.size) { e.preventDefault(); e.returnValue = ""; } });
 
-watchAuthState((user) => { $("edit").hidden = !(user && user.email === ADMIN_EMAIL); });
+import("./assets/js/auth.js").then((m) => {
+  auth = m;
+  m.watchAuthState((user) => { $("edit").hidden = !(user && user.email === ADMIN_EMAIL); });
+}).catch(() => {});
 
 // ---------- copy / Word ----------
 let sayT;

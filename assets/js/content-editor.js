@@ -820,6 +820,7 @@ const GEN_CSS = `
 .ed-gen-status.ok{color:#1A7D72}.ed-gen-status.err{color:#B5432A}
 .ed-gen-on .ed-gen-t{outline:1px dashed rgba(242,179,61,.9);outline-offset:2px;cursor:text}
 .ed-gen-on .ed-gen-t:focus{outline:2px solid #F2B33D;background:rgba(252,235,196,.35)}
+.ed-gen-ov{position:fixed;z-index:2147483646;box-sizing:border-box;background:#fff;border:2px solid #F2B33D;border-radius:10px;padding:8px 10px;font:inherit;color:#14213D;outline:none;box-shadow:0 6px 20px rgba(20,33,61,.25);direction:rtl;text-align:right}
 `;
 
 const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "SVG", "svg", "TEXTAREA", "INPUT", "SELECT", "OPTION", "TITLE", "HEAD"]);
@@ -842,7 +843,7 @@ function hasOwnText(el) {
 
 function isGenCandidate(el) {
   if (SKIP_TAGS.has(el.tagName)) return false;
-  if (el.closest(".ed-gen-bar, .site-header, header, svg")) return false;
+  if (el.closest(".ed-gen-bar, .ed-gen-ov, .site-header, header, svg")) return false;
   return hasOwnText(el);
 }
 
@@ -855,7 +856,7 @@ function genScan(root) {
     if (el.closest && el.closest(".ed-gen-bar")) { el = walker.nextSibling() || nextOutside(walker); continue; }
     if (isGenCandidate(el) && !(el.parentElement && el.parentElement.closest(".ed-gen-t"))) {
       if (!el.classList.contains("ed-gen-t")) el.classList.add("ed-gen-t");
-      el.contentEditable = genOn ? "true" : "false";
+      el.contentEditable = genOn && el.tagName !== "BUTTON" ? "true" : "false";
       el = walker.nextSibling() || nextOutside(walker);
       continue;
     }
@@ -920,6 +921,46 @@ function genSave(el, before, after, all) {
     });
 }
 
+// Browsers don't let you type inside a <button> (answer options, cards),
+// so its text is edited in a small box laid over it.
+function editButtonText(btn) {
+  const own = [...btn.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+  if (!own.length) return;
+  const r = btn.getBoundingClientRect();
+  const ov = document.createElement("div");
+  ov.className = "ed-gen-ov";
+  ov.contentEditable = "true";
+  ov.textContent = own.map((n) => n.textContent).join("").trim();
+  Object.assign(ov.style, { top: r.top + "px", left: r.left + "px", width: r.width + "px", minHeight: r.height + "px", fontSize: getComputedStyle(btn).fontSize });
+  document.body.appendChild(ov);
+  ov.focus();
+  const sel = getSelection(), range = document.createRange();
+  range.selectNodeContents(ov); range.collapse(false); sel.removeAllRanges(); sel.addRange(range);
+  let done = false;
+  const finish = (keep) => {
+    if (done) return;
+    done = true;
+    const text = ov.textContent.replace(/\s+/g, " ").trim();
+    ov.remove();
+    if (!keep || !text || text === own.map((n) => n.textContent).join("").trim()) return;
+    const html = btn.innerHTML, before = genForms(btn);
+    own[0].textContent = text;
+    own.slice(1).forEach((n) => n.remove());
+    genOriginal.set(btn, { html, forms: before });
+    genSave(btn, before, genForms(btn), false);
+  };
+  ov.addEventListener("keydown", (e) => {
+    e.stopPropagation();
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+  });
+  ov.addEventListener("blur", () => finish(true));
+  ov.addEventListener("paste", (e) => {
+    e.preventDefault();
+    document.execCommand("insertText", false, (e.clipboardData.getData("text/plain") || "").replace(/\s+/g, " "));
+  });
+}
+
 function setGenOn(on) {
   genOn = on;
   document.body.classList.toggle("ed-gen-on", on);
@@ -927,7 +968,7 @@ function setGenOn(on) {
   t.classList.toggle("on", on);
   t.textContent = on ? "✓ סיום עריכה" : "✎ עריכה";
   if (on) genScan(document.body);
-  document.querySelectorAll(".ed-gen-t").forEach((el) => { el.contentEditable = on ? "true" : "false"; });
+  document.querySelectorAll(".ed-gen-t").forEach((el) => { el.contentEditable = on && el.tagName !== "BUTTON" ? "true" : "false"; });
   if (!on) genSetStatus("");
 }
 
@@ -955,9 +996,11 @@ function initGenericEditor() {
   // While editing, a click on text only places the cursor - it must not
   // also answer a question, flip a card or follow a link underneath.
   document.addEventListener("click", (e) => {
-    if (genOn && e.target.closest && e.target.closest(".ed-gen-t")) {
+    const el = genOn && e.target.closest && e.target.closest(".ed-gen-t");
+    if (el) {
       e.stopPropagation();
       e.preventDefault();
+      if (el.tagName === "BUTTON") editButtonText(el);
     }
   }, true);
 
@@ -989,7 +1032,7 @@ function initGenericEditor() {
   new MutationObserver((muts) => {
     if (!genOn) return;
     muts.forEach((m) => m.addedNodes.forEach((n) => {
-      if (n.nodeType === Node.ELEMENT_NODE && !n.closest(".ed-gen-bar")) genScan(n);
+      if (n.nodeType === Node.ELEMENT_NODE && !n.closest(".ed-gen-bar, .ed-gen-ov")) genScan(n);
     }));
   }).observe(document.body, { childList: true, subtree: true });
 }

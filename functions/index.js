@@ -5,6 +5,9 @@ const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const logger = require("firebase-functions/logger");
 const cheerio = require("cheerio");
+const {
+  MENU_PAGES, formatLessonJson, formatSiteJson, lessonShellHtml, newLessonData, setIndexPanels, setMenu,
+} = require("./site");
 
 initializeApp();
 const db = getFirestore();
@@ -294,6 +297,57 @@ function replaceWholeValue(src, oldText, newText) {
   return { out, count };
 }
 
+
+// ---------------------------------------------------------------------
+// Site data (see site.js for the layout):
+//   lessons.json            - lesson list and order
+//   lessons/data/<id>.json  - one lesson's content
+//   lessons/<id>.html       - thin page loading the shared player
+// ---------------------------------------------------------------------
+
+const SITE_JSON = "lessons.json";
+const dataPath = (id) => `lessons/data/${id}.json`;
+const idFromPagePath = (path) => (path.match(/^lessons\/([a-z0-9]+(?:-[a-z0-9]+)*)\.html$/) || [])[1];
+
+async function readRepoFile(path, token) {
+  const current = await githubRequest(`contents/${path}?ref=${REPO_BRANCH}`, { token });
+  return { sha: current.sha, text: Buffer.from(current.content, "base64").toString("utf8") };
+}
+
+async function writeRepoFile(path, text, { sha, message, token }) {
+  await githubRequest(`contents/${path}`, {
+    method: "PUT",
+    token,
+    body: { message, content: Buffer.from(text, "utf8").toString("base64"), ...(sha ? { sha } : {}), branch: REPO_BRANCH },
+  });
+}
+
+async function deleteRepoFile(path, { message, token }) {
+  const current = await githubRequest(`contents/${path}?ref=${REPO_BRANCH}`, { token });
+  await githubRequest(`contents/${path}`, { method: "DELETE", token, body: { message, sha: current.sha, branch: REPO_BRANCH } });
+}
+
+// Replaces every string in `value` that equals one of the forms of `oldText`
+// (first form that matches anything wins).
+function replaceInJson(value, pairs) {
+  for (const [oldText, newText] of pairs) {
+    let count = 0;
+    const walk = (v) => {
+      if (typeof v === "string") { if (v === oldText) { count++; return newText; } return v; }
+      if (Array.isArray(v)) return v.map(walk);
+      if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]));
+      return v;
+    };
+    const out = walk(value);
+    if (count) return { out, count };
+  }
+  return null;
+}
+
+// Text edited in place on a lesson page: the page path comes in
+// (lessons/<id>.html); the text lives in that lesson's data file. Pages
+// that still carry their own content (older formats) are edited in the
+// page file itself.
 exports.replaceLessonText = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
     throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
@@ -303,8 +357,7 @@ exports.replaceLessonText = onCall({ secrets: [GITHUB_TOKEN] }, async (request) 
     throw new HttpsError("invalid-argument", "עמוד לא מוכר.");
   }
   // pairs: [[old, new], ...] - the same edit in several forms (raw HTML,
-  // without highlight wrappers, plain text...). The first form found in
-  // the file wins.
+  // without highlight wrappers, plain text...).
   if (!Array.isArray(pairs) || !pairs.length || pairs.length > 6 ||
       !pairs.every((p) => Array.isArray(p) && p.length === 2 &&
         typeof p[0] === "string" && typeof p[1] === "string" &&
@@ -313,19 +366,25 @@ exports.replaceLessonText = onCall({ secrets: [GITHUB_TOKEN] }, async (request) 
   }
 
   const token = GITHUB_TOKEN.value();
-  const filePath = `contents/${path}`;
-  let current;
+  const id = idFromPagePath(path);
+  let file, filePath, result;
   try {
-    current = await githubRequest(`${filePath}?ref=${REPO_BRANCH}`, { token });
+    filePath = dataPath(id);
+    file = await readRepoFile(filePath, token);
+    const r = replaceInJson(JSON.parse(file.text), pairs);
+    result = r && { out: formatLessonJson(r.out), count: r.count };
   } catch (err) {
-    throw new HttpsError("not-found", "העמוד לא נמצא.");
-  }
-  const html = Buffer.from(current.content, "base64").toString("utf8");
-
-  let result = null;
-  for (const [oldText, newText] of pairs) {
-    const r = replaceWholeValue(html, oldText, newText);
-    if (r.count) { result = r; break; }
+    filePath = path;
+    try {
+      file = await readRepoFile(filePath, token);
+    } catch (e) {
+      throw new HttpsError("not-found", "העמוד לא נמצא.");
+    }
+    result = null;
+    for (const [oldText, newText] of pairs) {
+      const r = replaceWholeValue(file.text, oldText, newText);
+      if (r.count) { result = r; break; }
+    }
   }
   if (!result) {
     throw new HttpsError("not-found", "את הטקסט הזה אי אפשר לערוך מכאן (הוא לא נמצא בקובץ כמו שהוא).");
@@ -335,18 +394,8 @@ exports.replaceLessonText = onCall({ secrets: [GITHUB_TOKEN] }, async (request) 
   if (result.count > 1 && all !== true) {
     return { ok: false, needConfirm: true, count: result.count };
   }
-
   try {
-    await githubRequest(filePath, {
-      method: "PUT",
-      token,
-      body: {
-        message: `עדכון טקסט: ${path} (עריכה באתר)`,
-        content: Buffer.from(result.out, "utf8").toString("base64"),
-        sha: current.sha,
-        branch: REPO_BRANCH,
-      },
-    });
+    await writeRepoFile(filePath, result.out, { sha: file.sha, message: `עדכון טקסט: ${id} (עריכה באתר)`, token });
   } catch (err) {
     logger.error(`replaceLessonText failed for ${path}`, err);
     throw new HttpsError("internal", "השמירה נכשלה. נסו שוב.");
@@ -355,18 +404,9 @@ exports.replaceLessonText = onCall({ secrets: [GITHUB_TOKEN] }, async (request) 
 });
 
 // ---------------------------------------------------------------------
-// Lessons built on the question-player engine keep all their content in
-// one `const LESSON={...};` literal. text.html edits that object as data
-// (headings, paragraphs, new sections) and saves it back whole.
-
-const LESSON_START = "const LESSON=";
-const LESSON_END = "/* ===== ENGINE";
-
-function lessonLiteralRange(html) {
-  const start = html.indexOf(LESSON_START);
-  const end = start > -1 ? html.indexOf(LESSON_END, start) : -1;
-  return start > -1 && end > -1 ? { start, end } : null;
-}
+// text.html edits a whole lesson as data (headings, paragraphs, new
+// sections) and saves it back. `src` is the data file's exact text, used
+// to refuse overwriting a version changed elsewhere in the meantime.
 
 const JS_KEY_RE = /^[A-Za-z_$][\w$]*$/;
 function validLessonData(v, depth = 0) {
@@ -377,41 +417,22 @@ function validLessonData(v, depth = 0) {
   return false;
 }
 
-function serializeLessonValue(v) {
-  if (typeof v === "string") return "'" + jsQuote(v, "'") + "'";
-  if (v === null || typeof v !== "object") return String(v);
-  if (Array.isArray(v)) return "[" + v.map(serializeLessonValue).join(",") + "]";
-  return "{" + Object.entries(v).map(([k, x]) => `${k}:${serializeLessonValue(x)}`).join(",") + "}";
-}
-
-function serializeLesson(lesson) {
-  const { screens, ...rest } = lesson;
-  const head = serializeLessonValue(rest).slice(0, -1);
-  return `${LESSON_START}${head},\n screens:[\n ${screens.map(serializeLessonValue).join(",\n ")}\n]};\n\n`;
-}
-
-async function readLessonFile(path, token) {
-  if (typeof path !== "string" || !EDITABLE_PATH_RE.test(path)) {
-    throw new HttpsError("invalid-argument", "עמוד לא מוכר.");
-  }
-  let current;
+async function readLessonData(path, token) {
+  const id = typeof path === "string" && EDITABLE_PATH_RE.test(path) ? idFromPagePath(path) : null;
+  if (!id) throw new HttpsError("invalid-argument", "עמוד לא מוכר.");
   try {
-    current = await githubRequest(`contents/${path}?ref=${REPO_BRANCH}`, { token });
+    return { id, ...(await readRepoFile(dataPath(id), token)) };
   } catch (err) {
-    throw new HttpsError("not-found", "העמוד לא נמצא.");
+    throw new HttpsError("not-found", "לשיעור הזה אין קובץ תוכן שאפשר לערוך מכאן.");
   }
-  const html = Buffer.from(current.content, "base64").toString("utf8");
-  const range = lessonLiteralRange(html);
-  if (!range) throw new HttpsError("failed-precondition", "בשיעור הזה אין מבנה שאפשר לערוך מכאן.");
-  return { current, html, range, src: html.slice(range.start, range.end) };
 }
 
 exports.getLessonData = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
     throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
   }
-  const { src } = await readLessonFile((request.data || {}).path, GITHUB_TOKEN.value());
-  return { src };
+  const { text } = await readLessonData((request.data || {}).path, GITHUB_TOKEN.value());
+  return { src: text };
 });
 
 exports.saveLessonData = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
@@ -427,41 +448,24 @@ exports.saveLessonData = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => 
     throw new HttpsError("invalid-argument", "תוכן השיעור לא תקין.");
   }
   const token = GITHUB_TOKEN.value();
-  const { current, html, range, src } = await readLessonFile(path, token);
-  // Someone (the in-lesson editor, an upload) changed the lesson since this
-  // copy was loaded - never overwrite that silently.
-  if (src !== base) {
+  const { id, sha, text } = await readLessonData(path, token);
+  if (text !== base) {
     throw new HttpsError("aborted", "השיעור השתנה מאז שנטען. טענו את העמוד מחדש ונסו שוב.");
   }
-  const literal = serializeLesson(lesson);
-  // The literal we write must read back as exactly the data we were sent.
-  let roundTrip;
+  const out = formatLessonJson(lesson);
   try {
-    roundTrip = new Function(`${literal}return LESSON;`)();
-  } catch (err) {
-    roundTrip = null;
-  }
-  if (!roundTrip || JSON.stringify(roundTrip) !== JSON.stringify(lesson)) {
-    throw new HttpsError("internal", "שגיאה בהכנת הקובץ לשמירה.");
-  }
-  const out = html.slice(0, range.start) + literal + html.slice(range.end);
-  try {
-    await githubRequest(`contents/${path}`, {
-      method: "PUT",
-      token,
-      body: {
-        message: `עדכון שיעור: ${path} (עריכה מעמוד הטקסט)`,
-        content: Buffer.from(out, "utf8").toString("base64"),
-        sha: current.sha,
-        branch: REPO_BRANCH,
-      },
-    });
+    await writeRepoFile(dataPath(id), out, { sha, message: `עדכון שיעור: ${id} (עריכה מעמוד הטקסט)`, token });
   } catch (err) {
     logger.error(`saveLessonData failed for ${path}`, err);
     throw new HttpsError("internal", "השמירה נכשלה. נסו שוב.");
   }
-  return { ok: true, src: literal };
+  return { ok: true, src: out };
 });
+
+// ---------------------------------------------------------------------
+// Adding, moving and removing lessons: lessons.json is the one list; the
+// home page panels and every header menu are regenerated from it. Lesson
+// pages need no change - the player reads previous/next from lessons.json.
 
 async function fileExists(path, token) {
   const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/${path}?ref=${REPO_BRANCH}`, {
@@ -477,291 +481,58 @@ function quoteTitle(titleText) {
   return /^״.*״$/.test(t) ? t : `״${t}״`;
 }
 
-// The brand menu has one dropdown per page/amud group (same grouping as the
-// home page), each listing that group's lessons.
-function groupSubmenusHtml(groups, hrefPrefix) {
-  const arrow = '<svg class="submenu-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  return groups
-    .filter((g) => g.entries.length)
-    .map((g) => `<div class="submenu">
-            <button type="button" class="dropdown-item submenu-trigger">
-              <span>${escapeHtml(g.title)}</span>
-              ${arrow}
-            </button>
-            <div class="dropdown-menu submenu-panel" hidden>
-${submenuLinksHtml(g.entries, hrefPrefix)}
-            </div>
-          </div>`)
-    .join("\n          ");
+async function readSite(token) {
+  const file = await readRepoFile(SITE_JSON, token);
+  return { sha: file.sha, site: JSON.parse(file.text) };
 }
 
-function setGroupSubmenus($, groups, hrefPrefix) {
-  const $menu = $(".brand-menu");
-  if (!$menu.length) return;
-  $menu.find(".submenu").remove();
-  $menu.prepend(`\n          ${groupSubmenusHtml(groups, hrefPrefix)}`);
-}
-
-function submenuLinksHtml(entries, hrefPrefix) {
-  return entries
-    .map((e) => `            <a class="dropdown-item" href="${hrefPrefix}${e.id}.html">${escapeHtml(e.title)}</a>`)
-    .join("\n");
-}
-
-// Renders a lesson's prev/next nav div for a given position in the full
-// site-wide lesson order. Matches the three shapes already in use: "single"
-// with only a next button (first lesson ever), "single" with only a prev
-// button (last lesson ever), or both buttons (everyone else).
-function renderLessonNavHtml(prevId, nextId) {
-  const single = !prevId || !nextId;
-  const prevBtn = prevId ? `<a class="lesson-nav-btn lesson-nav-btn--secondary" href="${prevId}.html">לשיעור הקודם</a>\n      ` : "";
-  const nextBtn = nextId ? `<a class="lesson-nav-btn" href="${nextId}.html">לשיעור הבא</a>\n    ` : "";
-  return `<div class="lesson-nav${single ? " single" : ""}">\n      ${prevBtn}${nextBtn}</div>`;
-}
-
-function renderNewLessonHtml({ lessonId, titleText, sourceText, prevId, groups }) {
-  const title = escapeHtml(titleText);
-  const source = escapeHtml(sourceText);
-  return `<!DOCTYPE html><html lang="he" dir="rtl"><head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title} | ארבעה אבות</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-  <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&amp;family=Heebo:wght@300;400;600&amp;family=Rubik:wght@400;600;700&amp;display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="../assets/css/style.css?v=45">
-</head>
-<body>
-  <header class="site-header">
-    <div class="wrap">
-      <div class="dropdown brand-dropdown">
-        <button type="button" class="brand dropdown-trigger">
-          <span class="mark">📖</span>
-          <span>פשיטא</span>
-        </button>
-        <div class="dropdown-menu brand-menu" hidden="">
-          ${groupSubmenusHtml(groups, "")}
-          <div class="auth-area" id="auth-area-out">
-            <a class="auth-link auth-link-primary" href="../login.html">התחברות</a>
-          </div>
-          <div class="auth-area" id="auth-area-in" hidden="">
-            <a class="score-badge" id="score-badge" href="../achievements.html" hidden=""></a>
-            <span class="auth-user-name" id="auth-user-name"></span>
-            <button type="button" class="auth-link auth-link-primary" id="logout-btn">התנתקות</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="reading-progress" id="reading-progress"><span class="reading-progress-fill" id="reading-progress-fill"></span></div>
-  </header>
-
-  <main class="wrap" style="padding-top: 34px;">
-    <div class="lesson-title-row">
-      <h1 class="lesson-title">${title}</h1>
-      <span class="lesson-source">${source}</span>
-    </div>
-
-    <div class="intro-box"><p class="p-light">כאן יופיע תוכן השיעור.</p></div>
-
-    ${renderLessonNavHtml(prevId, null)}
-  </main>
-
-  <footer class="site-footer"></footer>
-
-  <script src="../assets/js/main.js?v=3"></script>
-  <script src="../assets/js/reading-progress.js"></script>
-  <script type="module" src="../assets/js/header-auth.js?v=2"></script>
-  <script type="module" src="../assets/js/score.js"></script>
-  <script type="module" src="../assets/js/quiz.js?v=12"></script>
-  <script type="module" src="../assets/js/content-editor.js"></script>
-
-
-</body></html>`;
-}
-
-function renderNewGroupPanelHtml(sourceText, lessonId, titleText) {
-  const source = escapeHtml(sourceText);
-  return `<div class="dropdown group-title-dropdown">
-      <div class="group-panel">
-        <button type="button" class="group-title dropdown-trigger">
-          <span>${source}</span>
-          <span class="group-progress" hidden></span>
-          <svg class="group-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <div class="dropdown-menu lessons-menu">
-        <div class="lesson-grid">
-          <a class="lesson-card" href="lessons/${lessonId}.html">
-            <h3>${escapeHtml(titleText)}</h3>
-          </a>
-        </div>
-        </div>
-      </div>
-    </div>`;
-}
-
-// Reads index.html's lesson grid(s) - the source of truth for every existing
-// lesson's id, title, order and which page-group (e.g. "דף ב, עמוד א") it
-// belongs to - so none of this needs to live in this file's own code.
-// `panelEl` is the live cheerio node for that group's .group-panel (present
-// only for groups that already exist in $index; a newly-created group is
-// pushed onto the array without one, and gets it filled in once its panel
-// markup is inserted).
-function readLessonGroups($index) {
-  const groups = [];
-  $index(".group-panel").each((i, panel) => {
-    const $panel = $index(panel);
-    const title = $panel.find(".group-title span").first().text().trim();
-    const entries = [];
-    $panel.find(".lesson-card").each((j, card) => {
-      const $card = $index(card);
-      const href = $card.attr("href") || "";
-      const m = href.match(/^lessons\/([a-z0-9-]+)\.html$/);
-      if (m) entries.push({ id: m[1], title: $card.find("h3").text().trim() });
-    });
-    groups.push({ title, entries, panelEl: $panel });
-  });
-  return groups;
-}
-
-function flattenGroups(groups) {
-  const out = [];
-  groups.forEach((g) => g.entries.forEach((e) => out.push(e)));
-  return out;
-}
-
-// Rewrites every page so its lesson cards, submenu and (for lesson pages)
-// prev/next nav all match `groups`' order. Used both for inserting a lesson
-// at an arbitrary position and for reordering existing ones - either way,
-// the full site-wide order can change, so every page needs a fresh pass
-// rather than a patch targeted at just the two lessons that moved.
-async function rebuildAllPagesForOrder({ $index, indexCurrent, groups, token, commitMessage }) {
-  groups.forEach((g) => {
-    const cardsHtml = g.entries
-      .map((e) => `<a class="lesson-card" href="lessons/${e.id}.html">\n            <h3>${escapeHtml(e.title)}</h3>\n          </a>`)
-      .join("\n          ");
-    g.panelEl.find(".lesson-grid").html(`\n          ${cardsHtml}\n        `);
-  });
-
-  const fullOrder = flattenGroups(groups);
-
-  setGroupSubmenus($index, groups, "lessons/");
-  await githubRequest("contents/index.html", {
-    method: "PUT",
-    token,
-    body: {
-      message: commitMessage,
-      content: Buffer.from($index.html(), "utf8").toString("base64"),
-      sha: indexCurrent.sha,
-      branch: REPO_BRANCH,
-    },
-  });
-
-  for (const page of ["login.html", "register.html", "achievements.html", "scenes.html"]) {
-    const path = `contents/${page}`;
-    const current = await githubRequest(`${path}?ref=${REPO_BRANCH}`, { token });
-    const html = Buffer.from(current.content, "base64").toString("utf8");
-    const $ = cheerio.load(html);
-    setGroupSubmenus($, groups, "lessons/");
-    await githubRequest(path, {
-      method: "PUT",
-      token,
-      body: {
-        message: commitMessage,
-        content: Buffer.from($.html(), "utf8").toString("base64"),
-        sha: current.sha,
-        branch: REPO_BRANCH,
-      },
-    });
-  }
-
-  for (let i = 0; i < fullOrder.length; i++) {
-    const entry = fullOrder[i];
-    const prevEntry = i > 0 ? fullOrder[i - 1] : null;
-    const nextEntry = i < fullOrder.length - 1 ? fullOrder[i + 1] : null;
-    const path = `contents/lessons/${entry.id}.html`;
-    const current = await githubRequest(`${path}?ref=${REPO_BRANCH}`, { token });
-    const html = Buffer.from(current.content, "base64").toString("utf8");
-    const $ = cheerio.load(html);
-    setGroupSubmenus($, groups, "");
-    $(".lesson-nav").replaceWith(renderLessonNavHtml(prevEntry ? prevEntry.id : null, nextEntry ? nextEntry.id : null));
-    await githubRequest(path, {
-      method: "PUT",
-      token,
-      body: {
-        message: commitMessage,
-        content: Buffer.from($.html(), "utf8").toString("base64"),
-        sha: current.sha,
-        branch: REPO_BRANCH,
-      },
-    });
+// Writes lessons.json, then the pages whose markup lists the lessons.
+async function publishSite({ site, sha, token, message }) {
+  const groups = site.groups.filter((g) => g.lessons.length);
+  const clean = { groups };
+  await writeRepoFile(SITE_JSON, formatSiteJson(clean), { sha, message, token });
+  for (const page of MENU_PAGES) {
+    let file;
+    try {
+      file = await readRepoFile(page, token);
+    } catch (err) {
+      continue;
+    }
+    let html = setMenu(file.text, groups, "lessons/");
+    if (page === "index.html") html = setIndexPanels(html, groups);
+    if (html !== file.text) await writeRepoFile(page, html, { sha: file.sha, message, token });
   }
 }
 
 async function createLessonFiles({ lessonId, titleText, sourceText, afterLessonId, token }) {
-  const quotedTitle = quoteTitle(titleText);
-  const trimmedSource = sourceText.trim();
+  const title = quoteTitle(titleText);
+  const ref = sourceText.trim();
+  const { site, sha } = await readSite(token);
 
-  const indexPath = "contents/index.html";
-  const indexCurrent = await githubRequest(`${indexPath}?ref=${REPO_BRANCH}`, { token });
-  const indexHtml = Buffer.from(indexCurrent.content, "base64").toString("utf8");
-  const $index = cheerio.load(indexHtml);
-
-  const groups = readLessonGroups($index);
-  if (!groups.length) throw new Error("No existing lessons found in index.html");
-  const flatBefore = flattenGroups(groups);
-  const prevId = flatBefore[flatBefore.length - 1].id;
-
-  let targetGroup = groups.find((g) => g.title === trimmedSource);
-  const isNewGroup = !targetGroup;
-  if (isNewGroup) {
-    targetGroup = { title: trimmedSource, entries: [], panelEl: null };
-    groups.push(targetGroup);
+  let group = site.groups.find((g) => g.title === ref);
+  if (!group) {
+    group = { title: ref, lessons: [] };
+    site.groups.push(group);
   }
-
-  if (afterLessonId && !targetGroup.entries.some((e) => e.id === afterLessonId)) {
+  if (afterLessonId && !group.lessons.some((l) => l.id === afterLessonId)) {
     throw new Error("מיקום ההוספה לא נמצא באותו דף ועמוד.");
   }
+  const at = afterLessonId ? group.lessons.findIndex((l) => l.id === afterLessonId) + 1 : group.lessons.length;
+  group.lessons.splice(at, 0, { id: lessonId, title });
 
-  const newEntry = { id: lessonId, title: quotedTitle };
-  if (afterLessonId) {
-    const idx = targetGroup.entries.findIndex((e) => e.id === afterLessonId);
-    targetGroup.entries.splice(idx + 1, 0, newEntry);
-  } else {
-    targetGroup.entries.push(newEntry);
+  // Series and masechet come from the lesson before it.
+  const all = [].concat(...site.groups.map((g) => g.lessons));
+  const prev = all[all.findIndex((l) => l.id === lessonId) - 1];
+  let like = null;
+  if (prev) {
+    try { like = JSON.parse((await readRepoFile(dataPath(prev.id), token)).text); } catch (err) { like = null; }
   }
 
-  // 1) Create the new lesson file first (placeholder prev/submenu - the
-  // rebuild pass below fixes it to its real, possibly non-last, position).
-  // If a later step fails, the site ends up with an unlinked page rather
-  // than a link to a missing one.
-  const newHtml = renderNewLessonHtml({ lessonId, titleText: quotedTitle, sourceText: trimmedSource, prevId, groups });
-  await githubRequest(`contents/lessons/${lessonId}.html`, {
-    method: "PUT",
-    token,
-    body: {
-      message: `הוספת שיעור חדש: ${lessonId} (דרך פאנל הניהול)`,
-      content: Buffer.from(newHtml, "utf8").toString("base64"),
-      branch: REPO_BRANCH,
-    },
-  });
-
-  // 2) A brand new page-group needs its panel markup inserted into
-  // index.html before the rebuild pass can fill its lesson-grid.
-  if (isNewGroup) {
-    $index("main.wrap").append(renderNewGroupPanelHtml(trimmedSource, lessonId, quotedTitle));
-    targetGroup.panelEl = $index(".group-panel").filter(
-      (i, panel) => $index(panel).find(".group-title span").first().text().trim() === trimmedSource
-    ).first();
-  }
-
-  // 3) Rewrite every page (cards, submenus, nav) to match the final order.
-  await rebuildAllPagesForOrder({
-    $index,
-    indexCurrent,
-    groups,
-    token,
-    commitMessage: `הוספת שיעור חדש: ${lessonId} (דרך פאנל הניהול)`,
-  });
+  const message = `הוספת שיעור חדש: ${lessonId} (דרך פאנל הניהול)`;
+  // Files first: if a later step fails the site has an unlinked lesson, never a link to a missing one.
+  await writeRepoFile(dataPath(lessonId), formatLessonJson(newLessonData({ title, ref, like })), { message, token });
+  await writeRepoFile(`lessons/${lessonId}.html`, lessonShellHtml({ id: lessonId, title }), { message, token });
+  await publishSite({ site, sha, token, message });
 }
 
 exports.createLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
@@ -784,18 +555,12 @@ exports.createLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   }
 
   const token = GITHUB_TOKEN.value();
-  if (await fileExists(`contents/lessons/${lessonId}.html`, token)) {
+  if (await fileExists(`contents/lessons/${lessonId}.html`, token) || await fileExists(`contents/${dataPath(lessonId)}`, token)) {
     throw new HttpsError("already-exists", "כבר קיים שיעור עם המזהה הזה.");
   }
 
   try {
-    await createLessonFiles({
-      lessonId,
-      titleText: titleText.trim(),
-      sourceText: sourceText.trim(),
-      afterLessonId: afterLessonId || null,
-      token,
-    });
+    await createLessonFiles({ lessonId, titleText: titleText.trim(), sourceText: sourceText.trim(), afterLessonId: afterLessonId || null, token });
     return { ok: true, lessonId };
   } catch (err) {
     logger.error(`createLesson failed for ${lessonId}`, err);
@@ -803,42 +568,23 @@ exports.createLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   }
 });
 
-// Swaps a lesson with its neighbor within its own page-group (the same
-// "דף ועמוד" it's already listed under) - moving it across groups isn't
-// supported, since that would mean re-deciding which group it belongs to.
+// Swaps a lesson with its neighbor within its own page/amud group.
 async function moveLessonFiles({ lessonId, direction, token }) {
-  const indexPath = "contents/index.html";
-  const indexCurrent = await githubRequest(`${indexPath}?ref=${REPO_BRANCH}`, { token });
-  const indexHtml = Buffer.from(indexCurrent.content, "base64").toString("utf8");
-  const $index = cheerio.load(indexHtml);
-
-  const groups = readLessonGroups($index);
-  const group = groups.find((g) => g.entries.some((e) => e.id === lessonId));
+  const { site, sha } = await readSite(token);
+  const group = site.groups.find((g) => g.lessons.some((l) => l.id === lessonId));
   if (!group) throw new Error("השיעור לא נמצא.");
-
-  const idx = group.entries.findIndex((e) => e.id === lessonId);
-  if (direction === "up") {
-    if (idx <= 0) throw new Error("השיעור כבר ראשון ברשימה.");
-    [group.entries[idx - 1], group.entries[idx]] = [group.entries[idx], group.entries[idx - 1]];
-  } else {
-    if (idx >= group.entries.length - 1) throw new Error("השיעור כבר אחרון ברשימה.");
-    [group.entries[idx + 1], group.entries[idx]] = [group.entries[idx], group.entries[idx + 1]];
-  }
-
-  await rebuildAllPagesForOrder({
-    $index,
-    indexCurrent,
-    groups,
-    token,
-    commitMessage: `שינוי סדר שיעורים: ${lessonId} (דרך פאנל הניהול)`,
-  });
+  const L = group.lessons, i = L.findIndex((l) => l.id === lessonId);
+  const j = direction === "up" ? i - 1 : i + 1;
+  if (j < 0) throw new Error("השיעור כבר ראשון ברשימה.");
+  if (j >= L.length) throw new Error("השיעור כבר אחרון ברשימה.");
+  [L[i], L[j]] = [L[j], L[i]];
+  await publishSite({ site, sha, token, message: `שינוי סדר שיעורים: ${lessonId} (דרך פאנל הניהול)` });
 }
 
 exports.moveLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
     throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
   }
-
   const { lessonId, direction } = request.data || {};
   if (!isValidLessonId(lessonId)) {
     throw new HttpsError("invalid-argument", "שיעור לא מוכר.");
@@ -846,7 +592,6 @@ exports.moveLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   if (direction !== "up" && direction !== "down") {
     throw new HttpsError("invalid-argument", "כיוון לא תקין.");
   }
-
   try {
     await moveLessonFiles({ lessonId, direction, token: GITHUB_TOKEN.value() });
     return { ok: true };
@@ -856,63 +601,34 @@ exports.moveLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   }
 });
 
-// Removes a lesson entirely: drops it from its page/amud group (and that
-// whole group's panel, if it was the last lesson in it), rewrites every
-// page to match, and only then deletes the lesson's own file - the
-// rebuild runs first so a failure partway through leaves an orphaned but
-// still-existing file rather than a dangling link to a 404.
+// Removes a lesson: first from the list and every page (so no link points
+// at it), then its files.
 async function deleteLessonFiles({ lessonId, token }) {
-  const indexPath = "contents/index.html";
-  const indexCurrent = await githubRequest(`${indexPath}?ref=${REPO_BRANCH}`, { token });
-  const indexHtml = Buffer.from(indexCurrent.content, "base64").toString("utf8");
-  const $index = cheerio.load(indexHtml);
-
-  const groups = readLessonGroups($index);
-  const group = groups.find((g) => g.entries.some((e) => e.id === lessonId));
+  const { site, sha } = await readSite(token);
+  const group = site.groups.find((g) => g.lessons.some((l) => l.id === lessonId));
   if (!group) throw new Error("השיעור לא נמצא.");
+  group.lessons = group.lessons.filter((l) => l.id !== lessonId);
+  if (!site.groups.some((g) => g.lessons.length)) throw new Error("אי אפשר למחוק את השיעור האחרון באתר.");
 
-  group.entries = group.entries.filter((e) => e.id !== lessonId);
-
-  let remainingGroups = groups;
-  if (group.entries.length === 0) {
-    group.panelEl.closest(".group-title-dropdown").remove();
-    remainingGroups = groups.filter((g) => g !== group);
+  const message = `מחיקת שיעור: ${lessonId} (דרך פאנל הניהול)`;
+  await publishSite({ site, sha, token, message });
+  for (const path of [`lessons/${lessonId}.html`, dataPath(lessonId)]) {
+    try {
+      await deleteRepoFile(path, { message, token });
+    } catch (err) {
+      logger.warn(`deleteLesson: ${path} not removed`, err);
+    }
   }
-  if (flattenGroups(remainingGroups).length === 0) {
-    throw new Error("אי אפשר למחוק את השיעור האחרון באתר.");
-  }
-
-  await rebuildAllPagesForOrder({
-    $index,
-    indexCurrent,
-    groups: remainingGroups,
-    token,
-    commitMessage: `מחיקת שיעור: ${lessonId} (דרך פאנל הניהול)`,
-  });
-
-  const lessonPath = `contents/lessons/${lessonId}.html`;
-  const lessonCurrent = await githubRequest(`${lessonPath}?ref=${REPO_BRANCH}`, { token });
-  await githubRequest(lessonPath, {
-    method: "DELETE",
-    token,
-    body: {
-      message: `מחיקת שיעור: ${lessonId} (דרך פאנל הניהול)`,
-      sha: lessonCurrent.sha,
-      branch: REPO_BRANCH,
-    },
-  });
 }
 
 exports.deleteLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
     throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
   }
-
   const { lessonId } = request.data || {};
   if (!isValidLessonId(lessonId)) {
     throw new HttpsError("invalid-argument", "שיעור לא מוכר.");
   }
-
   try {
     await deleteLessonFiles({ lessonId, token: GITHUB_TOKEN.value() });
     return { ok: true };

@@ -1,0 +1,20 @@
+{
+  "groups": [
+    {"title": "דף ב, עמוד א", "lessons": [
+      {"id":"avot-vetoldot","title":"״אבות נזיקין״"},
+      {"id":"shor-umave","title":"״השור, הבור, המבעה וההבער״"},
+      {"id":"lo-hari-hashor","title":"״לא הרי השור כהרי המבעה״"},
+      {"id":"gabei-shabbat-tanan","title":"״גבי שבת תנן״"},
+      {"id":"umai-ika","title":"״ומאי איכא בין אב לתולדה״"},
+      {"id":"gabei-tumaot-tanan","title":"״גבי טומאות תנן״"}
+    ]},
+    {"title": "דף ב, עמוד ב", "lessons": [
+      {"id":"shlosha-avot-beshor","title":"״ת\"ר: ג' אבות נאמרו בשור״"},
+      {"id":"keren-manlan","title":"״קרן מנלן״"},
+      {"id":"toldah-dekeren","title":"״תולדה דקרן״"},
+      {"id":"mai-shena-negicha","title":"״מאי שנא נגיחה״"},
+      {"id":"mai-shena-gabei-adam","title":"״מאי שנא גבי אדם״"},
+      {"id":"muad-livhema","title":"״מועד לבהמה״"}
+    ]}
+  ]
+}
