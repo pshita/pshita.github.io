@@ -129,32 +129,90 @@ mark{background:var(--amber-l);color:inherit;padding:0 3px;border-radius:4px}
 .fbs{font-weight:700;font-size:15px}.fbs.ok{color:var(--teal-d);background:none!important;border:0!important}.fbs.no{color:var(--red);background:none!important;border:0!important}
 .foot{display:grid;gap:10px}
 .ipill{display:inline-block;background:var(--navy);color:var(--cream);border-radius:99px;padding:0 12px;font-family:var(--ui);font-weight:700;font-size:.85em;line-height:1.7}
-.qcount{padding:6px 14px 0;font-size:13px;font-weight:700;color:var(--muted)}
-.gdone{text-align:center;font-family:var(--text);font-weight:900;font-size:26px;color:var(--teal-d)}
-.foot.two{display:flex;gap:10px;align-items:stretch}
-.foot.two>button{flex:1;min-width:0}
-.go.alt{background:var(--paper);color:var(--navy);border:2px solid var(--navy);box-shadow:0 5px 0 var(--line)}
-.foot.two .qbtn{background:var(--gold);border:0;color:var(--navy);font-weight:800;box-shadow:0 5px 0 var(--gold-d);padding:10px 8px;line-height:1.25}
-.foot.two .qbtn .qt{font-size:15px}.foot.two .qbtn .qs{color:var(--navy);font-weight:700}
-.qbtn .qt{display:block}.qbtn .qs{display:block;font-size:14px;font-weight:500;color:var(--amber-d);margin-top:2px}
-.qgate{display:grid;gap:6px;text-align:center}.qgate p{margin:0;font-weight:700;font-size:14px;color:var(--amber-d)}
-.qbtn{width:100%;border:2px solid var(--navy);background:var(--paper);color:var(--navy);font-weight:700;font-size:16px;padding:12px;border-radius:14px}
-@media (prefers-reduced-motion:no-preference){.screen{animation:in .2s ease}@keyframes in{from{transform:translateY(6px)}to{transform:none}}}
+.bars{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:grid;gap:10px}
+.bar{display:grid;grid-template-columns:4.5em minmax(0,1fr) auto;gap:8px;align-items:center;font-weight:700;font-size:14px}
+.bt{height:14px;background:var(--sand);border-radius:7px;overflow:hidden}.bt i{display:block;height:100%;border-radius:7px}
+.bt i.teal{background:var(--teal)}.bt i.gold{background:var(--gold)}.bv{color:var(--muted);font-size:13px;white-space:nowrap}
+
+/* ===== tablet & desktop ===== */
+.rcols,.rmain,.raside{display:flex;flex-direction:column;gap:12px;min-width:0}
+@media (min-width:700px){
+ .wrap{max-width:none;padding-block:20px 32px;padding-left:max(24px,env(safe-area-inset-left,0px));padding-right:max(24px,env(safe-area-inset-right,0px))}
+ .screen{min-height:calc(100vh - 52px);border-radius:28px}
+ .top{padding:16px 28px 6px}
+ .qhead{padding:4px 28px 0;font-size:26px}
+ .body{padding:20px 28px;gap:16px}
+ .foot{padding:14px 28px 24px}
+ .foot:not(.two){justify-items:end}.foot:not(.two) .go{max-width:440px}
+ .foot.two{max-width:620px;margin-inline-start:auto;margin-inline-end:0;width:100%;box-sizing:border-box}
+ .tx{font-size:21px}
+ .q{font-size:23px}
+ .flag h2{font-size:24px}.flag .n{width:44px;height:44px;font-size:20px}
+ .ptext{padding:18px 22px}
+ .cmp strong{font-size:18px}.cmp span{font-size:15px}
+ .short{font-size:17px;padding:14px 18px}
+ .opt{font-size:18px;padding:14px 18px}
+ .screen.intro{flex-direction:row}
+ .intro .iband{flex:0 0 40%;box-sizing:border-box;min-height:0;border-radius:0;padding:40px 40px;justify-content:center;position:relative}
+ .intro .iline{position:absolute;top:22px;right:40px;left:40px}
+ .intro .iband .ititle{margin-top:0}
+ .intro .ititle{font-size:40px}.intro .iq{font-size:19px}
+ .intro .ibody{padding:28px 40px}
+ .intro .ibody{padding:32px 0;min-width:0}
+ .intro .icards{display:flex;justify-content:space-evenly;gap:0;margin-top:auto}
+ .intro .icard{width:min(320px,40%);box-sizing:border-box}
+ .intro .icard .it{font-size:22px}.intro .icard .is{font-size:15px}
+ .intro .ibody .go{width:calc(100% - 80px);max-width:440px;box-sizing:border-box;align-self:flex-end;margin-inline:40px}
+ .comic{grid-template-columns:repeat(4,minmax(0,1fr))}
+ table{font-size:16px}
+}
+@media (min-width:1080px){
+ .wrap{padding-left:max(32px,env(safe-area-inset-left,0px));padding-right:max(32px,env(safe-area-inset-right,0px))}
+ .top,.body,.foot,.qhead{padding-inline:40px}
+ .rcols.has-side{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:22px;align-items:start}
+ .rcols.has-side .raside{position:sticky;top:16px}
+ .raside .cmp{grid-template-columns:1fr}
+ .body:has(.opts),.body:has(.stmt),.body:has(.sortitem),.body:has(.mgrid){max-width:960px;margin-inline:auto;width:100%;box-sizing:border-box}
+ .intro .ititle{font-size:44px}
+}
+@media (prefers-reduced-motion:no-preference){.bt i{animation:grow .8s ease-out}@keyframes grow{from{width:0}}}
+.comic{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.panel{background:var(--paper);border:2px solid var(--navy);border-radius:12px;overflow:hidden;min-width:0;display:flex;flex-direction:column}
+.cph{aspect-ratio:4/3;max-width:100%;border:2px dashed var(--tan);margin:6px;border-radius:8px;display:grid;place-items:center;color:var(--muted);font-size:11px;text-align:center;padding:4px}
+.cart{display:block;width:100%;height:auto;aspect-ratio:4/3;border-bottom:2px solid var(--navy)}
+.cap.tx{padding:8px 9px 10px;font-size:15px;line-height:1.55}
 .intro{background:var(--cream)}
-.iband{background:var(--navy);color:var(--cream);padding:22px 18px 34px;display:flex;flex-direction:column;gap:10px;min-height:260px;border-radius:0 0 28px 28px}
-.iband .ititle{margin-top:auto}
-.iband .iq{margin-bottom:auto}
+.iband{background:var(--navy);color:var(--cream);padding:12px 18px 16px;display:flex;flex-direction:column;gap:4px;min-height:0;border-radius:0 0 28px 28px}
+.iband .ititle{margin-top:6px}
+.iband .iq{margin-bottom:0}
 .iline{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--soft);font-weight:500}
 .ititle{font-family:var(--text);font-size:34px;font-weight:900;line-height:1.2;text-wrap:balance}
 .iq{font-size:15px;color:#C9D1E6;line-height:1.5}
 .ibody{padding:18px;display:flex;flex-direction:column;gap:14px;flex:1}
-.icards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.icards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 .icard{background:var(--paper);border:3px solid;border-radius:18px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
 .icard .it{font-size:20px;font-weight:800}
 .icard .is{font-size:13px;line-height:1.4}
 .icard .iw{color:#fff;font-size:13px;font-weight:700;border-radius:999px;padding:4px 10px}
 .ibody .go{margin-top:auto}
-body{margin:0}</style>
+.prog .seg{flex:1;border:0;background:transparent;padding:8px 0;cursor:pointer;display:block;min-width:0}
+.prog .seg i{display:block;height:7px;border-radius:4px;background:var(--line)}
+.prog .seg.f i{background:var(--gold)}
+.prog .seg:not(:disabled):hover i{background:var(--gold-d)}
+.prog .seg:disabled{cursor:default}
+.prog{gap:3px}
+.top{padding-top:10px}
+.qhead{padding:4px 14px 0;font-family:var(--text);font-weight:900;font-size:22px;color:var(--amber-d);text-wrap:balance}
+.foot.two{display:flex;gap:10px;align-items:stretch}
+.foot.two>button{flex:1;min-width:0}
+.skip{border:2px solid var(--navy);background:var(--paper);color:var(--navy);font-weight:700;font-size:16px;padding:12px;border-radius:14px;box-shadow:0 5px 0 var(--line)}
+.qcount{padding:6px 14px 0;font-size:13px;font-weight:700;color:var(--muted)}
+.gdone{text-align:center;font-family:var(--text);font-weight:900;font-size:26px;color:var(--teal-d)}
+.qgate{display:grid;gap:6px;text-align:center}.qgate p{margin:0;font-weight:700;font-size:14px;color:var(--amber-d)}
+@media (prefers-reduced-motion:no-preference){.screen{animation:in .2s ease}@keyframes in{from{transform:translateY(6px)}to{transform:none}}}
+body{margin:0}@media (min-width:700px){.screen .qhead{padding:6px 28px 0;font-size:26px}.screen .chiprow{padding:8px 28px 0}.screen .qcount{padding:6px 28px 0}}
+@media (min-width:1080px){.screen .qhead,.screen .chiprow,.screen .qcount{padding-inline:40px;max-width:960px;margin-inline:auto;width:100%;box-sizing:border-box}}
+</style>
 </head>
 <body>
 
@@ -232,18 +290,21 @@ function shuf(arr,seed){const r=rnd(seed),a=arr.slice();for(let i=a.length-1;i>0
 const screens=()=>LESSON.screens.filter(s=>(showText||!s.preview)&&(!noQ||['intro','read','summary'].includes(s.type)));
 function st(s){const k=LESSON.screens.indexOf(s);return R[k]||(R[k]={done:false,ok:null,pick:null,seq:[],sel:null,matched:{},miss:0,sorted:{},open:{}})}
 function pillify(t,s){const items=[].concat(...[...(s.before||[]),...(s.after||[])].filter(b=>b.k==='pills').map(b=>b.items));items.forEach(w=>{t=t.split(w).join('<span class="ipill">'+w+'</span>')});return t}
+const ART={'איור: רבי עקיבא דואג ומביט בכוכבים':'<rect width="160" height="120" fill="#14213D"/><g fill="#F2B33D"><circle cx="20" cy="18" r="1.6"/><circle cx="44" cy="10" r="1.2"/><circle cx="62" cy="28" r="1.8"/><circle cx="96" cy="14" r="1.3"/><circle cx="112" cy="34" r="1.6"/><circle cx="140" cy="20" r="1.2"/><circle cx="30" cy="44" r="1.1"/><circle cx="80" cy="46" r="1.2"/><path d="M128 10a12 12 0 1 0 10 18a10 10 0 1 1-10-18z"/></g><path d="M0 104q40-18 80-10t80 6v20H0z" fill="#22335A"/><g><path d="M64 118q2-34 16-38q14 4 16 38z" fill="#F5EBD3"/><path d="M70 118q2-26 10-30q8 4 10 30z" fill="#E8DCC4"/><circle cx="80" cy="72" r="9" fill="#F5EBD3"/><path d="M71 70q9-10 18 0q-1-9-9-9t-9 9z" fill="#AEB9D6"/></g>','איור: נחש בין אבני הקיר':'<rect width="160" height="120" fill="#F5EBD3"/><g fill="#E8DCC4" stroke="#D8C39A" stroke-width="1.5"><rect x="-10" y="6" width="50" height="24" rx="4"/><rect x="44" y="6" width="56" height="24" rx="4"/><rect x="104" y="6" width="66" height="24" rx="4"/><rect x="10" y="34" width="54" height="24" rx="4"/><rect x="96" y="34" width="54" height="24" rx="4"/><rect x="-10" y="62" width="44" height="24" rx="4"/><rect x="38" y="62" width="58" height="24" rx="4"/><rect x="100" y="62" width="70" height="24" rx="4"/><rect x="14" y="90" width="60" height="24" rx="4"/><rect x="78" y="90" width="66" height="24" rx="4"/></g><rect x="66" y="35" width="28" height="22" rx="3" fill="#22335A"/><path d="M70 52q6-10 12-4t10-6" stroke="#2BB3A3" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="91" cy="41" r="4.5" fill="#2BB3A3"/><circle cx="92.5" cy="40" r="1.2" fill="#14213D"/>','איור: סיכה תקועה בין אבני הקיר':'<rect width="160" height="120" fill="#F5EBD3"/><g fill="#E8DCC4" stroke="#D8C39A" stroke-width="1.5"><rect x="-10" y="6" width="50" height="24" rx="4"/><rect x="44" y="6" width="56" height="24" rx="4"/><rect x="104" y="6" width="66" height="24" rx="4"/><rect x="10" y="34" width="54" height="24" rx="4"/><rect x="96" y="34" width="54" height="24" rx="4"/><rect x="-10" y="62" width="44" height="24" rx="4"/><rect x="38" y="62" width="58" height="24" rx="4"/><rect x="100" y="62" width="70" height="24" rx="4"/><rect x="14" y="90" width="60" height="24" rx="4"/><rect x="78" y="90" width="66" height="24" rx="4"/></g><rect x="66" y="35" width="28" height="22" rx="3" fill="#22335A"/><line x1="80" y1="46" x2="120" y2="20" stroke="#B9801A" stroke-width="2.5" stroke-linecap="round"/><circle cx="121" cy="19" r="5" fill="#F2B33D" stroke="#B9801A" stroke-width="1.5"/><g stroke="#F2B33D" stroke-width="2" stroke-linecap="round"><line x1="132" y1="12" x2="138" y2="8"/><line x1="134" y1="22" x2="141" y2="23"/><line x1="124" y1="6" x2="126" y2="0"/></g>','איור: עני מקבל מנה בסעודה':'<rect width="160" height="120" fill="#FFF8EC"/><rect x="0" y="92" width="160" height="28" fill="#F5EBD3"/><rect x="14" y="70" width="96" height="8" rx="3" fill="#B9801A"/><rect x="22" y="78" width="6" height="30" fill="#8A6A1F"/><rect x="96" y="78" width="6" height="30" fill="#8A6A1F"/><path d="M44 58h36q-2 14-18 14t-18-14z" fill="#FFFFFF" stroke="#14213D" stroke-width="2"/><ellipse cx="62" cy="58" rx="18" ry="3" fill="#F2B33D"/><g stroke="#AEB9D6" stroke-width="2" fill="none" stroke-linecap="round"><path d="M54 50q-3-5 0-10"/><path d="M62 48q-3-5 0-10"/><path d="M70 50q-3-5 0-10"/></g><path d="M118 112q2-30 14-34q12 4 14 34z" fill="#22335A"/><circle cx="132" cy="68" r="8" fill="#F5EBD3" stroke="#22335A" stroke-width="2"/><line x1="150" y1="60" x2="150" y2="112" stroke="#8A6A1F" stroke-width="3" stroke-linecap="round"/><path d="M118 88q-14-4-26-2" stroke="#22335A" stroke-width="5" fill="none" stroke-linecap="round"/>'};
 function hl(t,words){words.forEach(w=>{const i=t.indexOf(w);if(i>-1)t=t.slice(0,i)+'<mark>'+w+'</mark>'+t.slice(i+w.length)});return t}
 function blocks(arr){return (arr||[]).map(b=>{
  if(b.k==='cards')return `<div class="cmp">${b.items.map(c=>`<div class="${c.c||''}"><strong>${c.t}</strong><span>${c.s}</span></div>`).join('')}</div>`;
  if(b.k==='pills')return `<div class="pills">${b.items.map(p=>`<span>${p}</span>`).join('')}</div>`;
  if(b.k==='short')return `<div class="short"><b>בקיצור</b>${b.text}</div>`;
+ if(b.k==='bars')return `<div class="bars">${b.rows.map(r=>`<div class="bar"><span class="bl">${r[0]}</span><div class="bt"><i class="${r[3]}" style="width:${r[2]}%"></i></div><span class="bv">${r[1]}</span></div>`).join('')}</div>`;
  if(b.k==='verses')return b.items.map(v=>`<div class="verse ${v.c}"><div class="v">${v.before}<span class="w">${v.word}</span>${v.after}</div><small>${v.src}</small></div>`).join('');
  return ''}).join('')}
 const AB=['א','ב','ג'];
 function whyBox(s,r){const w=s.why||s.din;if(!w)return `<div class="fbs ${r.ok?'ok':'no'}">${r.ok?'נכון!':'התשובה הנכונה מסומנת בירוק'}</div>`;const bad=r.ok===false;return `<div class="why ${bad?'bad':''}"><b>${r.ok===null?'הסבר':bad?'לא בדיוק':'נכון!'}</b>${w}</div>`}
 
 function body(s){const r=st(s),k=LESSON.screens.indexOf(s);
- if(s.type==='read')return (true?`<div class="flag"><span class="n">${s.st+1}</span><h2>${LESSON.stations[s.st]}</h2></div>`:'')+s.text.map(t=>`<div class="ptext tx">${pillify(hl(t,s.hl||[]),s)}</div>`).join('')+(s.quote?`<div class="srcq">${s.quote}</div>`:'')+blocks((s.after||[]).filter(x=>x.k!=='short'&&x.k!=='pills'))+blocks(s.before)+blocks((s.after||[]).filter(x=>x.k==='short'));
+ if(s.type==='intro')return `<div class="ihead"><span>פשיטא</span><span>${LESSON.ref}</span></div><h1 class="ititle">${LESSON.title}</h1><div class="iq"><div class="lbl2">השאלה של השיעור</div><p>${LESSON.intro.question}</p></div><div class="kinds">${LESSON.intro.kinds.map(k=>`<div class="kd ${k.c}">${k.icon}<strong>${k.t}</strong><small>${k.s}</small></div>`).join('')}</div><div class="slist">${LESSON.stations.map((n,i)=>`<div><span>${i+1}</span>${n}</div>`).join('')}</div>`;
+ if(s.type==='read')return (true?`<div class="flag"><span class="n">${s.st+1}</span><h2>${LESSON.stations[s.st]}</h2></div>`:'')+(s.comic?`<div class="comic">${s.comic.map(p=>`<div class="panel">${ART[p[0]]?`<svg class="cart" viewBox="0 0 160 120" role="img" aria-label="${p[0]}">${ART[p[0]]}</svg>`:`<div class="cph">[${p[0]}]</div>`}<div class="cap tx">${p[1]}</div></div>`).join('')}</div>`:'')+(()=>{const side=blocks(s.before)+blocks((s.after||[]).filter(x=>x.k==='short'));return `<div class="rcols ${side?'has-side':''}"><div class="rmain">`+s.text.map(t=>`<div class="ptext tx">${pillify(hl(t,s.hl||[]),s)}</div>`).join('')+(s.quote?`<div class="srcq">${s.quote}</div>`:'')+blocks((s.after||[]).filter(x=>x.k!=='short'&&x.k!=='pills'))+`</div>`+(side?`<div class="raside">${side}</div>`:'')+`</div>`})();
  if(s.type==='mc'||s.type==='judge'){let h='';
   if(s.type==='judge')h+=`<div class="q">אתה הדיין</div><div class="sides">${s.sides.map(x=>`<div class="side"><b>${x[0]}</b>${x[1]}</div>`).join('')}</div><div class="lbl">מי צודק?</div>`;else h+=`<div class="q">${s.q}</div>`;
   return h+`<div class="opts">${s.o.map((o,i)=>`<button class="opt ${r.done?(i===s.a?'ok':i===r.pick?'no':''):''}" data-a="${i}" ${r.done?'disabled':''}><i>${AB[i]}</i>${o}</button>`).join('')}</div>${r.done?whyBox(s,r):''}`}
@@ -263,7 +324,7 @@ function body(s){const r=st(s),k=LESSON.screens.indexOf(s);
  if(s.type==='summary'){const sc=screens().filter(x=>SCORED.includes(x.type)&&st(x).done);const good=sc.filter(x=>st(x).ok===true).length;
   return `<div class="score"><h2>כל הכבוד!</h2>${sc.length?`<p>ענית נכון בפעם הראשונה על ${good} מתוך ${sc.length} שאלות</p>`:'<p>סיימת לעבור על השיעור</p>'}</div>
   <div class="tbl"><table><tr>${s.table.cols.map(c=>`<th>${c}</th>`).join('')}</tr>${s.table.rows.map(rw=>`<tr>${rw.map((c,i)=>`<td>${i?c:'<b>'+c+'</b>'}</td>`).join('')}</tr>`).join('')}</table></div>
-  <div class="links"><a href="${LESSON.prev}">לשיעור הקודם</a><a href="${LESSON.next}">לשיעור הבא</a></div>`}
+  <div class="links"><a href="${LESSON.prev}">לשיעור הקודם</a>${LESSON.next?`<a href="${LESSON.next}">לשיעור הבא</a>`:''}</div>`}
 }
 function isDone(s){const r=st(s);return s.type==='read'||s.type==='intro'||s.type==='summary'||r.done}
 function wire(s){const r=st(s),q=sel=>view.querySelectorAll(sel);
@@ -294,13 +355,14 @@ function drawPlay(){const list=screens();if(cur>=list.length)cur=list.length-1;c
  if(s.type==='intro'){view.innerHTML=introScreen(s);document.getElementById('go').onclick=()=>{cur++;draw();window.scrollTo(0,0)};return}
  const tabs=LESSON.stations.map((n,i)=>`<b class="${i===s.st&&s.type!=='summary'?'c':(s.type==='summary'||i<s.st?'d':'')}" title="${n}">${i+1}</b>`).join('');
  const label=(s.type==='summary'||s.type==='intro'||s.type==='gate')?'':s.type==='read'?'':`<div class="chiprow"><span class="chip">${s.final?'סיכום':LESSON.stations[s.st]}</span><span class="kind">${KIND[s.type]}</span></div>`+(grp(s)?`<div class="qcount">שאלה ${grp(s).i+1} מתוך ${grp(s).n}</div>`:'');
- const nx=list[cur+1],hasQ=s.type==='read'&&nx&&!NONQ.includes(nx.type);
- view.innerHTML=`<div class="screen"><div class="top"><button class="back" id="back" aria-label="חזרה" ${cur===0?'disabled':''}>→</button><div class="prog">${list.map((x,i)=>['intro','read','summary'].includes(x.type)?`<i class="${i<=cur?'f':''}"></i>`:'').join('')}</div></div>
- ${label}<div class="body">${body(s)}${(()=>{const g=grp(s);return g&&g.i===g.n-1&&isDone(s)?'<div class="gdone">כל הכבוד!</div>':''})()}</div>
- <div class="foot ${hasQ?'two':''}"><button class="go ${hasQ?'alt':''}" id="go">${s.type==='summary'?'מתחילים מחדש':s.type==='intro'?'יוצאים לדרך':'המשך'}</button>${hasQ?`<button class="qbtn" id="toq"><span class="qt">${GATE_TITLE}</span><span class="qs">${GATE_TEXT}</span></button>`:''}</div></div>`;
- document.getElementById('back').onclick=()=>{if(cur>0){cur--;draw()}};
- const tq=document.getElementById('toq');if(tq)tq.onclick=()=>{cur++;draw();window.scrollTo(0,0)};
- document.getElementById('go').onclick=()=>{if(s.type==='summary'){cur=0;R={}}else if(hasQ){let i=cur+1;while(i<list.length&&!NONQ.includes(list[i].type))i++;cur=Math.min(i,list.length-1)}else cur++;draw();window.scrollTo(0,0)};
+ const isQ=!NONQ.includes(s.type);
+ const segs=list.map((x,i)=>['intro','read','summary'].includes(x.type)?`<button class="seg ${i<=cur?'f':''}" data-goto="${i}" ${i<=cur?'':'disabled'} aria-label="${x.type==='intro'?'פתיחה':x.type==='summary'?'סיכום':LESSON.stations[x.st]}"><i></i></button>`:'').join('');
+ view.innerHTML=`<div class="screen"><div class="top"><div class="prog">${segs}</div></div>
+ ${isQ?`<div class="qhead">${GATE_TITLE}</div>`:''}${label}<div class="body">${body(s)}${(()=>{const g=grp(s);return g&&g.i===g.n-1&&isDone(s)?'<div class="gdone">כל הכבוד!</div>':''})()}</div>
+ <div class="foot ${isQ?'two':''}">${isQ?`<button class="skip" id="skipq">דלג על התרגול</button>`:''}<button class="go" id="go">${s.type==='summary'?'מתחילים מחדש':s.type==='intro'?'יוצאים לדרך':'המשך'}</button></div></div>`;
+ view.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{cur=+b.dataset.goto;draw();window.scrollTo(0,0)});
+ const sk=document.getElementById('skipq');if(sk)sk.onclick=()=>{let i=cur+1;while(i<list.length&&!NONQ.includes(list[i].type))i++;cur=Math.min(i,list.length-1);draw();window.scrollTo(0,0)};
+ document.getElementById('go').onclick=()=>{if(s.type==='summary'){cur=0;R={}}else cur++;draw();window.scrollTo(0,0)};
  wire(s)}
 function drawList(){let h='',last=-1,n=0;
  LESSON.screens.forEach(s=>{if(s.type==='read'||s.type==='summary')return;n++;
