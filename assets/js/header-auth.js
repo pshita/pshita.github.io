@@ -18,3 +18,19 @@ watchAuthState((user) => {
   if (loggedInEl) loggedInEl.hidden = !isLoggedIn;
   if (userNameEl) userNameEl.textContent = isLoggedIn && user.displayName ? `מחובר/ת: ${user.displayName}` : "";
 });
+
+// Admin-only link to the continuous text page (view + edit all lessons).
+const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
+watchAuthState((user) => {
+  const menu = document.querySelector(".brand-menu");
+  const old = document.getElementById("admin-text-link");
+  if (!user || user.email !== ADMIN_EMAIL) { if (old) old.remove(); return; }
+  if (!menu || old) return;
+  const a = document.createElement("a");
+  a.id = "admin-text-link";
+  a.className = "dropdown-item";
+  a.href = (location.pathname.includes("/lessons/") ? "../" : "") + "text.html";
+  a.textContent = "טקסט רציף (עריכה)";
+  const auth = menu.querySelector(".auth-area");
+  menu.insertBefore(a, auth || null);
+});

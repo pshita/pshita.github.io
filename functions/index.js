@@ -354,6 +354,115 @@ exports.replaceLessonText = onCall({ secrets: [GITHUB_TOKEN] }, async (request) 
   return { ok: true, count: result.count };
 });
 
+// ---------------------------------------------------------------------
+// Lessons built on the question-player engine keep all their content in
+// one `const LESSON={...};` literal. text.html edits that object as data
+// (headings, paragraphs, new sections) and saves it back whole.
+
+const LESSON_START = "const LESSON=";
+const LESSON_END = "/* ===== ENGINE";
+
+function lessonLiteralRange(html) {
+  const start = html.indexOf(LESSON_START);
+  const end = start > -1 ? html.indexOf(LESSON_END, start) : -1;
+  return start > -1 && end > -1 ? { start, end } : null;
+}
+
+const JS_KEY_RE = /^[A-Za-z_$][\w$]*$/;
+function validLessonData(v, depth = 0) {
+  if (depth > 10) return false;
+  if (v === null || ["string", "number", "boolean"].includes(typeof v)) return typeof v !== "number" || Number.isFinite(v);
+  if (Array.isArray(v)) return v.every((x) => validLessonData(x, depth + 1));
+  if (typeof v === "object") return Object.entries(v).every(([k, x]) => JS_KEY_RE.test(k) && validLessonData(x, depth + 1));
+  return false;
+}
+
+function serializeLessonValue(v) {
+  if (typeof v === "string") return "'" + jsQuote(v, "'") + "'";
+  if (v === null || typeof v !== "object") return String(v);
+  if (Array.isArray(v)) return "[" + v.map(serializeLessonValue).join(",") + "]";
+  return "{" + Object.entries(v).map(([k, x]) => `${k}:${serializeLessonValue(x)}`).join(",") + "}";
+}
+
+function serializeLesson(lesson) {
+  const { screens, ...rest } = lesson;
+  const head = serializeLessonValue(rest).slice(0, -1);
+  return `${LESSON_START}${head},\n screens:[\n ${screens.map(serializeLessonValue).join(",\n ")}\n]};\n\n`;
+}
+
+async function readLessonFile(path, token) {
+  if (typeof path !== "string" || !EDITABLE_PATH_RE.test(path)) {
+    throw new HttpsError("invalid-argument", "עמוד לא מוכר.");
+  }
+  let current;
+  try {
+    current = await githubRequest(`contents/${path}?ref=${REPO_BRANCH}`, { token });
+  } catch (err) {
+    throw new HttpsError("not-found", "העמוד לא נמצא.");
+  }
+  const html = Buffer.from(current.content, "base64").toString("utf8");
+  const range = lessonLiteralRange(html);
+  if (!range) throw new HttpsError("failed-precondition", "בשיעור הזה אין מבנה שאפשר לערוך מכאן.");
+  return { current, html, range, src: html.slice(range.start, range.end) };
+}
+
+exports.getLessonData = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
+  if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
+    throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
+  }
+  const { src } = await readLessonFile((request.data || {}).path, GITHUB_TOKEN.value());
+  return { src };
+});
+
+exports.saveLessonData = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
+  if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
+    throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
+  }
+  const { path, lesson, base } = request.data || {};
+  if (!lesson || typeof lesson !== "object" || Array.isArray(lesson) || !validLessonData(lesson) ||
+      typeof lesson.title !== "string" || !Array.isArray(lesson.stations) ||
+      !lesson.stations.every((s) => typeof s === "string") || !Array.isArray(lesson.screens) ||
+      !lesson.screens.length || !lesson.screens.every((s) => s && typeof s === "object" && typeof s.type === "string") ||
+      JSON.stringify(lesson).length > 500000 || typeof base !== "string") {
+    throw new HttpsError("invalid-argument", "תוכן השיעור לא תקין.");
+  }
+  const token = GITHUB_TOKEN.value();
+  const { current, html, range, src } = await readLessonFile(path, token);
+  // Someone (the in-lesson editor, an upload) changed the lesson since this
+  // copy was loaded - never overwrite that silently.
+  if (src !== base) {
+    throw new HttpsError("aborted", "השיעור השתנה מאז שנטען. טענו את העמוד מחדש ונסו שוב.");
+  }
+  const literal = serializeLesson(lesson);
+  // The literal we write must read back as exactly the data we were sent.
+  let roundTrip;
+  try {
+    roundTrip = new Function(`${literal}return LESSON;`)();
+  } catch (err) {
+    roundTrip = null;
+  }
+  if (!roundTrip || JSON.stringify(roundTrip) !== JSON.stringify(lesson)) {
+    throw new HttpsError("internal", "שגיאה בהכנת הקובץ לשמירה.");
+  }
+  const out = html.slice(0, range.start) + literal + html.slice(range.end);
+  try {
+    await githubRequest(`contents/${path}`, {
+      method: "PUT",
+      token,
+      body: {
+        message: `עדכון שיעור: ${path} (עריכה מעמוד הטקסט)`,
+        content: Buffer.from(out, "utf8").toString("base64"),
+        sha: current.sha,
+        branch: REPO_BRANCH,
+      },
+    });
+  } catch (err) {
+    logger.error(`saveLessonData failed for ${path}`, err);
+    throw new HttpsError("internal", "השמירה נכשלה. נסו שוב.");
+  }
+  return { ok: true, src: literal };
+});
+
 async function fileExists(path, token) {
   const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/${path}?ref=${REPO_BRANCH}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "User-Agent": "avot-admin-panel" },
@@ -461,7 +570,7 @@ function renderNewLessonHtml({ lessonId, titleText, sourceText, prevId, groups }
 
   <script src="../assets/js/main.js?v=3"></script>
   <script src="../assets/js/reading-progress.js"></script>
-  <script type="module" src="../assets/js/header-auth.js?v=1"></script>
+  <script type="module" src="../assets/js/header-auth.js?v=2"></script>
   <script type="module" src="../assets/js/score.js"></script>
   <script type="module" src="../assets/js/quiz.js?v=12"></script>
   <script type="module" src="../assets/js/content-editor.js"></script>
