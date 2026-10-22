@@ -257,6 +257,103 @@ exports.saveLessonContent = onCall({ secrets: [GITHUB_TOKEN] }, async (request) 
   }
 });
 
+// ---------------------------------------------------------------------
+// Structure-agnostic text editing: the admin edits a piece of text where it
+// shows on the page, and this replaces that exact text inside the page's
+// source file - whether it sits in the HTML itself (between > and <) or in
+// a JS string the page renders from (like the question-player lessons'
+// LESSON data). Only whole values are replaced (the full text between its
+// delimiters), never a fragment inside a longer string.
+// ---------------------------------------------------------------------
+
+const EDITABLE_PATH_RE = /^lessons\/[a-z0-9]+(-[a-z0-9]+)*\.html$/;
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function jsQuote(s, q) {
+  return s
+    .replace(/\\/g, "\\\\")
+    .replace(new RegExp(q, "g"), "\\" + q)
+    .replace(/\r?\n/g, "\\n")
+    .replace(/<\//g, "<\\/");
+}
+
+function replaceWholeValue(src, oldText, newText) {
+  let count = 0;
+  let out = src;
+  // Inside a JS string literal: '...', "..." or `...`.
+  for (const q of ["'", '"', "`"]) {
+    const re = new RegExp(escapeRegExp(q + jsQuote(oldText, q) + q), "g");
+    out = out.replace(re, () => { count++; return q + jsQuote(newText, q) + q; });
+  }
+  // As an HTML text value: >old<
+  const reHtml = new RegExp(">(\\s*)" + escapeRegExp(oldText) + "(\\s*)<", "g");
+  out = out.replace(reHtml, (m, a, b) => { count++; return ">" + a + newText + b + "<"; });
+  return { out, count };
+}
+
+exports.replaceLessonText = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
+  if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
+    throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
+  }
+  const { path, pairs, all } = request.data || {};
+  if (typeof path !== "string" || !EDITABLE_PATH_RE.test(path)) {
+    throw new HttpsError("invalid-argument", "עמוד לא מוכר.");
+  }
+  // pairs: [[old, new], ...] - the same edit in several forms (raw HTML,
+  // without highlight wrappers, plain text...). The first form found in
+  // the file wins.
+  if (!Array.isArray(pairs) || !pairs.length || pairs.length > 6 ||
+      !pairs.every((p) => Array.isArray(p) && p.length === 2 &&
+        typeof p[0] === "string" && typeof p[1] === "string" &&
+        p[0].trim() && p[0].length <= 20000 && p[1].length <= 20000)) {
+    throw new HttpsError("invalid-argument", "שינוי לא תקין.");
+  }
+
+  const token = GITHUB_TOKEN.value();
+  const filePath = `contents/${path}`;
+  let current;
+  try {
+    current = await githubRequest(`${filePath}?ref=${REPO_BRANCH}`, { token });
+  } catch (err) {
+    throw new HttpsError("not-found", "העמוד לא נמצא.");
+  }
+  const html = Buffer.from(current.content, "base64").toString("utf8");
+
+  let result = null;
+  for (const [oldText, newText] of pairs) {
+    const r = replaceWholeValue(html, oldText, newText);
+    if (r.count) { result = r; break; }
+  }
+  if (!result) {
+    throw new HttpsError("not-found", "את הטקסט הזה אי אפשר לערוך מכאן (הוא לא נמצא בקובץ כמו שהוא).");
+  }
+  // The same exact text in several places (a short term reused in cards,
+  // answers...) - don't change them all unless the admin confirmed it.
+  if (result.count > 1 && all !== true) {
+    return { ok: false, needConfirm: true, count: result.count };
+  }
+
+  try {
+    await githubRequest(filePath, {
+      method: "PUT",
+      token,
+      body: {
+        message: `עדכון טקסט: ${path} (עריכה באתר)`,
+        content: Buffer.from(result.out, "utf8").toString("base64"),
+        sha: current.sha,
+        branch: REPO_BRANCH,
+      },
+    });
+  } catch (err) {
+    logger.error(`replaceLessonText failed for ${path}`, err);
+    throw new HttpsError("internal", "השמירה נכשלה. נסו שוב.");
+  }
+  return { ok: true, count: result.count };
+});
+
 async function fileExists(path, token) {
   const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/${path}?ref=${REPO_BRANCH}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "User-Agent": "avot-admin-panel" },

@@ -35,6 +35,7 @@ let saveFn = null;
 let createLessonFn = null;
 let moveLessonFn = null;
 let deleteLessonFn = null;
+let replaceTextFn = null;
 
 function ensureFns() {
   if (fns) return;
@@ -43,6 +44,7 @@ function ensureFns() {
   createLessonFn = httpsCallable(fns, "createLesson");
   moveLessonFn = httpsCallable(fns, "moveLesson");
   deleteLessonFn = httpsCallable(fns, "deleteLesson");
+  replaceTextFn = httpsCallable(fns, "replaceLessonText");
 }
 
 function preventFocusSteal(e) {
@@ -801,11 +803,204 @@ function initIndexEditor() {
 // Entry point.
 // ---------------------------------------------------------------------
 
+// ---------------------------------------------------------------------
+// General text mode, for lesson pages in any other structure (e.g. the
+// question-player lessons, which draw their screens from a JS data list).
+// It doesn't need to know the structure: with "עריכה" switched on, any
+// text on screen becomes editable in place, and on leaving it the edit is
+// sent as old-text -> new-text to replaceLessonText, which finds that exact
+// text in the page's source file and replaces it there.
+// ---------------------------------------------------------------------
+
+const GEN_CSS = `
+.ed-gen-bar{position:fixed;bottom:14px;left:14px;z-index:900;display:flex;flex-direction:column;gap:6px;align-items:flex-start;font-family:Rubik,Heebo,Arial,sans-serif;direction:rtl}
+.ed-gen-toggle{border:0;border-radius:999px;padding:10px 16px;font:700 14px Rubik,Heebo,Arial,sans-serif;background:#14213D;color:#FFF8EC;box-shadow:0 3px 10px rgba(0,0,0,.25);cursor:pointer}
+.ed-gen-toggle.on{background:#F2B33D;color:#14213D}
+.ed-gen-status{font:600 13px Rubik,Heebo,Arial,sans-serif;background:#fff;border:1px solid #E8DCC4;border-radius:999px;padding:7px 12px;color:#5A6680;box-shadow:0 3px 10px rgba(0,0,0,.12)}
+.ed-gen-status.ok{color:#1A7D72}.ed-gen-status.err{color:#B5432A}
+.ed-gen-on .ed-gen-t{outline:1px dashed rgba(242,179,61,.9);outline-offset:2px;cursor:text}
+.ed-gen-on .ed-gen-t:focus{outline:2px solid #F2B33D;background:rgba(252,235,196,.35)}
+`;
+
+const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "SVG", "svg", "TEXTAREA", "INPUT", "SELECT", "OPTION", "TITLE", "HEAD"]);
+let genOn = false;
+let genBar = null, genStatus = null;
+const genOriginal = new WeakMap();
+
+function genSetStatus(text, kind) {
+  genStatus.textContent = text || "";
+  genStatus.className = "ed-gen-status" + (kind ? " " + kind : "");
+  genStatus.hidden = !text;
+}
+
+function hasOwnText(el) {
+  for (const n of el.childNodes) {
+    if (n.nodeType === Node.TEXT_NODE && n.textContent.trim()) return true;
+  }
+  return false;
+}
+
+function isGenCandidate(el) {
+  if (SKIP_TAGS.has(el.tagName)) return false;
+  if (el.closest(".ed-gen-bar, .site-header, header, svg")) return false;
+  return hasOwnText(el);
+}
+
+// Marks the outermost element of each piece of text as editable; its own
+// inner markup (bold, highlights) stays inside the one editable block.
+function genScan(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  let el = walker.currentNode.nodeType === Node.ELEMENT_NODE ? walker.currentNode : walker.nextNode();
+  while (el) {
+    if (el.closest && el.closest(".ed-gen-bar")) { el = walker.nextSibling() || nextOutside(walker); continue; }
+    if (isGenCandidate(el) && !(el.parentElement && el.parentElement.closest(".ed-gen-t"))) {
+      if (!el.classList.contains("ed-gen-t")) el.classList.add("ed-gen-t");
+      el.contentEditable = genOn ? "true" : "false";
+      el = walker.nextSibling() || nextOutside(walker);
+      continue;
+    }
+    el = walker.nextNode();
+  }
+}
+function nextOutside(walker) {
+  while (walker.parentNode()) {
+    const sib = walker.nextSibling();
+    if (sib) return sib;
+  }
+  return null;
+}
+
+// The same text in a few forms, most specific first: the server uses the
+// first one it finds in the file. Highlight wrappers a page adds while
+// drawing (<mark>, <span>) are dropped; "own text" skips child elements,
+// e.g. the letter badge inside an answer button.
+function genForms(el) {
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll("[contenteditable]").forEach((n) => n.removeAttribute("contenteditable"));
+  const raw = clone.innerHTML;
+  clone.querySelectorAll("mark, span").forEach((n) => n.replaceWith(...n.childNodes));
+  const unwrapped = clone.innerHTML;
+  const plain = el.textContent;
+  let own = "";
+  el.childNodes.forEach((n) => { if (n.nodeType === Node.TEXT_NODE) own += n.textContent; });
+  const norm = (t) => t.replace(/ |&nbsp;/g, " ").trim();
+  return [raw, unwrapped, plain, own].map(norm);
+}
+
+function genSave(el, before, after, all) {
+  const pairs = [];
+  const seen = new Set();
+  before.forEach((b, i) => {
+    if (!b || b === after[i] || seen.has(b)) return;
+    seen.add(b);
+    pairs.push([b, after[i]]);
+  });
+  if (!pairs.length) return;
+  ensureFns();
+  genSetStatus("שומר…");
+  const path = location.pathname.replace(/^.*?\/(lessons\/[^/]+\.html)$/, "$1");
+  replaceTextFn({ path, pairs, all: !!all })
+    .then((res) => {
+      const d = res.data || {};
+      if (d.needConfirm) {
+        if (window.confirm("הטקסט הזה מופיע " + d.count + " פעמים בעמוד. לשנות את כולם?")) {
+          genSave(el, before, after, true);
+        } else {
+          el.innerHTML = genOriginal.get(el).html;
+          genSetStatus("השינוי בוטל", "err");
+        }
+        return;
+      }
+      genOriginal.set(el, { html: el.innerHTML, forms: genForms(el) });
+      genSetStatus("נשמר באתר ✓" + (d.count > 1 ? " (" + d.count + " מקומות)" : ""), "ok");
+    })
+    .catch((err) => {
+      el.innerHTML = genOriginal.get(el).html;
+      genSetStatus((err && err.message) || "שגיאה בשמירה", "err");
+    });
+}
+
+function setGenOn(on) {
+  genOn = on;
+  document.body.classList.toggle("ed-gen-on", on);
+  const t = genBar.querySelector(".ed-gen-toggle");
+  t.classList.toggle("on", on);
+  t.textContent = on ? "✓ סיום עריכה" : "✎ עריכה";
+  if (on) genScan(document.body);
+  document.querySelectorAll(".ed-gen-t").forEach((el) => { el.contentEditable = on ? "true" : "false"; });
+  if (!on) genSetStatus("");
+}
+
+function initGenericEditor() {
+  const style = document.createElement("style");
+  style.textContent = GEN_CSS;
+  document.head.appendChild(style);
+
+  genBar = document.createElement("div");
+  genBar.className = "ed-gen-bar";
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "ed-gen-toggle";
+  toggle.textContent = "✎ עריכה";
+  toggle.addEventListener("click", (e) => { e.stopPropagation(); setGenOn(!genOn); });
+  genStatus = document.createElement("span");
+  genStatus.hidden = true;
+  // Status above the button, so a message appearing mid-click (when leaving
+  // a text saves it) never shifts the button out from under the pointer.
+  genBar.appendChild(genStatus);
+  genBar.appendChild(toggle);
+  document.body.appendChild(genBar);
+  genSetStatus("");
+
+  // While editing, a click on text only places the cursor - it must not
+  // also answer a question, flip a card or follow a link underneath.
+  document.addEventListener("click", (e) => {
+    if (genOn && e.target.closest && e.target.closest(".ed-gen-t")) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }, true);
+
+  document.addEventListener("focusin", (e) => {
+    const el = e.target.closest && e.target.closest(".ed-gen-t");
+    if (genOn && el) genOriginal.set(el, { html: el.innerHTML, forms: genForms(el) });
+  });
+  document.addEventListener("focusout", (e) => {
+    const el = e.target.closest && e.target.closest(".ed-gen-t");
+    if (!genOn || !el || !genOriginal.has(el)) return;
+    const before = genOriginal.get(el).forms;
+    const after = genForms(el);
+    if (before.every((b, i) => b === after[i])) return;
+    genSave(el, before, after, false);
+  });
+  document.addEventListener("keydown", (e) => {
+    const el = e.target.closest && e.target.closest(".ed-gen-t");
+    if (!genOn || !el) return;
+    // Space/Enter on a button would "press" it; Enter also ends the edit.
+    if (e.key === "Enter") { e.preventDefault(); el.blur(); }
+    else if (e.key === " " && el.tagName === "BUTTON") {
+      e.preventDefault();
+      document.execCommand("insertText", false, " ");
+    }
+  }, true);
+
+  // Pages that draw new screens (next question, next station) get their
+  // new text picked up as it appears.
+  new MutationObserver((muts) => {
+    if (!genOn) return;
+    muts.forEach((m) => m.addedNodes.forEach((n) => {
+      if (n.nodeType === Node.ELEMENT_NODE && !n.closest(".ed-gen-bar")) genScan(n);
+    }));
+  }).observe(document.body, { childList: true, subtree: true });
+}
+
 watchAuthState((user) => {
   if (!user || user.email !== ALLOWED_EMAIL) return;
   if (document.querySelector(".intro-box")) {
     initLessonEditor();
   } else if (document.querySelector(".group-panel")) {
     initIndexEditor();
+  } else if (/\/lessons\/[a-z0-9-]+\.html$/.test(location.pathname)) {
+    initGenericEditor();
   }
 });
