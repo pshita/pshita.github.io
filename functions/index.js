@@ -271,6 +271,31 @@ function quoteTitle(titleText) {
   return /^״.*״$/.test(t) ? t : `״${t}״`;
 }
 
+// The brand menu has one dropdown per page/amud group (same grouping as the
+// home page), each listing that group's lessons.
+function groupSubmenusHtml(groups, hrefPrefix) {
+  const arrow = '<svg class="submenu-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return groups
+    .filter((g) => g.entries.length)
+    .map((g) => `<div class="submenu">
+            <button type="button" class="dropdown-item submenu-trigger">
+              <span>${escapeHtml(g.title)}</span>
+              ${arrow}
+            </button>
+            <div class="dropdown-menu submenu-panel" hidden>
+${submenuLinksHtml(g.entries, hrefPrefix)}
+            </div>
+          </div>`)
+    .join("\n          ");
+}
+
+function setGroupSubmenus($, groups, hrefPrefix) {
+  const $menu = $(".brand-menu");
+  if (!$menu.length) return;
+  $menu.find(".submenu").remove();
+  $menu.prepend(`\n          ${groupSubmenusHtml(groups, hrefPrefix)}`);
+}
+
 function submenuLinksHtml(entries, hrefPrefix) {
   return entries
     .map((e) => `            <a class="dropdown-item" href="${hrefPrefix}${e.id}.html">${escapeHtml(e.title)}</a>`)
@@ -288,7 +313,7 @@ function renderLessonNavHtml(prevId, nextId) {
   return `<div class="lesson-nav${single ? " single" : ""}">\n      ${prevBtn}${nextBtn}</div>`;
 }
 
-function renderNewLessonHtml({ lessonId, titleText, sourceText, prevId, allEntries }) {
+function renderNewLessonHtml({ lessonId, titleText, sourceText, prevId, groups }) {
   const title = escapeHtml(titleText);
   const source = escapeHtml(sourceText);
   return `<!DOCTYPE html><html lang="he" dir="rtl"><head>
@@ -309,15 +334,7 @@ function renderNewLessonHtml({ lessonId, titleText, sourceText, prevId, allEntri
           <span>פשיטא</span>
         </button>
         <div class="dropdown-menu brand-menu" hidden="">
-          <div class="submenu">
-            <button type="button" class="dropdown-item submenu-trigger">
-              <span>ארבעה אבות</span>
-              <svg class="submenu-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            </button>
-            <div class="dropdown-menu submenu-panel" hidden="">
-${submenuLinksHtml(allEntries, "")}
-            </div>
-          </div>
+          ${groupSubmenusHtml(groups, "")}
           <div class="auth-area" id="auth-area-out">
             <a class="auth-link auth-link-primary" href="../login.html">התחברות</a>
           </div>
@@ -345,7 +362,7 @@ ${submenuLinksHtml(allEntries, "")}
 
   <footer class="site-footer"></footer>
 
-  <script src="../assets/js/main.js?v=2"></script>
+  <script src="../assets/js/main.js?v=3"></script>
   <script src="../assets/js/reading-progress.js"></script>
   <script type="module" src="../assets/js/header-auth.js?v=1"></script>
   <script type="module" src="../assets/js/score.js"></script>
@@ -421,7 +438,7 @@ async function rebuildAllPagesForOrder({ $index, indexCurrent, groups, token, co
 
   const fullOrder = flattenGroups(groups);
 
-  $index(".submenu-panel").html(`\n${submenuLinksHtml(fullOrder, "lessons/")}\n            `);
+  setGroupSubmenus($index, groups, "lessons/");
   await githubRequest("contents/index.html", {
     method: "PUT",
     token,
@@ -433,12 +450,12 @@ async function rebuildAllPagesForOrder({ $index, indexCurrent, groups, token, co
     },
   });
 
-  for (const page of ["login.html", "register.html", "achievements.html"]) {
+  for (const page of ["login.html", "register.html", "achievements.html", "scenes.html"]) {
     const path = `contents/${page}`;
     const current = await githubRequest(`${path}?ref=${REPO_BRANCH}`, { token });
     const html = Buffer.from(current.content, "base64").toString("utf8");
     const $ = cheerio.load(html);
-    $(".submenu-panel").html(`\n${submenuLinksHtml(fullOrder, "lessons/")}\n            `);
+    setGroupSubmenus($, groups, "lessons/");
     await githubRequest(path, {
       method: "PUT",
       token,
@@ -459,7 +476,7 @@ async function rebuildAllPagesForOrder({ $index, indexCurrent, groups, token, co
     const current = await githubRequest(`${path}?ref=${REPO_BRANCH}`, { token });
     const html = Buffer.from(current.content, "base64").toString("utf8");
     const $ = cheerio.load(html);
-    $(".submenu-panel").html(`\n${submenuLinksHtml(fullOrder, "")}\n            `);
+    setGroupSubmenus($, groups, "");
     $(".lesson-nav").replaceWith(renderLessonNavHtml(prevEntry ? prevEntry.id : null, nextEntry ? nextEntry.id : null));
     await githubRequest(path, {
       method: "PUT",
@@ -511,8 +528,7 @@ async function createLessonFiles({ lessonId, titleText, sourceText, afterLessonI
   // rebuild pass below fixes it to its real, possibly non-last, position).
   // If a later step fails, the site ends up with an unlinked page rather
   // than a link to a missing one.
-  const allEntries = flattenGroups(groups);
-  const newHtml = renderNewLessonHtml({ lessonId, titleText: quotedTitle, sourceText: trimmedSource, prevId, allEntries });
+  const newHtml = renderNewLessonHtml({ lessonId, titleText: quotedTitle, sourceText: trimmedSource, prevId, groups });
   await githubRequest(`contents/lessons/${lessonId}.html`, {
     method: "PUT",
     token,

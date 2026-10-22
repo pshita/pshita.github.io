@@ -27,7 +27,7 @@
   });
 })();
 
-// The "ארבעה אבות" lessons submenu nested inside the brand menu. Separate
+// The per-page ("דף ב, עמוד א" ...) lesson submenus nested inside the brand menu. Separate
 // from the generic dropdown toggle above: that one closes every open
 // .dropdown-menu before opening one, which would hide this submenu's own
 // ancestor (the brand menu) right along with it. The document-level
@@ -39,7 +39,13 @@
     if (!panel) return;
     trigger.addEventListener("click", function (e) {
       e.stopPropagation();
-      panel.hidden = !panel.hidden;
+      var willOpen = panel.hidden;
+      // One page/amud open at a time inside the menu.
+      var menu = trigger.closest(".brand-menu");
+      if (willOpen && menu) {
+        menu.querySelectorAll(".submenu-panel").forEach(function (p) { p.hidden = true; });
+      }
+      panel.hidden = !willOpen;
     });
   });
 })();

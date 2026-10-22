@@ -147,7 +147,7 @@ button.dropdown-item {
 .dropdown-menu .auth-area { margin-inline-start: 0; border-top: 1px solid var(--line); padding-top: 10px; margin-top: 4px; }
 #auth-area-in { flex-direction: column; align-items: stretch; gap: 10px; }
 
-/* "ארבעה אבות" submenu nested inside the brand menu - kept independent of
+/* Per-page lesson submenus nested inside the brand menu - kept independent of
    the generic dropdown toggle (see main.js) since that closes every open
    .dropdown-menu before opening one, which would hide this submenu's own
    ancestor along with it. */
