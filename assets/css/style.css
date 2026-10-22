@@ -46,7 +46,7 @@ h1, h2, h3 { font-family: var(--font-head); color: var(--ink); margin: 0 0 .4em;
 /* Interface chrome (buttons, nav, badges, menu items) shares the headings'
    rounded font, distinct from the body text used for the lesson content
    itself. */
-.dropdown-item, .auth-link, .score-badge, .quiz-choice, .lesson-nav-btn {
+.dropdown-item, .auth-link, .score-badge, .lesson-nav-btn {
   font-family: var(--font-head);
 }
 
@@ -72,11 +72,7 @@ h1, h2, h3 { font-family: var(--font-head); color: var(--ink); margin: 0 0 .4em;
    every page's markup for one consistent header, but only ever filled in
    by reading-progress.js on an actual lesson page (everywhere else it
    just stays at 0% width, invisible). */
-.reading-progress { position: absolute; inset-inline: 0; bottom: -2px; height: 2px; background: transparent; }
-.reading-progress-fill { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .1s linear; }
-@media (prefers-reduced-motion: reduce) {
-  .reading-progress-fill { transition: none; }
-}
+
 .brand {
   display: flex;
   align-items: center;
@@ -278,11 +274,7 @@ button.dropdown-item {
   padding: 44px 0 30px;
   border-bottom: 1px solid var(--line);
 }
-.hero p.lead {
-  color: var(--ink-soft);
-  font-size: 1.05rem;
-  max-width: 60ch;
-}
+
 .breadcrumbs {
   font-size: .85rem;
   color: var(--ink-soft);
@@ -324,15 +316,7 @@ button.dropdown-item {
    user's quiz answers are known. The auto margin hugs it (and the arrow
    after it) against the end, leaving the title text at the start,
    regardless of .group-title's own justify-content. */
-.group-progress {
-  font-size: .8rem;
-  font-weight: 600;
-  background: rgba(255, 255, 255, .22);
-  padding: 3px 10px;
-  border-radius: 999px;
-  margin-inline-start: auto;
-  white-space: nowrap;
-}
+
 .group-arrow { width: 18px; height: 18px; flex: none; transition: transform .2s ease; }
 /* Closed groups point their arrow sideways instead of down, matching a
    typical accordion chevron. */
@@ -365,22 +349,6 @@ button.dropdown-item {
 /* Filled in by homepage-progress.js once a logged-in user has answered
    every quiz question in that lesson - same green already used for
    .nezek-done and a correct quiz choice, so "done" reads consistently. */
-.lesson-card-done {
-  position: absolute;
-  top: 10px;
-  inset-inline-end: 10px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #eaf6ea;
-  color: #1b5e20;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: .8rem;
-  font-weight: 700;
-  box-shadow: var(--shadow);
-}
 
 /* One color (the site's own accent brown) stepping gradually darker from
    the first lesson to the last, instead of a different hue per lesson -
@@ -396,241 +364,41 @@ button.dropdown-item {
 .lesson-card:nth-child(6n+5) h3, .lesson-card:nth-child(6n+6) h3 { color: #fff; }
 
 /* ===== Lesson page ===== */
-.lesson-title-row {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 20px;
-}
+
 .lesson-title {
   font-size: 1.15rem;
   margin: 0;
 }
-.lesson-source {
-  color: var(--ink-soft);
-  font-size: .95rem;
-}
-.intro-box {
-  background: var(--bg-elevated);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 20px 22px;
-  margin: 20px 0 34px;
-  box-shadow: var(--shadow);
-}
+
 /* Headings sit on a full-width accent banner, like a chapter title in a
    colorful textbook, instead of the old bottom-border underline. The
    negative inline margin always escapes .intro-box's own side padding so
    the banner reaches the box's edges; a heading that opens the box (its
    literal first child) also escapes the top padding and picks up the
    box's own corner radius so the banner sits flush with it. */
-.intro-box h2, .intro-box h3 {
-  color: #fff;
-  background: var(--accent);
-  margin: 24px -22px 16px;
-  padding: 14px 22px;
-}
-.intro-box h2 { font-size: 1.3rem; }
-.intro-box h3 { font-size: 1.15rem; padding-block: 11px; margin-bottom: 12px; }
-.intro-box h2:first-child, .intro-box h3:first-child {
-  margin-top: -20px;
-  border-radius: var(--radius) var(--radius) 0 0;
-}
-.intro-box p { margin: 0 0 10px; }
-
-.table-scroll {
-  overflow-x: auto;
-  margin-top: 18px;
-}
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: .9rem;
-  min-width: 560px;
-}
-.data-table th, .data-table td {
-  border: 1px solid var(--line);
-  padding: 8px 10px;
-  text-align: center;
-}
-.data-table th {
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-  font-weight: 600;
-}
-.data-table td:nth-child(2) { text-align: start; color: var(--ink-soft); }
-.data-table td:first-child { font-weight: 600; }
-.avot-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0;
-}
-.avot-list li {
-  padding: 5px 14px;
-  border-radius: 999px;
-  font-size: .9rem;
-  font-weight: 600;
-  color: #fff;
-}
-.avot-list li[data-kind="shen"] { background: var(--shen); }
-.avot-list li[data-kind="regel"] { background: var(--regel); }
-.avot-list li[data-kind="bor"] { background: var(--bor); }
-.avot-list li[data-kind="esh"] { background: var(--esh); }
 
 /* Accordion sections for each Av Nezikin */
-.nezek {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  margin-bottom: 16px;
-  overflow: hidden;
-  background: var(--bg-elevated);
-  box-shadow: var(--shadow);
-}
-.nezek > summary {
-  cursor: pointer;
-  list-style: none;
-  padding: 18px 22px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  font-family: var(--font-head);
-  font-size: 1.3rem;
-  border-inline-start: 6px solid var(--accent);
-}
-.nezek[data-kind="shen"] > summary { border-color: var(--shen); }
-.nezek[data-kind="regel"] > summary { border-color: var(--regel); }
-.nezek[data-kind="bor"] > summary { border-color: var(--bor); }
-.nezek[data-kind="esh"] > summary { border-color: var(--esh); }
 
-.nezek > summary::-webkit-details-marker { display: none; }
-.nezek > summary .icon {
-  font-size: 1.4rem;
-  width: 42px; height: 42px;
-  display: grid; place-items: center;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  flex-shrink: 0;
-}
-.nezek > summary .title-wrap { display: flex; flex-direction: column; gap: 2px; }
-.nezek > summary .subtitle { font-family: var(--font-body); font-size: .82rem; color: var(--ink-soft); font-weight: 400; }
-.nezek > summary .chevron {
-  margin-inline-start: auto;
-  transition: transform .2s ease;
-  color: var(--ink-soft);
-}
-.nezek[open] > summary .chevron { transform: rotate(180deg); }
-
-.nezek-body { padding: 4px 22px 24px; }
-.nezek-body p { margin: 0 0 14px; }
-.nezek-body .definition {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.example {
-  border-top: 1px dashed var(--line);
-  padding-top: 16px;
-  margin-top: 16px;
-  display: grid;
-  gap: 14px;
-}
 /* Media stacks under the text at every width, matching the text's own
    column instead of squeezing into a narrower side-by-side column. */
-.example.with-media .media-slot,
-.example.with-media .media-slot img,
-.example.with-media .media-slot video {
-  width: 100%;
-}
-.example.with-media .media-slot img,
-.example.with-media .media-slot video {
-  height: auto;
-  display: block;
-}
-.example h4 {
-  margin: 0 0 6px;
-  font-size: 1rem;
-  color: var(--accent-strong);
-}
-.example p { margin: 0 0 8px; color: var(--ink); font-size: .96rem; }
-.example p:last-child { margin-bottom: 0; }
-.intro-box p, .example p { text-align: justify; }
 
 /* Media placeholder box: swap for a real <img>/<video> once assets are ready */
-.media-slot {
-  margin: 0;
-  border: 1px dashed var(--line);
-  border-radius: 10px;
-  background: var(--accent-soft);
-  color: var(--ink-soft);
-  min-height: 140px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  text-align: center;
-  padding: 14px;
-  font-size: .8rem;
-}
-.media-slot .icon { font-size: 1.6rem; }
-.media-slot code {
-  background: var(--bg-elevated);
-  padding: 2px 6px;
-  border-radius: 6px;
-  direction: ltr;
-  display: inline-block;
-  font-size: .72rem;
-}
-
-.nezek-done {
-  font-size: .8rem;
-  font-weight: 600;
-  color: #1b5e20;
-  background: #eaf6ea;
-  padding: 4px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
-
-.glossary-list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 12px;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
-}
-.glossary-list li {
-  background: var(--accent-soft);
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: .9rem;
-}
 
 /* Text emphasis: content paragraphs sit on a tinted band that extends a
    little past the text on each side (equal negative margin + padding keep
    the text itself at the same position as every other paragraph) without
    reaching all the way to the card's own edge; introduction paragraphs
    stay in a muted ink tone. Neither uses bold weight. */
-.p-strong {
-  font-weight: 400;
-  background: var(--accent-faint);
-  padding-block: 10px;
-  padding-inline: 12px;
-}
+
 /* Scoped to .intro-box .p-strong (not just .p-strong) so this beats
    .intro-box p's margin: 0 0 10px on specificity (0,1,1 vs 0,1,0) -
    otherwise that rule silently zeroes this margin-inline back out while
    the padding above still applies, leaving the text pushed in with
    nothing pulling the box back out. */
-.intro-box .p-strong { margin-inline: -12px; }
+
 /* Consecutive content paragraphs merge into one continuous band instead of
    showing a gap of page background between them. */
-.p-strong + .p-strong { margin-top: -10px; }
+
 /* Headings no longer merge into the paragraph band below them - each now
    carries its own solid banner (see .intro-box h2/h3 above), which already
    reads as a clear division on its own. A paragraph right after a heading
@@ -642,15 +410,6 @@ button.dropdown-item {
    paragraph is "the end" when no .p-strong immediately follows it. Either
    can be true alone (rounding just that side) or both at once (a lone
    paragraph with no neighbors, rounded on all four corners). */
-.intro-box .p-strong:not(.p-strong + .p-strong) {
-  border-start-start-radius: 8px;
-  border-start-end-radius: 8px;
-}
-.intro-box .p-strong:not(:has(+ .p-strong)) {
-  border-end-start-radius: 8px;
-  border-end-end-radius: 8px;
-}
-.p-light { color: var(--ink-soft); font-weight: 400; }
 
 /* ===== Score badge ===== */
 /* An <a> to achievements.html (see homepage-progress note above), so it
@@ -719,27 +478,6 @@ button.dropdown-item {
 .achv-next { font-size: .85rem; color: var(--ink-soft); }
 .achv-milestones { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 18px; }
 
-.achv-group { margin-bottom: 26px; }
-.achv-group h2 { font-size: 1.1rem; margin-bottom: 10px; }
-.achv-lesson-list { display: flex; flex-direction: column; gap: 8px; }
-.achv-lesson-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 10px 14px;
-  text-decoration: none;
-  color: var(--ink);
-  font-size: .92rem;
-}
-.achv-lesson-row:hover { border-color: var(--accent); }
-.achv-lesson-stat { font-weight: 600; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.achv-lesson-stat.complete { color: #1b5e20; }
-.loading-msg { color: var(--ink-soft); font-size: .9rem; padding: 20px 0; text-align: center; }
-
 /* ===== Quiz ===== */
 .quiz {
   background: var(--accent-soft);
@@ -747,157 +485,16 @@ button.dropdown-item {
   padding: 16px 18px;
   margin: 18px 0;
 }
-.quiz .quiz-question {
-  font-weight: 700;
-  margin: 0 0 12px;
-}
-.quiz-choices {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.quiz-choice {
-  text-align: start;
-  font-size: .95rem;
-  font-weight: 600;
-  padding: 13px 16px;
-  border: 2px solid var(--line);
-  border-radius: 14px;
-  background: var(--bg-elevated);
-  color: var(--ink);
-  cursor: pointer;
-  box-shadow: 0 3px 0 var(--line);
-  transition: transform .08s ease, box-shadow .08s ease, border-color .15s ease;
-  min-height: 44px;
-}
-.quiz-choice:hover:not(:disabled) { border-color: var(--accent); }
-.quiz-choice:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
-.quiz-choice:disabled { cursor: default; }
-.quiz-choice.correct {
-  border-color: #2e7d32;
-  background: #eaf6ea;
-  color: #1b5e20;
-  box-shadow: 0 3px 0 #2e7d32;
-  animation: choice-pop .5s ease-out;
-}
-.quiz-choice.incorrect {
-  border-color: #b23b2e;
-  background: #fdeceb;
-  color: #8a2e24;
-  box-shadow: 0 3px 0 #b23b2e;
-}
+
 @keyframes choice-pop {
   0% { transform: scale(1); }
   40% { transform: scale(1.05); }
   100% { transform: scale(1); }
 }
-@media (prefers-reduced-motion: reduce) {
-  .quiz-choice.correct { animation: none; }
-}
-.quiz-body { position: relative; }
-.quiz-body .quiz-feedback {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 1.3rem;
-  font-weight: 700;
-}
-.quiz-feedback.correct { background: #eaf6ea; color: #1b5e20; }
-.quiz-feedback.incorrect { background: #fdeceb; color: #8a2e24; }
 
-.confetti-piece {
-  position: absolute;
-  top: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  opacity: 0;
-  animation-name: confetti-fall;
-  animation-timing-function: ease-in;
-  animation-fill-mode: forwards;
-  pointer-events: none;
-}
 @keyframes confetti-fall {
   0% { opacity: 1; transform: translateY(0) rotate(0deg); }
   100% { opacity: 0; transform: translateY(150px) rotate(560deg); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .confetti-piece { display: none; }
-}
-
-.quiz-group {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  text-align: center;
-  min-height: 40px;
-  /* The lighter end of the gradient is darkened just here (not in --sun
-     itself, which is used elsewhere at its normal brightness) - the plain
-     gold failed WCAG AA contrast (2.44:1) against the white title text;
-     this passes at ~4.7:1. */
-  background: linear-gradient(135deg, color-mix(in srgb, var(--sun) 70%, black), var(--esh));
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin: 18px 0;
-  box-sizing: border-box;
-}
-.quiz-group.open {
-  display: block;
-  min-height: 0;
-  text-align: start;
-  background: none;
-  border-radius: 0;
-  padding: 0;
-}
-.quiz-group .quiz-group-title {
-  font-family: var(--font-head);
-  font-size: 1rem;
-  font-weight: 700;
-  line-height: 1;
-  color: #fff;
-  margin: 0;
-}
-.quiz-group .quiz-group-done {
-  font-family: var(--font-head);
-  font-size: 1.2rem;
-  font-weight: 700;
-  line-height: 1;
-  color: #fff;
-  margin: 0;
-}
-.quiz-reveal-btn {
-  font-family: var(--font-head);
-  font-size: .8rem;
-  font-weight: 700;
-  line-height: 1;
-  padding: 8px 18px;
-  border: none;
-  border-radius: 999px;
-  background: #fff;
-  color: var(--esh);
-  cursor: pointer;
-  box-shadow: 0 3px 0 rgba(255, 255, 255, .5);
-  transition: transform .08s ease, box-shadow .08s ease;
-}
-.quiz-reveal-btn:hover { opacity: .9; }
-.quiz-reveal-btn:active { transform: translateY(2px); box-shadow: none; }
-.quiz-group-body .quiz { margin: 0; }
-.quiz .quiz-progress {
-  margin: 10px 0 0;
-  text-align: center;
-  font-size: .85rem;
-  font-weight: 600;
-  color: var(--accent-strong);
 }
 
 footer.site-footer {
@@ -908,16 +505,6 @@ footer.site-footer {
   text-align: center;
 }
 
-.lesson-nav {
-  display: flex;
-  /* Grouped together (not spread to the container's edges) and with no
-     gap, so the asymmetric corners on the two buttons below actually
-     meet and read as one connected pill split into two halves. */
-  justify-content: center;
-  gap: 0;
-  flex-wrap: wrap;
-  margin: 34px 0 10px;
-}
 .lesson-nav-btn {
   display: inline-block;
   font-family: inherit;
@@ -942,26 +529,9 @@ footer.site-footer {
 .lesson-nav-btn:hover { opacity: .9; transform: translateX(-4px); }
 /* A lone button (first/last lesson) has no partner to connect to, so it
    gets its full pill shape back. */
-.lesson-nav.single .lesson-nav-btn { border-radius: 999px; }
-.lesson-nav-btn--secondary {
-  background: none;
-  border: 1px solid var(--line);
-  color: var(--ink);
-  /* This one (prev) sits on the inline-start side of the pair, so it
-     rounds the opposite corners from .lesson-nav-btn above. */
-  border-radius: 0;
-  border-start-start-radius: 999px;
-  border-end-start-radius: 999px;
-}
-.lesson-nav.single .lesson-nav-btn--secondary { border-radius: 999px; }
-.lesson-nav-btn--secondary:hover {
-  opacity: 1;
-  transform: translateX(4px);
-  border-color: var(--accent);
-  color: var(--accent-strong);
-}
+
 @media (prefers-reduced-motion: reduce) {
-  .lesson-nav-btn:hover, .lesson-nav-btn--secondary:hover { transform: none; }
+  .lesson-nav-btn:hover{ transform: none; }
 }
 
 /* ===========================================================
@@ -969,30 +539,6 @@ footer.site-footer {
    authorized account (content-editor.js checks this before
    adding any of it), so none of this is seen by readers.
    =========================================================== */
-
-.ed-editable:hover { outline: 1px dashed var(--accent); outline-offset: 2px; cursor: text; }
-.ed-editable:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
-.ed-quiz-block:hover { outline: 1px dashed var(--accent); outline-offset: 3px; border-radius: 10px; }
-.ed-quiz-editing { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 10px; }
-
-.ed-status {
-  position: fixed;
-  bottom: 14px;
-  inset-inline-end: 14px;
-  z-index: 500;
-  font-family: var(--font-body);
-  font-size: .8rem;
-  font-weight: 600;
-  padding: 7px 14px;
-  border-radius: 999px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--line);
-  color: var(--ink-soft);
-  box-shadow: var(--shadow);
-}
-.ed-status-saving { color: var(--ink-soft); }
-.ed-status-saved { color: #3a7d44; }
-.ed-status-error { color: #b23b3b; }
 
 .ed-toolbar {
   position: absolute;
@@ -1021,38 +567,7 @@ footer.site-footer {
 .ed-ctrl-btn:hover { background: rgba(255, 255, 255, 0.18); }
 .ed-ctrl-active { background: var(--accent); }
 .ed-ctrl-del:hover { background: #b23b3b; }
-.ed-ctrl-style { font-size: .72rem; }
 
-.ed-add-wrap { position: relative; display: inline-flex; }
-.ed-add-flyout {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 601;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 160px;
-  padding: 5px;
-  border-radius: 8px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow);
-}
-.ed-add-option {
-  font-family: var(--font-body);
-  font-size: .82rem;
-  text-align: right;
-  padding: 7px 10px;
-  border: none;
-  border-radius: 6px;
-  background: none;
-  color: var(--ink);
-  cursor: pointer;
-}
-.ed-add-option:hover { background: var(--accent-soft); }
-
-.ed-new-box-row,
 .ed-new-lesson-tile {
   display: flex;
   justify-content: center;
@@ -1101,44 +616,5 @@ footer.site-footer {
 }
 .ed-new-lesson-actions { display: flex; gap: 8px; }
 .ed-field-status { margin: 8px 0 0; font-size: .8rem; color: #b23b3b; }
-
-.ed-bubble {
-  position: absolute;
-  z-index: 600;
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 8px;
-  background: var(--ink);
-  box-shadow: var(--shadow);
-  transform: translateX(-50%);
-}
-.ed-bubble-btn {
-  font-family: var(--font-body);
-  font-size: .76rem;
-  font-weight: 700;
-  color: #fff;
-  background: none;
-  border: none;
-  border-radius: 6px;
-  padding: 5px 9px;
-  cursor: pointer;
-}
-.ed-bubble-btn:hover { background: rgba(255, 255, 255, 0.18); }
-.ed-bubble-italic { font-style: italic; }
-
-.ed-quiz-dot {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-inline-end: 8px;
-  border-radius: 50%;
-  border: 2px solid var(--line);
-  background: var(--bg-elevated);
-  vertical-align: middle;
-  cursor: pointer;
-}
-.ed-quiz-dot-correct { background: #3a7d44; border-color: #3a7d44; }
-.ed-quiz-text { outline: none; }
 
 .ed-busy { opacity: .5; pointer-events: none; }

@@ -89,15 +89,11 @@ async function loadIndex() {
 const evalLesson = (src) => JSON.parse(src);
 const dataUrl = (href) => href.replace(/^lessons\/([^/]+)\.html$/, "lessons/data/$1.json");
 
-// Lesson content lives in lessons/data/<id>.json; a page without one is
-// read from its own HTML (older format, .intro-box).
+// Lesson content lives in lessons/data/<id>.json.
 async function loadLesson(href) {
   const r = await fetch(dataUrl(href), { cache: "no-cache" });
-  if (r.ok) return { kind: "new", L: await r.json() };
-  const html = await (await fetch(href, { cache: "no-cache" })).text();
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  return { kind: "old", title: (doc.querySelector(".lesson-title") || {}).textContent || href,
-    ref: (doc.querySelector(".lesson-source") || {}).textContent || "", boxes: [...doc.querySelectorAll(".intro-box")] };
+  if (!r.ok) throw new Error(r.status);
+  return { L: await r.json() };
 }
 
 // For editing, read the lesson straight from the repository (the site
@@ -106,10 +102,9 @@ async function loadLesson(href) {
 async function loadForEdit(href) {
   const d = DATA[href];
   if (d && d.base) return;
-  if (d && d.kind === "old") return;
   try {
     const res = await httpsCallable(fns, "getLessonData")({ path: href });
-    DATA[href] = { kind: "new", L: evalLesson(res.data.src), base: res.data.src };
+    DATA[href] = { L: evalLesson(res.data.src), base: res.data.src };
   } catch (e) {
     if (!d) DATA[href] = await loadLesson(href).catch(() => null);
     if (DATA[href]) DATA[href].noEdit = true;
@@ -123,7 +118,7 @@ function table(t) {
 }
 
 // ed(path, html, placeholder): an editable piece in edit mode, plain text otherwise.
-function renderNew(href, d, o) {
+function renderLesson(href, d, o) {
   const L = d.L, editable = EDIT && !d.noEdit && d.base;
   const ed = (p, v, ph = "") => editable ? ` contenteditable="true" data-h="${esc(href)}" data-p="${p}" data-ph="${esc(ph)}">${v}` : `>${clean(v)}`;
   let h = `<h1>${clean(L.title)}</h1><p class="ref">${esc(L.ref || "")}</p>`, last = -1;
@@ -158,25 +153,6 @@ function renderNew(href, d, o) {
   return h;
 }
 
-function renderOld(d, o) {
-  let h = `<h1>${esc(d.title.trim())}</h1><p class="ref">${esc(d.ref.trim())}</p>`;
-  if (EDIT) h += `<p class="note">את השיעור הזה אי אפשר לערוך מכאן.</p>`;
-  d.boxes.forEach((box) => box.querySelectorAll("h2,h3,p,li,.quiz,table").forEach((el) => {
-    if (el.closest(".quiz") && !el.matches(".quiz")) return;
-    if (el.closest("table") && el.tagName !== "TABLE") return;
-    if (el.matches(".quiz")) {
-      if (!o.q) return;
-      const bs = [...el.querySelectorAll(".quiz-choice")], a = bs.findIndex((b) => b.dataset.correct === "true");
-      h += `<p class="q">${esc(el.querySelector(".quiz-question").textContent)}</p><ol>${bs.map((b, i) => `<li class="${o.a && i === a ? "ok" : ""}">${esc(b.textContent)}${o.a && i === a ? " ✓" : ""}</li>`).join("")}</ol>`;
-      return;
-    }
-    if (el.tagName === "TABLE") { if (o.x) h += el.outerHTML; return; }
-    if (/^H/.test(el.tagName)) h += `<h2>${esc(el.textContent.trim())}</h2>`;
-    else h += `<p>${clean(el.innerHTML.trim())}</p>`;
-  }));
-  return h;
-}
-
 const chosen = () => [...document.querySelectorAll("#pick input[data-href]:checked")].map((c) => c.dataset.href);
 async function render(focus) {
   const o = { q: $("optQ").checked, a: $("optA").checked, x: $("optX").checked }, list = chosen();
@@ -188,7 +164,7 @@ async function render(focus) {
   $("page").classList.toggle("editing", EDIT);
   $("page").innerHTML = list.map((h) => {
     const d = DATA[h];
-    return !d ? `<p class="empty">לא נטען: ${esc(h)}</p>` : d.kind === "new" ? renderNew(h, d, o) : renderOld(d, o);
+    return d ? renderLesson(h, d, o) : `<p class="empty">לא נטען: ${esc(h)}</p>`;
   }).join("");
   hideTb();
   if (focus) {

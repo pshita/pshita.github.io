@@ -78,7 +78,6 @@ function groupPanelsHtml(groups) {
       <div class="group-panel">
         <button type="button" class="group-title dropdown-trigger">
           <span>${escapeText(g.title)}</span>
-          <span class="group-progress" hidden></span>
           ${ARROW("group-arrow")}
         </button>
         <div class="dropdown-menu lessons-menu">

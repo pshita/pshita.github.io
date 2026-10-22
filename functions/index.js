@@ -4,7 +4,6 @@ const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const logger = require("firebase-functions/logger");
-const cheerio = require("cheerio");
 const {
   MENU_PAGES, formatLessonJson, formatSiteJson, lessonShellHtml, newLessonData, setIndexPanels, setMenu,
 } = require("./site");
@@ -47,8 +46,7 @@ async function sendSms({ key, user, pass, sender, recipient, msg }) {
 }
 
 // Fires on every write to a user's quiz-progress doc (users/{uid}/progress/quiz),
-// which quiz.js updates each time a question is answered correctly for the
-// first time. Compares the score before/after the write; if it just crossed
+// which holds one entry per question answered correctly (see score.js). Compares the score before/after the write; if it just crossed
 // a new MILESTONE_STEP multiple, texts the parents.
 exports.notifyParentsOnQuizMilestone = onDocumentWritten(
   {
@@ -95,8 +93,8 @@ exports.notifyParentsOnQuizMilestone = onDocumentWritten(
 );
 
 // ---------------------------------------------------------------------
-// Admin content panel: commits lesson edits straight to the GitHub repo
-// so the change is baked into the static HTML (no runtime DB lookup).
+// Admin content editing: every change is committed straight to the
+// GitHub repo that serves the site.
 // ---------------------------------------------------------------------
 
 const REPO_OWNER = "pshita";
@@ -116,76 +114,6 @@ function isValidLessonId(id) {
 // normalized), first 32 hex chars, prefixed "u", @arba-avot-users.local.
 const ALLOWED_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 
-// Paragraph text may carry lightweight inline markup: **bold** and
-// _italic_, matching what admin.html's textarea buttons insert. Escape
-// everything else first so the markers are the only way to produce tags.
-function escapeHtml(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-function markdownLiteToHtml(text) {
-  let out = escapeHtml(text);
-  out = out.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  out = out.replace(/_(.+?)_/g, "<em>$1</em>");
-  return out;
-}
-
-function renderQuizBlock($, block) {
-  const $div = $("<div></div>").addClass("quiz");
-  $div.attr("data-question-id", block.qid || "");
-  if (block.marksSection) $div.attr("data-marks-section", block.marksSection);
-
-  const $q = $("<p></p>").addClass("quiz-question").text(block.question || "");
-  const $choicesWrap = $("<div></div>").addClass("quiz-choices");
-  (block.choices || []).forEach((c) => {
-    const $btn = $("<button></button>").attr("type", "button").addClass("quiz-choice").text(c.text || "");
-    $btn.attr("data-correct", c.correct ? "true" : "false");
-    $choicesWrap.append($btn);
-  });
-  const $feedback = $("<p></p>").addClass("quiz-feedback").attr("hidden", "");
-
-  $div.append($q).append($choicesWrap).append($feedback);
-  return $div;
-}
-
-// Builds one cheerio element per "box" block (a fresh <div class="intro-box">),
-// appending every block that follows it until the next box marker.
-function renderBoxes($, sections) {
-  const boxes = [];
-  let $current = null;
-  (sections || []).forEach((block) => {
-    if (block.type === "box") {
-      $current = $("<div></div>").addClass("intro-box");
-      boxes.push($current);
-      return;
-    }
-    if (!$current) return;
-    if (block.type === "heading") {
-      const tag = ["h1", "h2", "h3"].includes(block.tag) ? block.tag : "h3";
-      const $el = $(`<${tag}></${tag}>`).text(block.text || "");
-      if (block.cls) $el.addClass(block.cls);
-      $current.append($el);
-    } else if (block.type === "paragraphs") {
-      (block.items || []).forEach((it) => {
-        const $p = $("<p></p>").html(markdownLiteToHtml(it.text || ""));
-        if (it.cls) $p.addClass(it.cls);
-        $current.append($p);
-      });
-    } else if (block.type === "quiz") {
-      $current.append(renderQuizBlock($, block));
-    } else if (block.type === "raw" && block.html) {
-      $current.append($(block.html));
-    }
-  });
-  return boxes;
-}
-
-function validateSections(sections) {
-  if (!Array.isArray(sections) || sections.length === 0) return false;
-  if (sections[0].type !== "box") return false;
-  return sections.every((b) => ["box", "heading", "paragraphs", "quiz", "raw"].includes(b.type));
-}
-
 async function githubRequest(path, { method = "GET", token, body } = {}) {
   const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/${path}`, {
     method,
@@ -204,99 +132,8 @@ async function githubRequest(path, { method = "GET", token, body } = {}) {
   return res.json();
 }
 
-async function updateLessonFile({ lessonId, titleText, sections, token }) {
-  const path = `contents/lessons/${lessonId}.html`;
-  const current = await githubRequest(`${path}?ref=${REPO_BRANCH}`, { token });
-  const currentHtml = Buffer.from(current.content, "base64").toString("utf8");
-
-  const $ = cheerio.load(currentHtml);
-
-  if (typeof titleText === "string" && titleText.trim()) {
-    $(".lesson-title-row h1").text(titleText);
-  }
-
-  const existingBoxes = $(".intro-box");
-  if (existingBoxes.length === 0) throw new Error("No .intro-box found in lesson file");
-  const $anchor = existingBoxes.first();
-  existingBoxes.slice(1).remove();
-
-  const newBoxes = renderBoxes($, sections);
-  newBoxes.forEach(($box) => $anchor.before($box));
-  $anchor.remove();
-
-  const newHtml = $.html();
-
-  await githubRequest(path, {
-    method: "PUT",
-    token,
-    body: {
-      message: `עדכון תוכן: ${lessonId} (דרך פאנל הניהול)`,
-      content: Buffer.from(newHtml, "utf8").toString("base64"),
-      sha: current.sha,
-      branch: REPO_BRANCH,
-    },
-  });
-}
-
-exports.saveLessonContent = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
-  if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
-    throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
-  }
-
-  const { lessonId, titleText, sections } = request.data || {};
-  if (!isValidLessonId(lessonId)) {
-    throw new HttpsError("invalid-argument", "שיעור לא מוכר.");
-  }
-  if (!validateSections(sections)) {
-    throw new HttpsError("invalid-argument", "מבנה התוכן שגוי.");
-  }
-
-  try {
-    await updateLessonFile({ lessonId, titleText, sections, token: GITHUB_TOKEN.value() });
-    return { ok: true };
-  } catch (err) {
-    logger.error(`saveLessonContent failed for ${lessonId}`, err);
-    throw new HttpsError("internal", "השמירה נכשלה. נסו שוב.");
-  }
-});
-
-// ---------------------------------------------------------------------
-// Structure-agnostic text editing: the admin edits a piece of text where it
-// shows on the page, and this replaces that exact text inside the page's
-// source file - whether it sits in the HTML itself (between > and <) or in
-// a JS string the page renders from (like the question-player lessons'
-// LESSON data). Only whole values are replaced (the full text between its
-// delimiters), never a fragment inside a longer string.
-// ---------------------------------------------------------------------
-
+// Lesson pages a text edit may come from.
 const EDITABLE_PATH_RE = /^lessons\/[a-z0-9]+(-[a-z0-9]+)*\.html$/;
-
-function escapeRegExp(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function jsQuote(s, q) {
-  return s
-    .replace(/\\/g, "\\\\")
-    .replace(new RegExp(q, "g"), "\\" + q)
-    .replace(/\r?\n/g, "\\n")
-    .replace(/<\//g, "<\\/");
-}
-
-function replaceWholeValue(src, oldText, newText) {
-  let count = 0;
-  let out = src;
-  // Inside a JS string literal: '...', "..." or `...`.
-  for (const q of ["'", '"', "`"]) {
-    const re = new RegExp(escapeRegExp(q + jsQuote(oldText, q) + q), "g");
-    out = out.replace(re, () => { count++; return q + jsQuote(newText, q) + q; });
-  }
-  // As an HTML text value: >old<
-  const reHtml = new RegExp(">(\\s*)" + escapeRegExp(oldText) + "(\\s*)<", "g");
-  out = out.replace(reHtml, (m, a, b) => { count++; return ">" + a + newText + b + "<"; });
-  return { out, count };
-}
-
 
 // ---------------------------------------------------------------------
 // Site data (see site.js for the layout):
@@ -345,9 +182,7 @@ function replaceInJson(value, pairs) {
 }
 
 // Text edited in place on a lesson page: the page path comes in
-// (lessons/<id>.html); the text lives in that lesson's data file. Pages
-// that still carry their own content (older formats) are edited in the
-// page file itself.
+// (lessons/<id>.html); the text lives in that lesson's data file.
 exports.replaceLessonText = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
     throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
@@ -367,25 +202,15 @@ exports.replaceLessonText = onCall({ secrets: [GITHUB_TOKEN] }, async (request) 
 
   const token = GITHUB_TOKEN.value();
   const id = idFromPagePath(path);
-  let file, filePath, result;
+  const filePath = dataPath(id);
+  let file;
   try {
-    filePath = dataPath(id);
     file = await readRepoFile(filePath, token);
-    const r = replaceInJson(JSON.parse(file.text), pairs);
-    result = r && { out: formatLessonJson(r.out), count: r.count };
   } catch (err) {
-    filePath = path;
-    try {
-      file = await readRepoFile(filePath, token);
-    } catch (e) {
-      throw new HttpsError("not-found", "העמוד לא נמצא.");
-    }
-    result = null;
-    for (const [oldText, newText] of pairs) {
-      const r = replaceWholeValue(file.text, oldText, newText);
-      if (r.count) { result = r; break; }
-    }
+    throw new HttpsError("not-found", "העמוד לא נמצא.");
   }
+  const r = replaceInJson(JSON.parse(file.text), pairs);
+  const result = r && { out: formatLessonJson(r.out), count: r.count };
   if (!result) {
     throw new HttpsError("not-found", "את הטקסט הזה אי אפשר לערוך מכאן (הוא לא נמצא בקובץ כמו שהוא).");
   }
