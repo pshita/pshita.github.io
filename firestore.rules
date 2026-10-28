@@ -11,5 +11,12 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == uid;
       }
     }
+
+    // Lessons being written that aren't on the site yet (text.html "עריכה").
+    // Only the site admin.
+    match /drafts/{id} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email == "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
+    }
   }
 }

@@ -14,19 +14,18 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 .bar{position:sticky;top:0;z-index:3;background:#f7f7f8;border-bottom:1px solid var(--line);padding:8px 16px;display:flex;flex-wrap:nowrap;gap:14px;align-items:center;font-size:14px;overflow-x:auto;white-space:nowrap}
 .bar a{color:var(--accent)}
 .bar button{font:inherit;padding:5px 11px;border:1px solid #bbb;border-radius:6px;background:#fff;cursor:pointer;flex:none}
-.bar button:disabled{opacity:.5;cursor:default}
 .bar label{display:inline-flex;gap:5px;align-items:center;cursor:pointer;flex:none}
 .bar .sep{width:1px;align-self:stretch;background:var(--line);flex:none}
-.bar .amud.open{background:#e8eef8;border-color:var(--accent)}
-.bar .amud small{color:var(--muted)}
-#save{background:var(--accent);border-color:var(--accent);color:#fff}
-#msg{font-weight:700}
-#msg.err{color:#b00020}
-.panel{position:fixed;z-index:4;background:#fff;border:1px solid #bbb;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15);padding:8px 0;font-size:14px;max-height:70vh;overflow-y:auto;min-width:220px;max-width:calc(100vw - 16px)}
+.bar .menu.open{background:#e8eef8;border-color:var(--accent)}
+.bar .menu small{color:var(--muted)}
+#menus{display:flex;gap:8px}
+#msg{font-weight:700;color:#b00020}
+/* lesson pickers: about 10 rows, then scroll */
+.panel{position:fixed;z-index:4;background:#fff;border:1px solid #bbb;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15);padding:6px 0;font-size:14px;max-height:316px;overflow-y:auto;min-width:220px;max-width:calc(100vw - 16px)}
 .panel[hidden]{display:none}
-.panel label{display:flex;gap:8px;align-items:center;padding:5px 14px;cursor:pointer;white-space:nowrap}
+.panel label{display:flex;gap:8px;align-items:center;height:30px;padding:0 14px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .panel label:hover{background:#f3f3f5}
-.panel label.all{font-weight:700;border-bottom:1px solid var(--line);margin-bottom:4px;padding-bottom:7px}
+.panel label.new{color:var(--muted)}
 .page{max-width:820px;margin:16px auto 40px;background:var(--page);box-shadow:0 1px 4px rgba(0,0,0,.15);padding:56px 64px;font-family:var(--text);font-size:17px;line-height:1.5}
 .page h1{font-size:25px;font-weight:700;margin:0 0 2px}
 .page h1:not(:first-child){margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
@@ -41,11 +40,11 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 .page td,.page th{border:1px solid #999;padding:3px 8px}
 .page .note{color:var(--muted);font-size:14px;font-family:Arial,sans-serif}
 .empty{color:var(--muted)}
+.page [data-ph]:empty::before{content:attr(data-ph);color:#aaa}
 /* edit mode (double-click any text, admin only) */
 .editing [contenteditable]{outline:none;border-radius:3px;transition:background .15s}
 .editing [contenteditable]:hover{background:#f6f6f6}
 .editing [contenteditable]:focus{background:var(--edit)}
-.editing [contenteditable]:empty::before{content:attr(data-ph);color:#aaa}
 #tb{position:absolute;z-index:2;font:13px Arial,sans-serif}
 #tb[hidden]{display:none}
 #tb button{font:inherit;padding:3px 10px;border:1px solid #bbb;border-radius:5px;background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
@@ -59,8 +58,7 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
   <label><input type="checkbox" id="optQ" checked> שאלות</label>
   <button type="button" id="word">Word</button>
   <span class="sep"></span>
-  <span id="amudim"></span>
-  <button type="button" id="save" hidden>שמירה</button>
+  <span id="menus"></span>
   <span id="msg"></span>
 </div>
 <div class="page" id="page"><p class="empty">טוען…</p></div>
@@ -68,25 +66,31 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 <div id="tb" hidden></div>
 
 <script type="module">
-// Firebase is loaded only for the admin's editing, so reading never depends on it.
-let auth = null, httpsCallable = null, isAdmin = false;
+// Pages shown here, by key:
+//   "lessons/<id>.html" - a lesson on the site (content in lessons/data/<id>.json, saved to GitHub)
+//   "draft:<id>"        - a lesson being written, not on the site yet (Firestore, admin only)
+//   "draft:new"         - the empty page at the end of the "עריכה" menu; typing in it makes it a draft
+// Firebase is loaded only for the admin, so reading never depends on it.
+let auth = null, httpsCallable = null, fns = null, fs = null, isAdmin = false;
 
 const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
+const SEL_KEY = "pshita.text.selected";
+const NEW = "draft:new";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-let GROUPS = [], DATA = {}, EDIT = false, fns = null;
-const DIRTY = new Set();
+const isDraft = (key) => key.startsWith("draft:");
+let GROUPS = [], DRAFTS = [], DATA = {}, EDIT = false;
+let SELECTED = [];
 
 // ---------- loading ----------
 async function loadIndex() {
   const site = await (await fetch("lessons.json", { cache: "no-cache" })).json();
-  GROUPS = site.groups.map((g) => ({ name: g.title, lessons: g.lessons.map((l) => ({ href: `lessons/${l.id}.html`, title: l.title })) }));
+  GROUPS = site.groups.map((g) => ({ name: g.title, lessons: g.lessons.map((l) => ({ key: `lessons/${l.id}.html`, title: l.title })) }));
 }
 
-const evalLesson = (src) => JSON.parse(src);
 const dataUrl = (href) => href.replace(/^lessons\/([^/]+)\.html$/, "lessons/data/$1.json");
+const newDraftData = () => ({ title: "", ref: "", stations: [""], screens: [{ type: "read", st: 0, text: [""] }] });
 
-// Lesson content lives in lessons/data/<id>.json.
 async function loadLesson(href) {
   const r = await fetch(dataUrl(href), { cache: "no-cache" });
   if (!r.ok) throw new Error(r.status);
@@ -101,27 +105,43 @@ async function loadForEdit(href) {
   if (d && d.base) return;
   try {
     const res = await httpsCallable(fns, "getLessonData")({ path: href });
-    DATA[href] = { L: evalLesson(res.data.src), base: res.data.src };
+    DATA[href] = { L: JSON.parse(res.data.src), base: res.data.src };
   } catch (e) {
     if (!d) DATA[href] = await loadLesson(href).catch(() => null);
     if (DATA[href]) DATA[href].noEdit = true;
   }
 }
 
+async function loadDrafts() {
+  const snap = await fs.getDocs(fs.collection(auth.getDb(), "drafts"));
+  DRAFTS = [];
+  snap.forEach((doc) => {
+    const v = doc.data();
+    let L;
+    try { L = JSON.parse(v.data); } catch (e) { return; }
+    DRAFTS.push({ id: doc.id, createdAt: v.createdAt || 0 });
+    DATA["draft:" + doc.id] = { L, draft: true, createdAt: v.createdAt || 0 };
+  });
+  DRAFTS.sort((a, b) => a.createdAt - b.createdAt);
+  DATA[NEW] = { L: newDraftData(), draft: true };
+}
+
 // ---------- rendering ----------
 // keep only bold/italic, without attributes (colors etc. belong to the lesson design)
 const clean = (s) => String(s).replace(/<(\/?)(b|strong|i|em)\b[^>]*>/gi, "\x01$1$2\x02").replace(/<[^>]*>/g, "").replace(/\x01/g, "<").replace(/\x02/g, ">");
+const plain = (s) => clean(s).replace(/<[^>]*>/g, "").trim();
 function table(t) {
   return `<table><tr>${t.cols.map((c) => `<th>${clean(c)}</th>`).join("")}</tr>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${clean(c && c.v !== undefined ? c.v : c)}</td>`).join("")}</tr>`).join("")}</table>`;
 }
 
 // Every editable piece carries its place in the lesson data (data-p), so a
 // double-click can find it again once edit mode is on.
-function renderLesson(href, d, q) {
-  const L = d.L, editable = EDIT && !d.noEdit && d.base;
-  const ed = (p, v, ph = "") => ` data-h="${esc(href)}" data-p="${p}"` + (editable ? ` contenteditable="true" data-ph="${esc(ph)}">${v}` : `>${clean(v)}`);
-  let h = `<h1>${clean(L.title)}</h1><p class="ref">${esc(L.ref || "")}</p>`, last = -1;
+function renderLesson(key, d, q) {
+  const L = d.L, editable = EDIT && (d.draft || (!d.noEdit && d.base));
+  const ed = (p, v, ph = "") => ` data-h="${esc(key)}" data-p="${p}" data-ph="${esc(ph)}"` + (editable ? ` contenteditable="true">${v}` : `>${clean(v)}`);
+  let h = d.draft ? `<h1${ed("tt", L.title, "שם השיעור")}</h1>` : `<h1>${clean(L.title)}</h1><p class="ref">${esc(L.ref || "")}</p>`;
   if (EDIT && !editable) h += `<p class="note">את השיעור הזה אי אפשר לערוך מכאן.</p>`;
+  let last = -1;
   L.screens.forEach((s, si) => {
     const shown = s.type === "read" || (q && !["intro", "summary"].includes(s.type));
     if (shown && s.st !== undefined && s.st !== last && L.stations[s.st] !== undefined) {
@@ -152,18 +172,18 @@ function renderLesson(href, d, q) {
   return h;
 }
 
-const chosen = () => [...document.querySelectorAll("#panels input[data-href]:checked")].map((c) => c.dataset.href);
 async function render(focus) {
-  const list = chosen();
-  if (!list.length) { $("page").innerHTML = '<p class="empty">לא נבחרו שיעורים.</p>'; return; }
-  await Promise.all(list.map(async (href) => {
-    if (EDIT) await loadForEdit(href);
-    else if (!DATA[href]) DATA[href] = await loadLesson(href).catch(() => null);
+  const list = SELECTED.filter((k) => !isDraft(k) || DATA[k]);
+  if (!list.length) { $("page").innerHTML = '<p class="empty">בחרו שיעור בתפריט למעלה.</p>'; return; }
+  await Promise.all(list.map(async (key) => {
+    if (isDraft(key)) return;
+    if (EDIT) await loadForEdit(key);
+    else if (!DATA[key]) DATA[key] = await loadLesson(key).catch(() => null);
   }));
   $("page").classList.toggle("editing", EDIT);
-  $("page").innerHTML = list.map((h) => {
-    const d = DATA[h];
-    return d ? renderLesson(h, d, $("optQ").checked) : `<p class="empty">לא נטען: ${esc(h)}</p>`;
+  $("page").innerHTML = list.map((k) => {
+    const d = DATA[k];
+    return d ? renderLesson(k, d, $("optQ").checked) : `<p class="empty">לא נטען: ${esc(k)}</p>`;
   }).join("");
   hideTb();
   if (focus) {
@@ -176,42 +196,63 @@ async function render(focus) {
   }
 }
 
-// ---------- lesson picker: one dropdown per page/amud ----------
-function drawPick() {
-  $("amudim").innerHTML = GROUPS.map((g, gi) => `<button type="button" class="amud" data-g="${gi}">${esc(g.name)} <small>▾</small></button>`).join(" ");
-  $("panels").innerHTML = GROUPS.map((g, gi) => `<div class="panel" data-g="${gi}" hidden>
-    <label class="all"><input type="checkbox" data-all="${gi}" checked> כל השיעורים</label>
-    ${g.lessons.map((l) => `<label><input type="checkbox" data-href="${esc(l.href)}" data-gi="${gi}" checked> ${esc(l.title)}</label>`).join("")}
-  </div>`).join("");
-  $("amudim").onclick = (e) => {
-    const b = e.target.closest(".amud");
-    if (!b) return;
-    e.stopPropagation();
-    const p = document.querySelector(`.panel[data-g="${b.dataset.g}"]`), open = p.hidden;
-    closePanels();
-    if (!open) return;
-    const r = b.getBoundingClientRect();
-    p.style.top = `${r.bottom + 4}px`;
-    p.hidden = false;
-    // aligned to the button, but kept inside the screen
-    const right = Math.max(8, innerWidth - r.right);
-    p.style.right = `${Math.min(right, Math.max(8, innerWidth - p.offsetWidth - 8))}px`;
-    b.classList.add("open");
-  };
-  $("panels").onclick = (e) => e.stopPropagation();
-  $("panels").onchange = (e) => {
-    const t = e.target, gi = t.dataset.all ?? t.dataset.gi;
-    const boxes = [...document.querySelectorAll(`#panels input[data-gi="${gi}"]`)];
-    if (t.dataset.all !== undefined) boxes.forEach((c) => c.checked = t.checked);
-    else document.querySelector(`#panels input[data-all="${gi}"]`).checked = boxes.every((c) => c.checked);
-    render();
-  };
+// ---------- menus: one per page/amud, plus "עריכה" for the admin ----------
+const draftTitle = (key) => plain(DATA[key].L.title) || "ללא שם";
+function menus() {
+  const m = GROUPS.map((g) => ({ name: g.name, items: g.lessons.map((l) => ({ key: l.key, title: l.title })) }));
+  if (isAdmin) m.push({ name: "עריכה", items: [...DRAFTS.map((d) => ({ key: "draft:" + d.id, title: draftTitle("draft:" + d.id) })), { key: NEW, title: "עמוד חדש", cls: "new" }] });
+  return m;
+}
+function drawMenus(openName) {
+  const m = menus();
+  $("menus").innerHTML = m.map((g, gi) => `<button type="button" class="menu" data-g="${gi}">${esc(g.name)} <small>▾</small></button>`).join("");
+  $("panels").innerHTML = m.map((g, gi) => `<div class="panel" data-g="${gi}" hidden>${g.items.map((it) =>
+    `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`).join("")}</div>`).join("");
+  if (openName) {
+    const gi = m.findIndex((g) => g.name === openName);
+    if (gi > -1) openPanel(gi);
+  }
+}
+function openPanel(gi) {
+  closePanels();
+  const b = document.querySelector(`.menu[data-g="${gi}"]`), p = document.querySelector(`.panel[data-g="${gi}"]`);
+  const r = b.getBoundingClientRect();
+  p.style.top = `${r.bottom + 4}px`;
+  p.hidden = false;
+  // aligned to the button, but kept inside the screen
+  const right = Math.max(8, innerWidth - r.right);
+  p.style.right = `${Math.min(right, Math.max(8, innerWidth - p.offsetWidth - 8))}px`;
+  b.classList.add("open");
 }
 function closePanels() {
   document.querySelectorAll(".panel").forEach((p) => p.hidden = true);
-  document.querySelectorAll(".amud.open").forEach((b) => b.classList.remove("open"));
+  document.querySelectorAll(".menu.open").forEach((b) => b.classList.remove("open"));
 }
+$("menus").onclick = (e) => {
+  const b = e.target.closest(".menu");
+  if (!b) return;
+  e.stopPropagation();
+  const open = b.classList.contains("open");
+  if (open) closePanels(); else openPanel(b.dataset.g);
+};
+$("panels").onclick = (e) => e.stopPropagation();
+$("panels").onchange = (e) => {
+  const key = e.target.dataset.key;
+  SELECTED = SELECTED.filter((k) => k !== key);
+  if (e.target.checked) SELECTED.push(key);
+  // show in menu order
+  const order = menus().flatMap((g) => g.items.map((it) => it.key));
+  SELECTED.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  saveSelection();
+  render();
+};
 document.addEventListener("click", closePanels);
+
+function saveSelection() { try { localStorage.setItem(SEL_KEY, JSON.stringify(SELECTED.filter((k) => k !== NEW))); } catch (e) {} }
+function loadSelection() {
+  try { const v = JSON.parse(localStorage.getItem(SEL_KEY)); if (Array.isArray(v)) return v; } catch (e) {}
+  return null;
+}
 
 // ---------- editing ----------
 function cleanHtml(el) {
@@ -233,20 +274,12 @@ function placeCaretAtPoint(el, { x, y }) {
   if (r && el.contains(r.startContainer)) { const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
   else placeCaret(el, false);
 }
-// Is the caret at the very start of el?
-function caretAtStart(el) {
-  const s = getSelection();
-  if (!s.rangeCount || !s.isCollapsed) return false;
-  const r = document.createRange();
-  r.selectNodeContents(el);
-  r.setEnd(s.getRangeAt(0).startContainer, s.getRangeAt(0).startOffset);
-  return !r.toString().length;
-}
 
 function setValue(L, p, v) {
   const a = p.split(".");
   const n = (i) => +a[i];
   switch (a[0]) {
+    case "tt": L.title = v; break;
     case "st": L.stations[n(1)] = v; break;
     case "kk": L.screens[n(1)].kicker = v; break;
     case "tx": L.screens[n(1)].text[n(2)] = v; break;
@@ -255,13 +288,6 @@ function setValue(L, p, v) {
     case "o": L.screens[n(1)].o[n(2)] = v; break;
     case "tf": L.screens[n(1)].s = v; break;
   }
-}
-
-function markDirty(href) {
-  DIRTY.add(href);
-  $("save").hidden = false;
-  $("save").disabled = false;
-  $("save").textContent = `שמירה (${DIRTY.size})`;
 }
 
 // Where a new screen for station k goes: before the first screen of a later station (or the summary).
@@ -284,12 +310,17 @@ const OPS = {
   // Enter in a heading: a new paragraph at the top of its section
   addParaInStation(L, k) {
     const si = L.screens.findIndex((s) => s.type === "read" && s.st === k);
-    if (si > -1) { L.screens[si].text.unshift(""); return { p: `tx.${si}.0` }; }
+    if (si > -1) {
+      if (plain(L.screens[si].text[0] || "x")) L.screens[si].text.unshift("");
+      return { p: `tx.${si}.0` };
+    }
     const at = L.screens.findIndex((s) => s.st === k);
     const pos = at > -1 ? at : stationEnd(L, k);
     L.screens.splice(pos, 0, { type: "read", st: k, text: [""] });
     return { p: `tx.${pos}.0` };
   },
+  // Enter in the title: to the first heading
+  fromTitle() { return { p: "st.0" }; },
   // An empty paragraph becomes a heading; what follows it in the section moves under the new heading.
   paraToHeading(L, si, ti) {
     const S = L.screens[si], k = S.st;
@@ -328,12 +359,89 @@ const OPS = {
 };
 
 function runOp(el, name, ...extra) {
-  const href = el.dataset.h, a = el.dataset.p.split(".").map((x) => isNaN(x) ? x : +x);
-  const L = DATA[href].L;
+  const key = el.dataset.h, a = el.dataset.p.split(".").map((x) => isNaN(x) ? x : +x);
+  const L = DATA[key].L;
   setValue(L, el.dataset.p, cleanHtml(el));
   const next = OPS[name](L, ...a.slice(1), ...extra);
-  markDirty(href);
-  render(next ? { h: href, ...next } : null);
+  changed(key);
+  render(next ? { h: el.dataset.h, ...next } : null);
+}
+
+// ---------- autosave ----------
+// Drafts save to Firestore a moment after typing stops; lessons on the site
+// save to GitHub after a slightly longer pause (each save is a commit).
+// Only a failure is shown.
+const DIRTY = new Set(), TIMERS = {}, CHAIN = {};
+function changed(key) {
+  if (key === NEW) key = promoteNew();
+  DIRTY.add(key);
+  clearTimeout(TIMERS[key]);
+  TIMERS[key] = setTimeout(() => saveNow(key), isDraft(key) ? 1200 : 4000);
+  if (isDraft(key)) updateDraftLabel(key);
+}
+function saveNow(key) {
+  clearTimeout(TIMERS[key]);
+  CHAIN[key] = (CHAIN[key] || Promise.resolve()).then(() => doSave(key));
+  return CHAIN[key];
+}
+async function doSave(key) {
+  if (!DIRTY.has(key)) return;
+  DIRTY.delete(key);
+  const d = DATA[key];
+  try {
+    if (isDraft(key)) {
+      await fs.setDoc(fs.doc(auth.getDb(), "drafts", key.slice(6)), {
+        title: plain(d.L.title), data: JSON.stringify(d.L), createdAt: d.createdAt, updatedAt: Date.now(),
+      });
+    } else {
+      const copy = JSON.parse(JSON.stringify(d.L));
+      // an empty heading or a heading with no text yet: wait until it's filled
+      if (tidy(copy)) { DIRTY.add(key); return; }
+      const res = await httpsCallable(fns, "saveLessonData")({ path: key, lesson: copy, base: d.base });
+      d.base = res.data.src;
+    }
+    if (!DIRTY.size) say("");
+  } catch (err) {
+    DIRTY.add(key);
+    say("השמירה לא הצליחה: " + ((err && err.message) || "שגיאה") + ". השינויים עדיין כאן; ננסה שוב בשינוי הבא.");
+  }
+}
+// The empty "עמוד חדש" became a draft once something was typed in it.
+function promoteNew() {
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const key = "draft:" + id;
+  DATA[key] = { ...DATA[NEW], createdAt: Date.now() };
+  DATA[NEW] = { L: newDraftData(), draft: true };
+  DRAFTS.push({ id, createdAt: DATA[key].createdAt });
+  document.querySelectorAll(`[data-h="${NEW}"]`).forEach((el) => el.dataset.h = key);
+  SELECTED = SELECTED.map((k) => (k === NEW ? key : k));
+  saveSelection();
+  drawMenus();
+  return key;
+}
+function updateDraftLabel(key) {
+  const box = document.querySelector(`#panels input[data-key="${CSS.escape(key)}"]`);
+  if (box) box.parentElement.lastChild.textContent = " " + draftTitle(key);
+}
+addEventListener("beforeunload", (e) => {
+  if (!DIRTY.size) return;
+  [...DIRTY].forEach(saveNow);
+  e.preventDefault(); e.returnValue = "";
+});
+
+// Before a lesson goes to the site: drop empty paragraphs (but keep one under
+// a heading that has nothing else). Returns true if it isn't ready yet.
+function tidy(L) {
+  for (let si = L.screens.length - 1; si >= 0; si--) {
+    const S = L.screens[si];
+    if (S.type !== "read" || !S.text) continue;
+    for (let ti = S.text.length - 1; ti >= 0; ti--) {
+      if (plain(S.text[ti])) continue;
+      const alone = S.text.length === 1 && emptyScreen({ ...S, text: [] }) && L.screens.filter((s) => s.st === S.st).length === 1;
+      if (!alone) OPS.delPara(L, si, ti);
+    }
+  }
+  return L.stations.some((s) => !plain(s)) || L.screens.some((s) => s.type === "read" && s.text && s.text.length === 1 && !plain(s.text[0]));
 }
 
 // "כותרת" shows only on an empty paragraph that isn't the first thing in its section.
@@ -348,7 +456,6 @@ function showTb(el) {
   tb.innerHTML = `<button type="button">כותרת</button>`;
   const r = el.getBoundingClientRect();
   tb.style.top = `${r.top + scrollY - 30}px`;
-  tb.style.left = "";
   tb.style.right = `${document.documentElement.clientWidth - r.right - scrollX}px`;
   tb.hidden = false;
   tb.ed = el;
@@ -365,7 +472,7 @@ page.addEventListener("input", (e) => {
   const el = e.target.closest("[contenteditable]");
   if (!el) return;
   setValue(DATA[el.dataset.h].L, el.dataset.p, cleanHtml(el));
-  markDirty(el.dataset.h);
+  changed(el.dataset.h);
   showTb(el);
 });
 page.addEventListener("keydown", (e) => {
@@ -377,7 +484,7 @@ page.addEventListener("keydown", (e) => {
     if (e.shiftKey) return;
     if (kind === "tx") {
       // split at the caret, like a word processor
-      const s = getSelection(), r = s.getRangeAt(0);
+      const r = getSelection().getRangeAt(0);
       r.deleteContents();
       const tail = document.createRange();
       tail.selectNodeContents(el);
@@ -386,6 +493,7 @@ page.addEventListener("keydown", (e) => {
       box.appendChild(tail.extractContents());
       runOp(el, "splitPara", cleanHtml(box));
     } else if (kind === "st") runOp(el, "addParaInStation");
+    else if (kind === "tt") runOp(el, "fromTitle");
     else el.blur();
   } else if (e.key === "Backspace" && !el.textContent.trim()) {
     if (kind === "tx") { e.preventDefault(); runOp(el, "delPara"); }
@@ -404,83 +512,38 @@ page.addEventListener("dblclick", async (e) => {
   if (!isAdmin || EDIT) return;
   const el = e.target.closest("[data-p]");
   const point = { x: e.clientX, y: e.clientY };
-  if (!(await startEdit())) return;
-  if (el) render({ h: el.dataset.h, p: el.dataset.p, point });
+  EDIT = true;
+  await render(el ? { h: el.dataset.h, p: el.dataset.p, point } : null);
 });
 
-async function startEdit() {
-  if (!fns) {
-    try {
-      const f = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-functions.js");
-      httpsCallable = f.httpsCallable;
-      fns = f.getFunctions(auth.getApp());
-    } catch (err) {
-      say("לא הצלחתי לטעון את העריכה. נסו לרענן את הדף.", true);
-      return false;
-    }
-  }
-  EDIT = true;
-  say("טוען לעריכה…");
-  await render();
-  say("מצב עריכה. Enter מתחיל קטע חדש.");
-  return true;
-}
-
-// Before saving: drop empty paragraphs, but keep one under a heading that
-// has nothing else, so the heading isn't lost. Returns a problem to show.
-function tidy(L) {
-  for (let si = L.screens.length - 1; si >= 0; si--) {
-    const S = L.screens[si];
-    if (S.type !== "read" || !S.text) continue;
-    for (let ti = S.text.length - 1; ti >= 0; ti--) {
-      if (S.text[ti].replace(/<[^>]*>/g, "").trim()) continue;
-      const alone = S.text.length === 1 && emptyScreen({ ...S, text: [] }) && L.screens.filter((s) => s.st === S.st).length === 1;
-      if (!alone) OPS.delPara(L, si, ti);
-    }
-  }
-  const k = L.stations.findIndex((s) => !s.replace(/<[^>]*>/g, "").trim());
-  if (k > -1) return { p: `st.${k}`, msg: "יש כותרת ריקה. כתבו בה משהו, או מחקו אותה עם Backspace." };
-  const si = L.screens.findIndex((s) => s.type === "read" && s.text && s.text.length === 1 && !s.text[0].replace(/<[^>]*>/g, "").trim());
-  if (si > -1) return { p: `tx.${si}.0`, msg: "יש כותרת בלי טקסט מתחתיה. כתבו טקסט, או מחקו את הכותרת." };
-  return null;
-}
-
-$("save").onclick = async () => {
-  const btn = $("save");
-  for (const href of DIRTY) {
-    const problem = tidy(DATA[href].L);
-    if (problem) { await render({ h: href, p: problem.p }); return say(problem.msg, true); }
-  }
-  btn.disabled = true; say("שומר…");
+// ---------- admin ----------
+async function startAdmin() {
   try {
-    for (const href of [...DIRTY]) {
-      const d = DATA[href];
-      const res = await httpsCallable(fns, "saveLessonData")({ path: href, lesson: d.L, base: d.base });
-      d.base = res.data.src;
-      d.L = evalLesson(d.base);
-      DIRTY.delete(href);
-    }
-    btn.hidden = true;
-    say("נשמר ✓ (באתר זה יופיע בעוד דקה-שתיים)");
+    const [f, store] = await Promise.all([
+      import("https://www.gstatic.com/firebasejs/10.13.0/firebase-functions.js"),
+      import("https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js"),
+    ]);
+    httpsCallable = f.httpsCallable;
+    fns = f.getFunctions(auth.getApp());
+    fs = store;
+    await Promise.all([loadDrafts(), indexReady]);
   } catch (err) {
-    btn.disabled = false;
-    say((err && err.message) || "שגיאה בשמירה", true);
+    say("לא הצלחתי לטעון את העריכה. נסו לרענן את הדף.");
+    return;
   }
+  isAdmin = true;
+  SELECTED = (loadSelection() || defaultSelection()).filter((k) => !isDraft(k) || DATA[k]);
+  drawMenus("עריכה");
   render();
-};
-addEventListener("beforeunload", (e) => { if (DIRTY.size) { e.preventDefault(); e.returnValue = ""; } });
+}
 
 import("./assets/js/auth.js").then((m) => {
   auth = m;
-  m.watchAuthState((user) => { isAdmin = Boolean(user && user.email === ADMIN_EMAIL); });
+  m.watchAuthState((user) => { if (user && user.email === ADMIN_EMAIL && !isAdmin) startAdmin(); });
 }).catch(() => {});
 
 // ---------- Word ----------
-let sayT;
-function say(t, err) {
-  $("msg").textContent = t; $("msg").classList.toggle("err", Boolean(err));
-  clearTimeout(sayT); if (!err) sayT = setTimeout(() => $("msg").textContent = "", 4000);
-}
+function say(t) { $("msg").textContent = t; }
 $("word").onclick = () => {
   const body = $("page").innerHTML.replace(/ contenteditable="true"/g, "").replace(/(<li class="ok"[^>]*>[\s\S]*?)<\/li>/g, "$1 ✓</li>");
   const doc = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>body{direction:rtl;font-family:'Frank Ruhl Libre',David,'Times New Roman',serif;font-size:13pt;line-height:1.5}p{margin:0 0 4pt;text-align:justify}h1{font-size:18pt}h2{font-size:14pt;margin:12pt 0 2pt}td,th{border:1px solid #999;padding:3pt 6pt}table{border-collapse:collapse}</style></head><body dir="rtl">${body}</body></html>`;
@@ -490,7 +553,18 @@ $("word").onclick = () => {
 };
 $("optQ").onchange = () => render();
 
-loadIndex().then(() => { drawPick(); render(); }).catch(() => { $("page").innerHTML = '<p class="empty">לא הצלחתי לטעון את רשימת השיעורים.</p>'; });
+// First visit: the first lesson; after that, whatever was open last time.
+function defaultSelection() {
+  const first = GROUPS[0] && GROUPS[0].lessons[0];
+  return first ? [first.key] : [];
+}
+const indexReady = loadIndex();
+indexReady.then(() => {
+  if (isAdmin) return;
+  SELECTED = (loadSelection() || defaultSelection()).filter((k) => !isDraft(k));
+  drawMenus();
+  render();
+}).catch(() => { $("page").innerHTML = '<p class="empty">לא הצלחתי לטעון את רשימת השיעורים.</p>'; });
 </script>
 </body>
 </html>
