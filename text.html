@@ -50,6 +50,10 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 /* search and replace, over every page shown */
 .tools{display:flex;align-items:center;gap:6px}
 .bar .icon{padding:8px}
+.zoom{display:flex}
+.zoom button{font-weight:700;padding:8px 9px}
+.zoom #zoomOut{font-size:.85rem}
+.zoom #zoomIn{font-size:1.05rem}
 .bar .icon svg{width:20px;height:20px;display:block}
 #find{position:fixed;top:10px;left:16px;z-index:6;background:#fff;border:1px solid var(--s-line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:8px;display:flex;flex-direction:column;gap:6px;font-family:var(--s-head);font-size:14px;max-width:calc(100vw - 32px)}
 #find[hidden]{display:none}
@@ -67,17 +71,17 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 #fmt button:hover{background:#444}
 #fmt .red{color:#ff8a7a}
 #fmt .hd{width:auto;padding:0 8px;font-size:13px;border-inline-start:1px solid #555;border-radius:0 5px 5px 0}
-.page{max-width:820px;margin:0 auto 40px;background:var(--page);box-shadow:0 1px 4px rgba(0,0,0,.15);padding:56px 64px;font-family:var(--text);font-size:17px;line-height:1.5}
-.page h1{font-size:25px;font-weight:700;margin:0 0 2px}
+.page{max-width:820px;margin:0 auto 40px;background:var(--page);box-shadow:0 1px 4px rgba(0,0,0,.15);padding:56px 64px;font-family:var(--text);font-size:var(--fs,17px);line-height:1.5}
+.page h1{font-size:1.47em;font-weight:700;margin:0 0 2px}
 .page h1:not(:first-child){margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
-.page .ref{color:var(--muted);font-size:14px;margin:0 0 14px}
-.page h2{font-size:19px;font-weight:700;margin:20px 0 4px}
+.page .ref{color:var(--muted);font-size:.82em;margin:0 0 14px}
+.page h2{font-size:1.12em;font-weight:700;margin:20px 0 4px}
 .page p{margin:0 0 6px;text-align:justify}
 .page .q{margin:10px 0 2px;font-weight:700}
 .page ol{list-style-type:hebrew;margin:0 0 8px;padding-inline-start:28px}
 .page li.ok{font-weight:700}
 .page li.ok::after{content:" ✓"}
-.page table{border-collapse:collapse;margin:8px 0 12px;font-size:15px}
+.page table{border-collapse:collapse;margin:8px 0 12px;font-size:.88em}
 .page td,.page th{border:1px solid #999;padding:3px 8px}
 .page .note{color:var(--muted);font-size:14px;font-family:Arial,sans-serif}
 .empty{color:var(--muted)}
@@ -89,7 +93,7 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 #tb{position:absolute;z-index:2;font:13px Arial,sans-serif}
 #tb[hidden]{display:none}
 #tb button{font:inherit;padding:3px 10px;border:1px solid #bbb;border-radius:5px;background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
-@media (max-width:640px){.page{padding:28px 18px;font-size:16px}}
+@media (max-width:640px){.page{padding:28px 18px;font-size:var(--fs,16px)}}
 @media print{.bar,.panel,#tb,#hot,#fmt,#msg,#find{display:none}body{background:#fff}.page{box-shadow:none;margin:0;max-width:none;padding:0}}
 </style>
 </head>
@@ -98,6 +102,7 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 <div class="bar" id="bar">
   <button type="button" class="brand" id="siteBtn"><span class="mark">📖</span><span>פשיטא</span></button>
   <span class="tools">
+  <span class="zoom"><button type="button" class="view" id="zoomOut" title="הקטנת הטקסט">א-</button><button type="button" class="view" id="zoomIn" title="הגדלת הטקסט">א+</button></span>
   <button type="button" class="view icon" id="findBtn" title="חיפוש והחלפה"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
   <button type="button" class="view" id="viewBtn">תצוגה <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </span>
@@ -350,6 +355,21 @@ $("panels").onchange = (e) => {
 $("hot").onclick = (e) => { e.stopPropagation(); $("bar").classList.add("show"); };
 $("bar").onclick = (e) => e.stopPropagation();
 document.addEventListener("click", () => { closePanels(); $("bar").classList.remove("show"); });
+
+// ---------- text size: א- / א+, remembered on this device ----------
+const FS_KEY = "pshita.text.size";
+function setSize(px) {
+  if (px) document.documentElement.style.setProperty("--fs", `${px}px`);
+  try { if (px) localStorage.setItem(FS_KEY, px); } catch (e) {}
+  if (!$("find").hidden) runFind(false);
+}
+function zoom(d) {
+  const now = parseFloat(getComputedStyle($("page")).fontSize);
+  setSize(Math.min(28, Math.max(12, Math.round(now) + d)));
+}
+$("zoomOut").onclick = () => zoom(-1);
+$("zoomIn").onclick = () => zoom(1);
+try { const v = +localStorage.getItem(FS_KEY); if (v) setSize(v); } catch (e) {}
 
 // ---------- search and replace ----------
 // Matches are found in the text of every page shown and marked with the CSS
