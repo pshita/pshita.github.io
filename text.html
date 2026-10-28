@@ -11,22 +11,39 @@
 :root{--ink:#111;--muted:#666;--line:#ddd;--desk:#e9e9ec;--page:#fff;--accent:#1a5fb4;--edit:#fff8d6;--text:'Frank Ruhl Libre',David,'Times New Roman',serif}
 *{box-sizing:border-box}
 body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe UI',sans-serif}
-.bar{position:sticky;top:0;z-index:3;background:#f7f7f8;border-bottom:1px solid var(--line);padding:8px 16px;display:flex;flex-wrap:nowrap;gap:14px;align-items:center;font-size:14px;overflow-x:auto;white-space:nowrap}
+/* the top bar hides; a click on the strip at the top of the screen brings it back */
+#hot{position:fixed;top:0;left:0;right:0;height:14px;z-index:2;cursor:pointer}
+#hot::after{content:"";position:absolute;top:4px;left:50%;width:48px;height:4px;margin-left:-24px;border-radius:2px;background:#c4c4c8}
+.bar{position:fixed;top:0;left:0;right:0;transform:translateY(-100%);transition:transform .18s;box-shadow:0 2px 8px rgba(0,0,0,.08);z-index:3;background:#f7f7f8;border-bottom:1px solid var(--line);padding:8px 16px;display:flex;flex-wrap:nowrap;gap:14px;align-items:center;font-size:14px;overflow-x:auto;white-space:nowrap}
+.bar.show{transform:none}
 .bar a{color:var(--accent)}
 .bar button{font:inherit;padding:5px 11px;border:1px solid #bbb;border-radius:6px;background:#fff;cursor:pointer;flex:none}
 .bar label{display:inline-flex;gap:5px;align-items:center;cursor:pointer;flex:none}
 .bar .sep{width:1px;align-self:stretch;background:var(--line);flex:none}
 .bar .menu.open{background:#e8eef8;border-color:var(--accent)}
 .bar .menu small{color:var(--muted)}
-#menus{display:flex;gap:8px}
-#msg{font-weight:700;color:#b00020}
+#msg{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:5;max-width:calc(100vw - 32px);background:#b00020;color:#fff;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+#msg:empty{display:none}
 /* lesson pickers: about 10 rows, then scroll */
 .panel{position:fixed;z-index:4;background:#fff;border:1px solid #bbb;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15);padding:6px 0;font-size:14px;max-height:316px;overflow-y:auto;min-width:220px;max-width:calc(100vw - 16px)}
 .panel[hidden]{display:none}
 .panel label{display:flex;gap:8px;align-items:center;height:30px;padding:0 14px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .panel label:hover{background:#f3f3f5}
 .panel label.new{color:var(--muted)}
-.page{max-width:820px;margin:16px auto 40px;background:var(--page);box-shadow:0 1px 4px rgba(0,0,0,.15);padding:56px 64px;font-family:var(--text);font-size:17px;line-height:1.5}
+.sec-h{display:flex;justify-content:space-between;align-items:center;width:100%;height:30px;padding:0 14px;border:0;background:none;font:inherit;font-weight:700;cursor:pointer;text-align:right}
+.sec-h:hover{background:#f3f3f5}
+.sec-h span{color:var(--muted);transition:transform .15s}
+.sec:not(.open) .sec-h span{transform:rotate(90deg)}
+.sec:not(.open) .sec-b{display:none}
+.sec-b label{padding-inline-start:26px}
+.sec+.sec{border-top:1px solid var(--line)}
+/* bold / red on selected text */
+#fmt{position:absolute;z-index:4;display:flex;gap:2px;background:#222;border-radius:7px;padding:3px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+#fmt[hidden]{display:none}
+#fmt button{width:30px;height:28px;border:0;border-radius:5px;background:none;color:#fff;font:700 15px Arial,sans-serif;cursor:pointer}
+#fmt button:hover{background:#444}
+#fmt .red{color:#ff8a7a}
+.page{max-width:820px;margin:22px auto 40px;background:var(--page);box-shadow:0 1px 4px rgba(0,0,0,.15);padding:56px 64px;font-family:var(--text);font-size:17px;line-height:1.5}
 .page h1{font-size:25px;font-weight:700;margin:0 0 2px}
 .page h1:not(:first-child){margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
 .page .ref{color:var(--muted);font-size:14px;margin:0 0 14px}
@@ -49,18 +66,20 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 #tb[hidden]{display:none}
 #tb button{font:inherit;padding:3px 10px;border:1px solid #bbb;border-radius:5px;background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
 @media (max-width:640px){.page{padding:28px 18px;font-size:16px}}
-@media print{.bar,.panel,#tb{display:none}body{background:#fff}.page{box-shadow:none;margin:0;max-width:none;padding:0}}
+@media print{.bar,.panel,#tb,#hot,#fmt,#msg{display:none}body{background:#fff}.page{box-shadow:none;margin:0;max-width:none;padding:0}}
 </style>
 </head>
 <body>
+<div id="hot" title="תפריט"></div>
 <div class="bar" id="bar">
   <a href="index.html">לדף הבית</a>
   <label><input type="checkbox" id="optQ" checked> שאלות</label>
   <button type="button" id="word">Word</button>
   <span class="sep"></span>
-  <span id="menus"></span>
-  <span id="msg"></span>
+  <button type="button" class="menu" id="viewBtn">תצוגה <small>▾</small></button>
 </div>
+<div id="msg"></div>
+<div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="red" class="red" title="אדום">A</button></div>
 <div class="page" id="page"><p class="empty">טוען…</p></div>
 <div id="panels"></div>
 <div id="tb" hidden></div>
@@ -127,9 +146,28 @@ async function loadDrafts() {
 }
 
 // ---------- rendering ----------
-// keep only bold/italic, without attributes (colors etc. belong to the lesson design)
-const clean = (s) => String(s).replace(/<(\/?)(b|strong|i|em)\b[^>]*>/gi, "\x01$1$2\x02").replace(/<[^>]*>/g, "").replace(/\x01/g, "<").replace(/\x02/g, ">");
-const plain = (s) => clean(s).replace(/<[^>]*>/g, "").trim();
+// Text keeps only bold, italic and red; every other tag or attribute (colors
+// from the lesson design, formatting pasted from elsewhere) is dropped.
+const RED = '<span style="color:#B5432A">';
+const isRedEl = (n) => n.style.color === "rgb(181, 67, 42)" || (n.getAttribute("color") || "").toLowerCase() === "#b5432a";
+function ser(node) {
+  let out = "";
+  node.childNodes.forEach((n) => {
+    if (n.nodeType === 3) { out += n.textContent.replace(/\u00a0/g, " ").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); return; }
+    if (n.nodeType !== 1) return;
+    const t = n.tagName, inner = ser(n);
+    if (t === "BR") out += " ";
+    else if (!inner) return;
+    else if (t === "B" || t === "STRONG" || (t === "SPAN" && /^(bold|[6-9]00)$/.test(n.style.fontWeight))) out += `<${t === "STRONG" ? "strong" : "b"}>${inner}</${t === "STRONG" ? "strong" : "b"}>`;
+    else if (t === "I" || t === "EM") out += `<i>${inner}</i>`;
+    else if ((t === "SPAN" || t === "FONT") && isRedEl(n)) out += `${RED}${inner}</span>`;
+    else out += inner;
+  });
+  return out;
+}
+const tpl = document.createElement("template");
+const clean = (s) => { tpl.innerHTML = String(s); return ser(tpl.content); };
+const plain = (s) => { tpl.innerHTML = String(s); return tpl.content.textContent.trim(); };
 function table(t) {
   return `<table><tr>${t.cols.map((c) => `<th>${clean(c)}</th>`).join("")}</tr>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${clean(c && c.v !== undefined ? c.v : c)}</td>`).join("")}</tr>`).join("")}</table>`;
 }
@@ -196,26 +234,24 @@ async function render(focus) {
   }
 }
 
-// ---------- menus: one per page/amud, plus "עריכה" for the admin ----------
+// ---------- "תצוגה": one menu, a section per page/amud, plus "עריכה" for the admin ----------
 const draftTitle = (key) => plain(DATA[key].L.title) || "ללא שם";
+const OPEN = new Set(["עריכה"]);
 function menus() {
   const m = GROUPS.map((g) => ({ name: g.name, items: g.lessons.map((l) => ({ key: l.key, title: l.title })) }));
   if (isAdmin) m.push({ name: "עריכה", items: [...DRAFTS.map((d) => ({ key: "draft:" + d.id, title: draftTitle("draft:" + d.id) })), { key: NEW, title: "עמוד חדש", cls: "new" }] });
   return m;
 }
-function drawMenus(openName) {
-  const m = menus();
-  $("menus").innerHTML = m.map((g, gi) => `<button type="button" class="menu" data-g="${gi}">${esc(g.name)} <small>▾</small></button>`).join("");
-  $("panels").innerHTML = m.map((g, gi) => `<div class="panel" data-g="${gi}" hidden>${g.items.map((it) =>
-    `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`).join("")}</div>`).join("");
-  if (openName) {
-    const gi = m.findIndex((g) => g.name === openName);
-    if (gi > -1) openPanel(gi);
-  }
+function drawMenus() {
+  const wasOpen = $("viewPanel") && !$("viewPanel").hidden, scroll = wasOpen ? $("viewPanel").scrollTop : 0;
+  $("panels").innerHTML = `<div class="panel" id="viewPanel" hidden>${menus().map((g) => `<div class="sec${OPEN.has(g.name) ? " open" : ""}" data-name="${esc(g.name)}">
+    <button type="button" class="sec-h">${esc(g.name)}<span>▾</span></button>
+    <div class="sec-b">${g.items.map((it) =>
+      `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`).join("")}</div></div>`).join("")}</div>`;
+  if (wasOpen) { openPanel(); $("viewPanel").scrollTop = scroll; }
 }
-function openPanel(gi) {
-  closePanels();
-  const b = document.querySelector(`.menu[data-g="${gi}"]`), p = document.querySelector(`.panel[data-g="${gi}"]`);
+function openPanel() {
+  const b = $("viewBtn"), p = $("viewPanel");
   const r = b.getBoundingClientRect();
   p.style.top = `${r.bottom + 4}px`;
   p.hidden = false;
@@ -225,17 +261,21 @@ function openPanel(gi) {
   b.classList.add("open");
 }
 function closePanels() {
-  document.querySelectorAll(".panel").forEach((p) => p.hidden = true);
-  document.querySelectorAll(".menu.open").forEach((b) => b.classList.remove("open"));
+  if ($("viewPanel")) $("viewPanel").hidden = true;
+  $("viewBtn").classList.remove("open");
 }
-$("menus").onclick = (e) => {
-  const b = e.target.closest(".menu");
-  if (!b) return;
+$("viewBtn").onclick = (e) => {
   e.stopPropagation();
-  const open = b.classList.contains("open");
-  if (open) closePanels(); else openPanel(b.dataset.g);
+  if ($("viewBtn").classList.contains("open")) closePanels(); else openPanel();
 };
-$("panels").onclick = (e) => e.stopPropagation();
+$("panels").onclick = (e) => {
+  e.stopPropagation();
+  const h = e.target.closest(".sec-h");
+  if (!h) return;
+  const sec = h.parentElement, name = sec.dataset.name;
+  sec.classList.toggle("open");
+  if (sec.classList.contains("open")) OPEN.add(name); else OPEN.delete(name);
+};
 $("panels").onchange = (e) => {
   const key = e.target.dataset.key;
   SELECTED = SELECTED.filter((k) => k !== key);
@@ -246,7 +286,11 @@ $("panels").onchange = (e) => {
   saveSelection();
   render();
 };
-document.addEventListener("click", closePanels);
+
+// The bar shows on a click at the top of the screen and hides again on a click anywhere else.
+$("hot").onclick = (e) => { e.stopPropagation(); $("bar").classList.add("show"); };
+$("bar").onclick = (e) => e.stopPropagation();
+document.addEventListener("click", () => { closePanels(); $("bar").classList.remove("show"); });
 
 function saveSelection() { try { localStorage.setItem(SEL_KEY, JSON.stringify(SELECTED.filter((k) => k !== NEW))); } catch (e) {} }
 function loadSelection() {
@@ -255,13 +299,32 @@ function loadSelection() {
 }
 
 // ---------- editing ----------
-function cleanHtml(el) {
-  return el.innerHTML
-    .replace(/<br\s*\/?>/gi, " ").replace(/&nbsp;/g, " ")
-    .replace(/<(\/?)(b|strong|i|em)(\s[^>]*)?>/gi, "\x01$1$2\x02").replace(/<[^>]*>/g, "")
-    .replace(/\x01/g, "<").replace(/\x02/g, ">")
-    .replace(/\s+/g, " ").trim();
-}
+const cleanHtml = (el) => ser(el).replace(/\s+/g, " ").trim();
+
+// Bold / red bubble over selected text while editing.
+const fmt = $("fmt");
+document.addEventListener("selectionchange", () => {
+  const s = getSelection();
+  const host = s.rangeCount && !s.isCollapsed && EDIT ? s.anchorNode && s.anchorNode.parentElement && s.anchorNode.parentElement.closest("#page [contenteditable]") : null;
+  if (!host) { fmt.hidden = true; return; }
+  const r = s.getRangeAt(0).getBoundingClientRect();
+  fmt.hidden = false;
+  fmt.style.top = `${r.top + scrollY - fmt.offsetHeight - 6}px`;
+  fmt.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - fmt.offsetWidth / 2, innerWidth - fmt.offsetWidth - 8)) + scrollX}px`;
+});
+fmt.addEventListener("mousedown", (e) => e.preventDefault());
+fmt.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cmd]");
+  if (!b) return;
+  if (b.dataset.cmd === "bold") {
+    document.execCommand("styleWithCSS", false, false);
+    document.execCommand("bold");
+  } else {
+    const red = /181,\s*67,\s*42/.test(document.queryCommandValue("foreColor"));
+    document.execCommand("styleWithCSS", false, true);
+    document.execCommand("foreColor", false, red ? "#111111" : "#B5432A");
+  }
+});
 
 function placeCaret(el, start) {
   const r = document.createRange();
@@ -535,7 +598,7 @@ async function startAdmin() {
   }
   isAdmin = true;
   SELECTED = (loadSelection() || defaultSelection()).filter((k) => !isDraft(k) || DATA[k]);
-  drawMenus("עריכה");
+  drawMenus();
   render();
 }
 
@@ -545,7 +608,7 @@ import("./assets/js/auth.js").then((m) => {
 }).catch(() => {});
 
 // ---------- Word ----------
-function say(t) { $("msg").textContent = t; }
+function say(t) { $("msg").textContent = t; }  // shown only when something went wrong
 $("word").onclick = () => {
   const body = $("page").innerHTML.replace(/ contenteditable="true"/g, "").replace(/(<li class="ok"[^>]*>[\s\S]*?)<\/li>/g, "$1 ✓</li>");
   const doc = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>body{direction:rtl;font-family:'Frank Ruhl Libre',David,'Times New Roman',serif;font-size:13pt;line-height:1.5}p{margin:0 0 4pt;text-align:justify}h1{font-size:18pt}h2{font-size:14pt;margin:12pt 0 2pt}td,th{border:1px solid #999;padding:3pt 6pt}table{border-collapse:collapse}</style></head><body dir="rtl">${body}</body></html>`;
