@@ -31,6 +31,6 @@ watchAuthState((user) => {
   a.className = "dropdown-item";
   a.href = (location.pathname.includes("/lessons/") ? "../" : "") + "text.html";
   a.textContent = "טקסט";
-  const auth = menu.querySelector(".auth-area");
-  menu.insertBefore(a, auth || null);
+  // last in the menu, below the account, set apart by a line
+  menu.appendChild(a);
 });
