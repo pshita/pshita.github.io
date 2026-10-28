@@ -50,10 +50,8 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 /* search and replace, over every page shown */
 .tools{display:flex;align-items:center;gap:6px}
 .bar .icon{padding:8px}
-.zoom{display:flex}
-.zoom button{font-weight:700;padding:8px 9px}
-.zoom #zoomOut{font-size:.85rem}
-.zoom #zoomIn{font-size:1.05rem}
+/* pinching changes the text size (the lines rewrap), not the page zoom */
+html,body{touch-action:pan-x pan-y}
 .bar .icon svg{width:20px;height:20px;display:block}
 #find{position:fixed;top:10px;left:16px;z-index:6;background:#fff;border:1px solid var(--s-line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:8px;display:flex;flex-direction:column;gap:6px;font-family:var(--s-head);font-size:14px;max-width:calc(100vw - 32px)}
 #find[hidden]{display:none}
@@ -106,7 +104,6 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 <div class="bar" id="bar">
   <button type="button" class="brand" id="siteBtn"><span class="mark">📖</span><span>פשיטא</span></button>
   <span class="tools">
-  <span class="zoom"><button type="button" class="view" id="zoomOut" title="הקטנת הטקסט">א-</button><button type="button" class="view" id="zoomIn" title="הגדלת הטקסט">א+</button></span>
   <button type="button" class="view icon" id="findBtn" title="חיפוש והחלפה"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
   <button type="button" class="view" id="viewBtn">תצוגה <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </span>
@@ -378,19 +375,55 @@ $("hot").onclick = (e) => { e.stopPropagation(); $("bar").classList.add("show");
 $("bar").onclick = (e) => e.stopPropagation();
 document.addEventListener("click", () => { closePanels(); $("bar").classList.remove("show"); });
 
-// ---------- text size: א- / א+, remembered on this device ----------
-const FS_KEY = "pshita.text.size";
+// ---------- text size: pinch with two fingers (or the trackpad), remembered on this device ----------
+// The text itself grows or shrinks and rewraps, so every line still fits the page.
+const FS_KEY = "pshita.text.size", FS_MIN = 12, FS_MAX = 34;
+let FS_SAVE;
+const curSize = () => parseFloat(getComputedStyle($("page")).fontSize);
 function setSize(px) {
-  if (px) document.documentElement.style.setProperty("--fs", `${px}px`);
-  try { if (px) localStorage.setItem(FS_KEY, px); } catch (e) {}
-  if (!$("find").hidden) runFind(false);
+  if (!px) return;
+  document.documentElement.style.setProperty("--fs", `${px}px`);
+  clearTimeout(FS_SAVE);
+  FS_SAVE = setTimeout(() => {
+    try { localStorage.setItem(FS_KEY, px); } catch (e) {}
+    if (!$("find").hidden) runFind(false);
+  }, 250);
 }
-function zoom(d) {
-  const now = parseFloat(getComputedStyle($("page")).fontSize);
-  setSize(Math.min(28, Math.max(12, Math.round(now) + d)));
+// Resize around a point on the screen: the text under the fingers stays under them.
+function sizeAround(px, x, y) {
+  px = Math.round(Math.min(FS_MAX, Math.max(FS_MIN, px)) * 2) / 2;
+  if (px === curSize()) return;
+  const el = document.elementFromPoint(x, y), anchor = el && el.closest("#page p, #page h1, #page h2, #page li, #page td, #page th");
+  const before = anchor && anchor.getBoundingClientRect(), frac = before && before.height ? (y - before.top) / before.height : 0;
+  setSize(px);
+  if (anchor) {
+    const after = anchor.getBoundingClientRect();
+    scrollBy(0, after.top + frac * after.height - y);
+  }
 }
-$("zoomOut").onclick = () => zoom(-1);
-$("zoomIn").onclick = () => zoom(1);
+let PINCH = null;
+const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+addEventListener("touchstart", (e) => {
+  if (e.touches.length === 2) PINCH = { d: dist(e.touches), size: curSize() };
+}, { passive: true });
+addEventListener("touchmove", (e) => {
+  if (!PINCH || e.touches.length !== 2) return;
+  e.preventDefault();
+  const t = e.touches;
+  sizeAround(PINCH.size * dist(t) / PINCH.d, (t[0].clientX + t[1].clientX) / 2, (t[0].clientY + t[1].clientY) / 2);
+}, { passive: false });
+addEventListener("touchend", (e) => { if (e.touches.length < 2) PINCH = null; });
+// Safari on iPhone/iPad sends its own pinch events
+let GESTURE = null;
+addEventListener("gesturestart", (e) => { e.preventDefault(); GESTURE = curSize(); });
+addEventListener("gesturechange", (e) => { e.preventDefault(); if (GESTURE && !PINCH) sizeAround(GESTURE * e.scale, e.clientX || innerWidth / 2, e.clientY || innerHeight / 2); });
+addEventListener("gestureend", (e) => { e.preventDefault(); GESTURE = null; });
+// trackpad pinch (and Ctrl + mouse wheel) on a computer
+addEventListener("wheel", (e) => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  sizeAround(curSize() * Math.exp(-e.deltaY * 0.01), e.clientX, e.clientY);
+}, { passive: false });
 try { const v = +localStorage.getItem(FS_KEY); if (v) setSize(v); } catch (e) {}
 
 // ---------- search and replace ----------
