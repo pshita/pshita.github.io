@@ -22,6 +22,11 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 .bar .sep{width:1px;align-self:stretch;background:var(--line);flex:none}
 .bar .menu.open{background:#e8eef8;border-color:var(--accent)}
 .bar .menu small{color:var(--muted)}
+.bar .brand{font-weight:700;border-color:transparent;background:none}
+.panel a{display:flex;align-items:center;height:30px;padding:0 14px;color:inherit;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.panel a:hover{background:#f3f3f5}
+.sec-b a{padding-inline-start:26px}
+.panel .opt{border-bottom:1px solid var(--line)}
 #msg{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:5;max-width:calc(100vw - 32px);background:#b00020;color:#fff;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 #msg:empty{display:none}
 /* lesson pickers: about 10 rows, then scroll */
@@ -72,10 +77,7 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 <body>
 <div id="hot" title="תפריט"></div>
 <div class="bar" id="bar">
-  <a href="index.html">לדף הבית</a>
-  <label><input type="checkbox" id="optQ" checked> שאלות</label>
-  <button type="button" id="word">Word</button>
-  <span class="sep"></span>
+  <button type="button" class="menu brand" id="siteBtn"><span>📖</span> פשיטא</button>
   <button type="button" class="menu" id="viewBtn">תצוגה <small>▾</small></button>
 </div>
 <div id="msg"></div>
@@ -221,7 +223,7 @@ async function render(focus) {
   $("page").classList.toggle("editing", EDIT);
   $("page").innerHTML = list.map((k) => {
     const d = DATA[k];
-    return d ? renderLesson(k, d, $("optQ").checked) : `<p class="empty">לא נטען: ${esc(k)}</p>`;
+    return d ? renderLesson(k, d, SHOWQ) : `<p class="empty">לא נטען: ${esc(k)}</p>`;
   }).join("");
   hideTb();
   if (focus) {
@@ -242,16 +244,27 @@ function menus() {
   if (isAdmin) m.push({ name: "עריכה", items: [...DRAFTS.map((d) => ({ key: "draft:" + d.id, title: draftTitle("draft:" + d.id) })), { key: NEW, title: "עמוד חדש", cls: "new" }] });
   return m;
 }
+let SHOWQ = true, USER = null;
+// a collapsible section; `key` remembers whether it's open
+const secHtml = (key, label, body) => `<div class="sec${OPEN.has(key) ? " open" : ""}" data-name="${esc(key)}">
+    <button type="button" class="sec-h">${esc(label)}<span>▾</span></button><div class="sec-b">${body}</div></div>`;
 function drawMenus() {
-  const wasOpen = $("viewPanel") && !$("viewPanel").hidden, scroll = wasOpen ? $("viewPanel").scrollTop : 0;
-  $("panels").innerHTML = `<div class="panel" id="viewPanel" hidden>${menus().map((g) => `<div class="sec${OPEN.has(g.name) ? " open" : ""}" data-name="${esc(g.name)}">
-    <button type="button" class="sec-h">${esc(g.name)}<span>▾</span></button>
-    <div class="sec-b">${g.items.map((it) =>
-      `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`).join("")}</div></div>`).join("")}</div>`;
-  if (wasOpen) { openPanel(); $("viewPanel").scrollTop = scroll; }
+  const open = ["sitePanel", "viewPanel"].find((id) => $(id) && !$(id).hidden), scroll = open ? $(open).scrollTop : 0;
+  // the site menu, as on every page: lessons by page/amud, then the account
+  const site = GROUPS.map((g) => secHtml("site:" + g.name, g.name, g.lessons.map((l) => `<a href="${esc(l.key)}">${esc(plain(l.title))}</a>`).join(""))).join("");
+  const account = USER
+    ? `<a href="achievements.html">ההישגים שלי</a><a href="#" id="logout">התנתקות</a>`
+    : `<a href="login.html">התחברות</a>`;
+  const view = menus().map((g) => secHtml(g.name, g.name, g.items.map((it) =>
+    `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`).join(""))).join("");
+  $("panels").innerHTML = `<div class="panel" id="sitePanel" hidden><a href="index.html">דף הבית</a>${site}<div class="sec">${account}</div></div>
+    <div class="panel" id="viewPanel" hidden><label class="opt"><input type="checkbox" id="optQ"${SHOWQ ? " checked" : ""}> שאלות</label>${view}</div>`;
+  if (open) { openPanel(open); $(open).scrollTop = scroll; }
 }
-function openPanel() {
-  const b = $("viewBtn"), p = $("viewPanel");
+const BTN = { sitePanel: "siteBtn", viewPanel: "viewBtn" };
+function openPanel(id) {
+  closePanels();
+  const b = $(BTN[id]), p = $(id);
   const r = b.getBoundingClientRect();
   p.style.top = `${r.bottom + 4}px`;
   p.hidden = false;
@@ -261,15 +274,15 @@ function openPanel() {
   b.classList.add("open");
 }
 function closePanels() {
-  if ($("viewPanel")) $("viewPanel").hidden = true;
-  $("viewBtn").classList.remove("open");
+  Object.entries(BTN).forEach(([p, b]) => { if ($(p)) $(p).hidden = true; $(b).classList.remove("open"); });
 }
-$("viewBtn").onclick = (e) => {
+Object.entries(BTN).forEach(([p, b]) => $(b).onclick = (e) => {
   e.stopPropagation();
-  if ($("viewBtn").classList.contains("open")) closePanels(); else openPanel();
-};
+  if ($(b).classList.contains("open")) closePanels(); else openPanel(p);
+});
 $("panels").onclick = (e) => {
   e.stopPropagation();
+  if (e.target.id === "logout") { e.preventDefault(); auth.logoutUser().then(() => location.reload()); return; }
   const h = e.target.closest(".sec-h");
   if (!h) return;
   const sec = h.parentElement, name = sec.dataset.name;
@@ -277,6 +290,7 @@ $("panels").onclick = (e) => {
   if (sec.classList.contains("open")) OPEN.add(name); else OPEN.delete(name);
 };
 $("panels").onchange = (e) => {
+  if (e.target.id === "optQ") { SHOWQ = e.target.checked; render(); return; }
   const key = e.target.dataset.key;
   SELECTED = SELECTED.filter((k) => k !== key);
   if (e.target.checked) SELECTED.push(key);
@@ -604,19 +618,14 @@ async function startAdmin() {
 
 import("./assets/js/auth.js").then((m) => {
   auth = m;
-  m.watchAuthState((user) => { if (user && user.email === ADMIN_EMAIL && !isAdmin) startAdmin(); });
+  m.watchAuthState((user) => {
+    USER = user;
+    if (user && user.email === ADMIN_EMAIL && !isAdmin) startAdmin();
+    else if (GROUPS.length) drawMenus();
+  });
 }).catch(() => {});
 
-// ---------- Word ----------
 function say(t) { $("msg").textContent = t; }  // shown only when something went wrong
-$("word").onclick = () => {
-  const body = $("page").innerHTML.replace(/ contenteditable="true"/g, "").replace(/(<li class="ok"[^>]*>[\s\S]*?)<\/li>/g, "$1 ✓</li>");
-  const doc = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>body{direction:rtl;font-family:'Frank Ruhl Libre',David,'Times New Roman',serif;font-size:13pt;line-height:1.5}p{margin:0 0 4pt;text-align:justify}h1{font-size:18pt}h2{font-size:14pt;margin:12pt 0 2pt}td,th{border:1px solid #999;padding:3pt 6pt}table{border-collapse:collapse}</style></head><body dir="rtl">${body}</body></html>`;
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob(["﻿" + doc], { type: "application/msword" }));
-  a.download = "פשיטא.doc"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-};
-$("optQ").onchange = () => render();
 
 // First visit: the first lesson; after that, whatever was open last time.
 function defaultSelection() {
