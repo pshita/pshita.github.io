@@ -618,6 +618,24 @@ const OPS = {
   },
   // Selected text becomes a heading: the paragraph splits around it, and what
   // follows (the rest of the paragraph and of the section) goes under the new heading.
+  // Pasted paragraphs and headings go where the caret was, splitting that paragraph.
+  pasteBlocks(L, si, ti, before, blocks, after) {
+    const H = "\u0001H:", items = [];
+    blocks.forEach((b, i) => {
+      if (b.type === "p") items.push(i === 0 ? before + b.html : b.html);
+      else { if (i === 0 && plain(before)) items.push(before); items.push(H + b.name); }
+    });
+    if (items[items.length - 1].startsWith(H)) { if (plain(after)) items.push(after); }
+    else items[items.length - 1] += after;
+    const S = L.screens[si];
+    S.text.splice(ti, 1, ...items.filter((t) => t.startsWith(H) || plain(t)));
+    if (!S.text.length) S.text.push("");
+    // headings from the last to the first, so the earlier positions stay put
+    for (let j = S.text.length - 1; j >= 0; j--) {
+      if (L.screens[si] === S && S.text[j] && S.text[j].startsWith(H)) OPS.toHeading(L, si, j, "", S.text[j].slice(H.length), "");
+    }
+    return null;
+  },
   toHeading(L, si, ti, before, name, after) {
     const S = L.screens[si], k = S.st;
     const rest = S.text.splice(ti + 1);
@@ -844,11 +862,85 @@ page.addEventListener("keydown", (e) => {
   }
 });
 // paste as plain text, so formatting from Word or other sites doesn't come along
+// Pasting from Word, Google Docs or a website keeps headings, bold, red and the
+// split into paragraphs; everything else about the formatting is dropped.
+// In a heading, a question or an answer it goes in as one line of plain text.
 page.addEventListener("paste", (e) => {
-  if (!e.target.closest("[contenteditable]")) return;
+  const el = e.target.closest("[contenteditable]");
+  if (!el) return;
   e.preventDefault();
-  document.execCommand("insertText", false, (e.clipboardData.getData("text/plain") || "").replace(/\s*\n\s*/g, " "));
+  const text = e.clipboardData.getData("text/plain") || "", html = e.clipboardData.getData("text/html");
+  if (el.dataset.p.split(".")[0] !== "tx") {
+    document.execCommand("insertText", false, text.replace(/\s*\n\s*/g, " ").trim());
+    return;
+  }
+  const blocks = html ? pastedBlocks(html)
+    : text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => ({ type: "p", html: escText(l) }));
+  if (!blocks.length) return;
+  if (blocks.length === 1 && blocks[0].type === "p") { document.execCommand("insertHTML", false, blocks[0].html); return; }
+  // several paragraphs or a heading: split this paragraph at the caret and put them in between
+  const r = getSelection().getRangeAt(0);
+  r.deleteContents();
+  const part = (head) => { const x = document.createRange(); x.selectNodeContents(el); if (head) x.setEnd(r.startContainer, r.startOffset); else x.setStart(r.startContainer, r.startOffset); const d = document.createElement("div"); d.appendChild(x.cloneContents()); return cleanHtml(d); };
+  runOp(el, "pasteBlocks", part(true), blocks, part(false));
 });
+
+const escText = (t) => t.replace(/\u00a0/g, " ").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Is this CSS color a red (pure red, Word's dark red, the kit's red...)?
+const colorProbe = document.createElement("span");
+function isReddish(c) {
+  if (!c) return false;
+  colorProbe.style.color = "";
+  colorProbe.style.color = c;
+  if (!colorProbe.style.color) return false;
+  document.body.appendChild(colorProbe);
+  const m = getComputedStyle(colorProbe).color.match(/\d+/g) || [];
+  colorProbe.remove();
+  const [r, g, b] = m.map(Number);
+  return r >= 140 && g <= 120 && b <= 120 && r - Math.max(g, b) >= 70;
+}
+// One pasted piece of text, keeping only bold, italic and red.
+function pastedInline(n) {
+  if (n.nodeType === 3) return escText(n.data);
+  if (n.nodeType !== 1 || /^(STYLE|SCRIPT|META|TITLE)$/.test(n.tagName)) return "";
+  if (n.tagName === "BR") return " ";
+  let inner = [...n.childNodes].map(pastedInline).join("");
+  if (!inner.trim()) return inner;
+  const st = n.style || {}, t = n.tagName;
+  const bold = ((t === "B" || t === "STRONG") && !/^(normal|[1-5]00)$/.test(st.fontWeight || "")) || /^(bold|bolder|[6-9]00)$/.test(st.fontWeight || "");
+  const ital = t === "I" || t === "EM" || st.fontStyle === "italic";
+  if (isReddish(st.color || (n.getAttribute && n.getAttribute("color")))) inner = `${RED}${inner}</span>`;
+  if (ital) inner = `<i>${inner}</i>`;
+  if (bold) inner = `<b>${inner}</b>`;
+  return inner;
+}
+// Pasted HTML -> [{type:"p", html} | {type:"h", name}]
+function pastedBlocks(html) {
+  const doc = new DOMParser().parseFromString(html, "text/html"), out = [];
+  let cur = "";
+  const flush = () => { const t = cur.replace(/\s+/g, " ").trim(); if (plain(t)) out.push({ type: "p", html: t }); cur = ""; };
+  const BLOCK = /^(P|DIV|LI|UL|OL|BLOCKQUOTE|TABLE|TBODY|TR|TD|TH|SECTION|ARTICLE|HEADER|FOOTER|PRE|DL|DT|DD)$/;
+  const hasBlock = (n) => n.querySelector && n.querySelector("p,div,li,h1,h2,h3,h4,h5,h6,br,table");
+  const walk = (node) => node.childNodes.forEach((n) => {
+    if (n.nodeType === 3) { cur += escText(n.data); return; }
+    if (n.nodeType !== 1 || /^(STYLE|SCRIPT|META|TITLE|HEAD)$/.test(n.tagName)) return;
+    const t = n.tagName;
+    if (/^H[1-6]$/.test(t) || /MsoTitle|MsoHeading|MsoSubtitle/i.test(n.className || "") || n.getAttribute("role") === "heading") {
+      flush();
+      const name = n.textContent.replace(/\s+/g, " ").trim();
+      if (name) out.push({ type: "h", name: escText(name) });
+      return;
+    }
+    if (t === "BR") { flush(); return; }
+    if (BLOCK.test(t)) { flush(); walk(n); flush(); return; }
+    // an inline wrapper around whole paragraphs (Google Docs does this): look inside
+    if (hasBlock(n)) { walk(n); return; }
+    cur += pastedInline(n);
+  });
+  walk(doc.body);
+  flush();
+  return out;
+}
 
 // Double-click any text (admin only) to start editing right there.
 page.addEventListener("dblclick", async (e) => {
