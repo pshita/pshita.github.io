@@ -47,6 +47,20 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 #msg{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:5;max-width:calc(100vw - 32px);background:#b00020;color:#fff;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 #msg:empty{display:none}
 /* bold / red on selected text */
+/* search and replace, over every page shown */
+.tools{display:flex;align-items:center;gap:6px}
+.bar .icon{padding:8px}
+.bar .icon svg{width:20px;height:20px;display:block}
+#find{position:fixed;top:10px;left:16px;z-index:6;background:#fff;border:1px solid var(--s-line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:8px;display:flex;flex-direction:column;gap:6px;font-family:var(--s-head);font-size:14px;max-width:calc(100vw - 32px)}
+#find[hidden]{display:none}
+#find .frow{display:flex;align-items:center;gap:4px}
+#find input{font:inherit;width:190px;max-width:52vw;padding:6px 10px;border:1px solid var(--s-line);border-radius:8px;outline:none}
+#find input:focus{border-color:#8a4b2e}
+#find button{font:inherit;border:0;background:none;padding:5px 8px;border-radius:7px;cursor:pointer;color:var(--s-ink);white-space:nowrap}
+#find button:hover{background:var(--s-accent-soft);color:var(--s-accent-strong)}
+#findN{color:var(--s-soft);font-size:12px;min-width:44px;text-align:center}
+::highlight(hits){background:#ffe58a}
+::highlight(hit-now){background:#f0a33c;color:#000}
 #fmt{position:absolute;z-index:4;display:flex;gap:2px;background:#222;border-radius:7px;padding:3px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
 #fmt[hidden]{display:none}
 #fmt button{width:30px;height:28px;border:0;border-radius:5px;background:none;color:#fff;font:700 15px Arial,sans-serif;cursor:pointer}
@@ -75,16 +89,25 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 #tb[hidden]{display:none}
 #tb button{font:inherit;padding:3px 10px;border:1px solid #bbb;border-radius:5px;background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
 @media (max-width:640px){.page{padding:28px 18px;font-size:16px}}
-@media print{.bar,.panel,#tb,#hot,#fmt,#msg{display:none}body{background:#fff}.page{box-shadow:none;margin:0;max-width:none;padding:0}}
+@media print{.bar,.panel,#tb,#hot,#fmt,#msg,#find{display:none}body{background:#fff}.page{box-shadow:none;margin:0;max-width:none;padding:0}}
 </style>
 </head>
 <body>
 <div id="hot" title="תפריט"></div>
 <div class="bar" id="bar">
   <button type="button" class="brand" id="siteBtn"><span class="mark">📖</span><span>פשיטא</span></button>
+  <span class="tools">
+  <button type="button" class="view icon" id="findBtn" title="חיפוש והחלפה"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
   <button type="button" class="view" id="viewBtn">תצוגה <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  </span>
 </div>
 <div id="msg"></div>
+<div id="find" hidden>
+  <div class="frow"><input type="search" id="findQ" placeholder="חיפוש" autocomplete="off"><span id="findN"></span>
+    <button type="button" id="findPrev" title="הקודם">▲</button><button type="button" id="findNext" title="הבא">▼</button><button type="button" id="findX" title="סגירה">✕</button></div>
+  <div class="frow" id="replRow" hidden><input type="text" id="replQ" placeholder="החלפה ב…" autocomplete="off">
+    <button type="button" id="replOne">החלפה</button><button type="button" id="replAll">החלפת הכול</button></div>
+</div>
 <div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="red" class="red" title="אדום">A</button></div>
 <div class="page" id="page"><p class="empty">טוען…</p></div>
 <div id="panels"></div>
@@ -230,6 +253,7 @@ async function render(focus) {
     return d ? renderLesson(k, d, SHOWQ) : `<p class="empty">לא נטען: ${esc(k)}</p>`;
   }).join("");
   hideTb();
+  if (!$("find").hidden) runFind(false);
   if (focus) {
     const el = document.querySelector(`[data-h="${CSS.escape(focus.h)}"][data-p="${focus.p}"]`);
     if (el && el.isContentEditable) {
@@ -322,6 +346,107 @@ $("panels").onchange = (e) => {
 $("hot").onclick = (e) => { e.stopPropagation(); $("bar").classList.add("show"); };
 $("bar").onclick = (e) => e.stopPropagation();
 document.addEventListener("click", () => { closePanels(); $("bar").classList.remove("show"); });
+
+// ---------- search and replace ----------
+// Matches are found in the text of every page shown and marked with the CSS
+// Highlight API, so the page itself isn't touched. Replacing changes the
+// lesson data (like typing) and saves the usual way; text outside the lesson
+// data (summaries, tables) can be found but not replaced.
+const BLOCKS = "h1,h2,p,li,td,th";
+let HITS = [], NOW = -1;
+function findAll(q) {
+  const hits = [];
+  if (!q) return hits;
+  $("page").querySelectorAll(BLOCKS).forEach((block) => {
+    if (block.querySelector(BLOCKS)) return;
+    const nodes = [], walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+    let text = "", n;
+    while ((n = walker.nextNode())) { nodes.push([n, text.length]); text += n.data; }
+    const at = (i) => { let k = nodes.length - 1; while (k > 0 && nodes[k][1] > i) k--; return [nodes[k][0], i - nodes[k][1]]; };
+    for (let i = text.indexOf(q); i > -1; i = text.indexOf(q, i + q.length)) {
+      const r = document.createRange();
+      r.setStart(...at(i));
+      const [en, eo] = at(i + q.length - 1);
+      r.setEnd(en, eo + 1);
+      hits.push({ r, block, el: block.matches("[data-p]") ? block : block.querySelector("[data-p]") });
+    }
+  });
+  return hits;
+}
+function paintHits() {
+  if (!window.Highlight || !CSS.highlights) return;
+  CSS.highlights.set("hits", new Highlight(...HITS.map((h) => h.r)));
+  CSS.highlights.set("hit-now", NOW > -1 ? new Highlight(HITS[NOW].r) : new Highlight());
+}
+function showHit(scroll = true) {
+  $("findN").textContent = HITS.length ? `${NOW + 1}/${HITS.length}` : ($("findQ").value ? "0" : "");
+  paintHits();
+  if (NOW < 0 || !scroll) return;
+  const rect = HITS[NOW].r.getBoundingClientRect();
+  if (rect.top < 60 || rect.bottom > innerHeight - 20) scrollBy({ top: rect.top - innerHeight / 3, behavior: "smooth" });
+}
+// Re-run the search (after typing in it, a render, or a replace); keep about the same place.
+function runFind(scroll = true) {
+  const keep = NOW;
+  HITS = findAll($("findQ").value);
+  NOW = HITS.length ? Math.min(Math.max(keep, 0), HITS.length - 1) : -1;
+  showHit(scroll);
+}
+function step(d) {
+  if (!HITS.length) return;
+  NOW = (NOW + d + HITS.length) % HITS.length;
+  showHit();
+}
+function openFind() {
+  $("find").hidden = false;
+  $("replRow").hidden = !isAdmin;
+  const sel = String(getSelection()).trim();
+  if (sel && sel.length < 80 && !sel.includes("\n")) $("findQ").value = sel;
+  $("findQ").focus(); $("findQ").select();
+  NOW = 0; runFind();
+}
+function closeFind() {
+  $("find").hidden = true;
+  HITS = []; NOW = -1;
+  if (window.Highlight && CSS.highlights) { CSS.highlights.delete("hits"); CSS.highlights.delete("hit-now"); }
+}
+// Replace the given hits (last first, so earlier ranges stay valid) and save each changed piece.
+async function replaceHits(list) {
+  if (!EDIT) { EDIT = true; await render(); runFind(false); list = list === "now" ? [HITS[NOW]] : HITS; }
+  else if (list === "now") list = [HITS[NOW]];
+  else if (list === "all") list = HITS;
+  const to = $("replQ").value, touched = new Set();
+  let skipped = 0;
+  [...list].reverse().forEach((h) => {
+    if (!h || !h.el || !h.el.isContentEditable) { skipped++; return; }
+    h.r.deleteContents();
+    if (to) h.r.insertNode(document.createTextNode(to));
+    touched.add(h.el);
+  });
+  touched.forEach((el) => { setValue(DATA[el.dataset.h].L, el.dataset.p, cleanHtml(el)); changed(el.dataset.h); });
+  if (skipped) say(`${skipped} מקומות לא הוחלפו: הם לא חלק מהטקסט של השיעור (למשל סיכום או טבלה).`);
+  runFind(false);
+}
+$("findBtn").onclick = (e) => { e.stopPropagation(); closePanels(); $("bar").classList.remove("show"); openFind(); };
+$("find").addEventListener("click", (e) => e.stopPropagation());
+$("findQ").addEventListener("input", () => { NOW = 0; runFind(); });
+$("findQ").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); step(e.shiftKey ? -1 : 1); }
+  else if (e.key === "Escape") closeFind();
+});
+$("replQ").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (NOW > -1) replaceHits("now"); } else if (e.key === "Escape") closeFind(); });
+$("findNext").onclick = () => step(1);
+$("findPrev").onclick = () => step(-1);
+$("findX").onclick = closeFind;
+$("replOne").onclick = () => { if (NOW > -1) replaceHits("now"); };
+$("replAll").onclick = () => { if (HITS.length) replaceHits("all"); };
+// Ctrl+F / Cmd+F opens this search, which covers every page shown.
+addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") { e.preventDefault(); openFind(); }
+});
+// typing in the page moves the text: refresh the marks
+let findT;
+$("page").addEventListener("input", () => { if (!$("find").hidden) { clearTimeout(findT); findT = setTimeout(() => runFind(false), 300); } });
 
 function saveSelection() { try { localStorage.setItem(SEL_KEY, JSON.stringify(SELECTED.filter((k) => k !== NEW))); } catch (e) {} }
 function loadSelection() {
