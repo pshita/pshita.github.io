@@ -468,24 +468,49 @@ function changed(key) {
   DIRTY.add(key);
   clearTimeout(TIMERS[key]);
   TIMERS[key] = setTimeout(() => saveNow(key), isDraft(key) ? 1200 : 4000);
-  if (isDraft(key)) { updateDraftLabel(key); backupDraft(key); }
+  if (isDraft(key)) updateDraftLabel(key);
+  backup(key);
 }
 
-// Drafts are also kept in this browser until Firestore has them, so nothing
-// typed is lost if a save fails and the page is closed.
-const BACKUP_KEY = "pshita.text.drafts";
-function readBackup() { try { return JSON.parse(localStorage.getItem(BACKUP_KEY)) || {}; } catch (e) { return {}; } }
-function writeBackup(b) { try { localStorage.setItem(BACKUP_KEY, JSON.stringify(b)); } catch (e) {} }
-function backupDraft(key) { const b = readBackup(), d = DATA[key]; b[key.slice(6)] = { L: d.L, createdAt: d.createdAt }; writeBackup(b); }
-function dropBackup(key) { const b = readBackup(); delete b[key.slice(6)]; writeBackup(b); }
-function restoreBackups() {
-  Object.entries(readBackup()).forEach(([id, v]) => {
-    const key = "draft:" + id;
-    if (!DATA[key]) DRAFTS.push({ id, createdAt: v.createdAt });
-    DATA[key] = { L: v.L, draft: true, createdAt: v.createdAt };
+// Every change is also kept in this browser until it's saved, so nothing
+// typed is lost if a save fails or the page is closed first.
+const BACKUP_KEY = "pshita.text.unsaved";
+function readBackup() {
+  let b = {};
+  try { b = JSON.parse(localStorage.getItem(BACKUP_KEY)) || {}; } catch (e) {}
+  // drafts kept by the previous version of this page
+  try { Object.entries(JSON.parse(localStorage.getItem("pshita.text.drafts")) || {}).forEach(([id, v]) => { b["draft:" + id] = b["draft:" + id] || v; }); } catch (e) {}
+  return b;
+}
+function writeBackup(b) {
+  try { localStorage.setItem(BACKUP_KEY, JSON.stringify(b)); localStorage.removeItem("pshita.text.drafts"); } catch (e) {}
+}
+function backup(key) {
+  const b = readBackup(), d = DATA[key];
+  b[key] = d.draft ? { L: d.L, createdAt: d.createdAt } : { L: d.L, base: d.base };
+  writeBackup(b);
+}
+function dropBackup(key) { const b = readBackup(); delete b[key]; writeBackup(b); }
+// On opening the page: put back whatever wasn't saved last time, and save it.
+async function restoreBackups() {
+  for (const [key, v] of Object.entries(readBackup())) {
+    if (isDraft(key)) {
+      if (!DATA[key]) DRAFTS.push({ id: key.slice(6), createdAt: v.createdAt });
+      DATA[key] = { L: v.L, draft: true, createdAt: v.createdAt };
+    } else {
+      // a lesson: only if nobody changed it on the site since
+      let src = null;
+      try { src = (await httpsCallable(fns, "getLessonData")({ path: key })).data.src; } catch (e) {}
+      if (src === null) continue;
+      if (src !== v.base) {
+        say(`יש במחשב הזה שינויים שלא נשמרו ב"${plain(v.L.title)}", אבל השיעור השתנה מאז באתר, אז הם לא הוחזרו.`);
+        continue;
+      }
+      DATA[key] = { L: v.L, base: src };
+    }
     DIRTY.add(key);
     TIMERS[key] = setTimeout(() => saveNow(key), 800);
-  });
+  }
   DRAFTS.sort((a, b) => a.createdAt - b.createdAt);
 }
 function saveNow(key) {
@@ -502,7 +527,6 @@ async function doSave(key) {
       await fs.setDoc(fs.doc(auth.getDb(), "drafts", key.slice(6)), {
         title: plain(d.L.title), data: JSON.stringify(d.L), createdAt: d.createdAt, updatedAt: Date.now(),
       });
-      if (!DIRTY.has(key)) dropBackup(key);
     } else {
       const copy = JSON.parse(JSON.stringify(d.L));
       // an empty heading or a heading with no text yet: wait until it's filled
@@ -510,6 +534,8 @@ async function doSave(key) {
       const res = await httpsCallable(fns, "saveLessonData")({ path: key, lesson: copy, base: d.base });
       d.base = res.data.src;
     }
+    // saved: drop the local copy, or refresh it if more was typed meanwhile
+    if (DIRTY.has(key)) backup(key); else dropBackup(key);
     if (!DIRTY.size) say("");
   } catch (err) {
     DIRTY.add(key);
@@ -649,7 +675,7 @@ async function startAdmin() {
     DATA[NEW] = { L: newDraftData(), draft: true };
     say("תפריט העריכה לא נטען: " + ((err && (err.code || err.message)) || "שגיאה") + ". עריכת השיעורים עובדת כרגיל.");
   }
-  restoreBackups();
+  await restoreBackups();
   await indexReady.catch(() => {});
   isAdmin = true;
   SELECTED = (loadSelection() || defaultSelection()).filter((k) => !isDraft(k) || DATA[k]);
