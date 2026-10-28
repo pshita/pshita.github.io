@@ -468,7 +468,25 @@ function changed(key) {
   DIRTY.add(key);
   clearTimeout(TIMERS[key]);
   TIMERS[key] = setTimeout(() => saveNow(key), isDraft(key) ? 1200 : 4000);
-  if (isDraft(key)) updateDraftLabel(key);
+  if (isDraft(key)) { updateDraftLabel(key); backupDraft(key); }
+}
+
+// Drafts are also kept in this browser until Firestore has them, so nothing
+// typed is lost if a save fails and the page is closed.
+const BACKUP_KEY = "pshita.text.drafts";
+function readBackup() { try { return JSON.parse(localStorage.getItem(BACKUP_KEY)) || {}; } catch (e) { return {}; } }
+function writeBackup(b) { try { localStorage.setItem(BACKUP_KEY, JSON.stringify(b)); } catch (e) {} }
+function backupDraft(key) { const b = readBackup(), d = DATA[key]; b[key.slice(6)] = { L: d.L, createdAt: d.createdAt }; writeBackup(b); }
+function dropBackup(key) { const b = readBackup(); delete b[key.slice(6)]; writeBackup(b); }
+function restoreBackups() {
+  Object.entries(readBackup()).forEach(([id, v]) => {
+    const key = "draft:" + id;
+    if (!DATA[key]) DRAFTS.push({ id, createdAt: v.createdAt });
+    DATA[key] = { L: v.L, draft: true, createdAt: v.createdAt };
+    DIRTY.add(key);
+    TIMERS[key] = setTimeout(() => saveNow(key), 800);
+  });
+  DRAFTS.sort((a, b) => a.createdAt - b.createdAt);
 }
 function saveNow(key) {
   clearTimeout(TIMERS[key]);
@@ -484,6 +502,7 @@ async function doSave(key) {
       await fs.setDoc(fs.doc(auth.getDb(), "drafts", key.slice(6)), {
         title: plain(d.L.title), data: JSON.stringify(d.L), createdAt: d.createdAt, updatedAt: Date.now(),
       });
+      if (!DIRTY.has(key)) dropBackup(key);
     } else {
       const copy = JSON.parse(JSON.stringify(d.L));
       // an empty heading or a heading with no text yet: wait until it's filled
@@ -494,7 +513,8 @@ async function doSave(key) {
     if (!DIRTY.size) say("");
   } catch (err) {
     DIRTY.add(key);
-    say("השמירה לא הצליחה: " + ((err && err.message) || "שגיאה") + ". השינויים עדיין כאן; ננסה שוב בשינוי הבא.");
+    const why = ((err && err.message) || "שגיאה").replace(/[.\s]+$/, "");
+    say(`השמירה לא הצליחה: ${why}. השינויים שמורים במחשב הזה, וננסה שוב בשינוי הבא.`);
   }
 }
 // The empty "עמוד חדש" became a draft once something was typed in it.
@@ -629,6 +649,7 @@ async function startAdmin() {
     DATA[NEW] = { L: newDraftData(), draft: true };
     say("תפריט העריכה לא נטען: " + ((err && (err.code || err.message)) || "שגיאה") + ". עריכת השיעורים עובדת כרגיל.");
   }
+  restoreBackups();
   await indexReady.catch(() => {});
   isAdmin = true;
   SELECTED = (loadSelection() || defaultSelection()).filter((k) => !isDraft(k) || DATA[k]);
