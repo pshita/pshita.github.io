@@ -311,7 +311,9 @@ const OPS = {
   addParaInStation(L, k) {
     const si = L.screens.findIndex((s) => s.type === "read" && s.st === k);
     if (si > -1) {
-      if (plain(L.screens[si].text[0] || "x")) L.screens[si].text.unshift("");
+      // reuse an empty first paragraph instead of adding another
+      const t = L.screens[si].text;
+      if (!t.length || plain(t[0])) t.unshift("");
       return { p: `tx.${si}.0` };
     }
     const at = L.screens.findIndex((s) => s.st === k);
