@@ -284,8 +284,27 @@ exports.saveLessonData = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => 
     logger.error(`saveLessonData failed for ${path}`, err);
     throw new HttpsError("internal", "השמירה נכשלה. נסו שוב.");
   }
+  // A renamed lesson: its name also shows in the lesson list (home page, menus) and the page's tab.
+  try {
+    await syncLessonTitle(id, lesson.title, token);
+  } catch (err) {
+    logger.error(`saveLessonData: title sync failed for ${id}`, err);
+    throw new HttpsError("internal", "התוכן נשמר, אבל השם החדש לא עודכן ברשימת השיעורים. נסו לשנות אותו שוב.");
+  }
   return { ok: true, src: out };
 });
+
+async function syncLessonTitle(id, title, token) {
+  const { site, sha } = await readSite(token);
+  const entry = [].concat(...site.groups.map((g) => g.lessons)).find((l) => l.id === id);
+  if (!entry || entry.title === title) return;
+  entry.title = title;
+  const message = `שינוי שם שיעור: ${id} (עריכה מעמוד הטקסט)`;
+  await publishSite({ site, sha, token, message });
+  const shell = await readRepoFile(`lessons/${id}.html`, token);
+  const html = lessonShellHtml({ id, title });
+  if (html !== shell.text) await writeRepoFile(`lessons/${id}.html`, html, { sha: shell.sha, message, token });
+}
 
 // ---------------------------------------------------------------------
 // Adding, moving and removing lessons: lessons.json is the one list; the

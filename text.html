@@ -75,6 +75,7 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 .page h1{font-size:1.47em;font-weight:700;margin:0 0 2px}
 .page h1:not(:first-child){margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
 .page .ref{color:var(--muted);font-size:.82em;margin:0 0 14px}
+.page .icard .iw{color:var(--muted)}
 .page h2{font-size:1.12em;font-weight:700;margin:20px 0 4px}
 .page p{margin:0 0 6px;text-align:justify}
 .page .q{margin:10px 0 2px;font-weight:700}
@@ -211,7 +212,7 @@ const plain = (s) => { tpl.innerHTML = String(s); return tpl.content.textContent
 function renderLesson(key, d, q) {
   const L = d.L, editable = EDIT && (d.draft || (!d.noEdit && d.base));
   const ed = (p, v, ph = "") => ` data-h="${esc(key)}" data-p="${p}" data-ph="${esc(ph)}"` + (editable ? ` contenteditable="true">${v}` : `>${clean(v)}`);
-  let h = d.draft ? `<h1${ed("tt", L.title, "שם השיעור")}</h1>` : `<h1>${clean(L.title)}</h1><p class="ref">${esc(L.ref || "")}</p>`;
+  let h = `<h1${ed("tt", L.title, "שם השיעור")}</h1>` + (d.draft ? "" : `<p class="ref"${ed("rf", L.ref || "", "דף ועמוד")}</p>`);
   if (EDIT && !editable) h += `<p class="note">את השיעור הזה אי אפשר לערוך מכאן.</p>`;
   let last = -1;
   L.screens.forEach((s, si) => {
@@ -219,7 +220,14 @@ function renderLesson(key, d, q) {
     if (shown && s.st !== undefined && s.st !== last && L.stations[s.st] !== undefined) {
       h += `<h2${ed("st." + s.st, L.stations[s.st], "כותרת")}</h2>`; last = s.st;
     }
-    if (s.type === "intro") { if (s.question) h += `<p${ed("iq." + si, s.question)}</p>`; return; }
+    if (s.type === "intro") {
+      if (s.question) h += `<p${ed("iq." + si, s.question)}</p>`;
+      // the big cards of the opening screen: name, line, and where it's written
+      (s.cards || []).forEach((c, ci) => {
+        h += `<p class="icard"><b${ed(`ict.${si}.${ci}`, c.t || "")}</b>: <span${ed(`ics.${si}.${ci}`, c.s || "")}</span>` + (c.w !== undefined ? ` <span class="iw">(<span${ed(`icw.${si}.${ci}`, c.w)}</span>)</span>` : "") + `</p>`;
+      });
+      return;
+    }
     if (s.type === "read") {
       if (s.kicker) h += `<p><b${ed("kk." + si, s.kicker)}</b></p>`;
       (s.comic || []).forEach((p) => h += `<p>${clean(p[1])}</p>`);
@@ -554,6 +562,16 @@ function setValue(L, p, v) {
     case "o": L.screens[n(1)].o[n(2)] = v; break;
     case "tf": L.screens[n(1)].s = v; break;
     case "iq": L.screens[n(1)].question = v; break;
+    case "ict": L.screens[n(1)].cards[n(2)].t = v; break;
+    case "ics": L.screens[n(1)].cards[n(2)].s = v; break;
+    case "icw": L.screens[n(1)].cards[n(2)].w = v; break;
+    case "rf": {
+      L.ref = plain(v);
+      // the opening screen shows it too ("בבא קמא · דף ב, עמוד א")
+      const intro = L.screens.find((x) => x.type === "intro");
+      if (intro && intro.daf && intro.daf.includes(" · ")) intro.daf = intro.daf.split(" · ")[0] + " · " + L.ref;
+      break;
+    }
     case "sh": L.screens[n(1)][a[2]][n(3)].text = v; break;
     case "ct": L.screens[n(1)][a[2]][n(3)].items[n(4)].t = v; break;
     case "cs": L.screens[n(1)][a[2]][n(3)].items[n(4)].s = v; break;
@@ -802,7 +820,7 @@ function tidy(L) {
       if (!alone) OPS.delPara(L, si, ti);
     }
   }
-  return L.stations.some((s) => !plain(s)) || L.screens.some((s) => s.type === "read" && s.text && s.text.length === 1 && !plain(s.text[0]));
+  return !plain(L.title) || L.stations.some((s) => !plain(s)) || L.screens.some((s) => s.type === "read" && s.text && s.text.length === 1 && !plain(s.text[0]));
 }
 
 // "כותרת" shows only on an empty paragraph that isn't the first thing in its section.
@@ -826,16 +844,32 @@ tb.addEventListener("click", () => { if (tb.ed) runOp(tb.ed, "paraToHeading"); }
 
 const page = $("page");
 page.addEventListener("focusin", (e) => { const el = e.target.closest("[contenteditable]"); if (el) showTb(el); });
-page.addEventListener("focusout", () => {
+// A lesson's name and page line are saved when you leave them, not while typing:
+// a new name also updates the lesson list, which is a bigger save.
+const LAZY = (el) => !isDraft(el.dataset.h) && /^(tt|rf)$/.test(el.dataset.p);
+page.addEventListener("focusout", (e) => {
+  const el = e.target.closest && e.target.closest("[contenteditable]");
+  if (el && LAZY(el) && DIRTY.has(el.dataset.h)) saveNow(el.dataset.h);
   setTimeout(() => { const a = document.activeElement; if (!a || !a.isContentEditable) hideTb(); }, 0);
 });
 page.addEventListener("input", (e) => {
   const el = e.target.closest("[contenteditable]");
   if (!el) return;
   setValue(DATA[el.dataset.h].L, el.dataset.p, cleanHtml(el));
-  changed(el.dataset.h);
+  if (LAZY(el)) {
+    DIRTY.add(el.dataset.h);
+    clearTimeout(TIMERS[el.dataset.h]);
+    backup(el.dataset.h);
+    if (el.dataset.p === "tt") renameInMenu(el.dataset.h);
+  } else changed(el.dataset.h);
   showTb(el);
 });
+function renameInMenu(key) {
+  const l = GROUPS.flatMap((g) => g.lessons).find((x) => x.key === key);
+  if (l) l.title = plain(DATA[key].L.title) || l.title;
+  const box = document.querySelector(`#panels input[data-key="${CSS.escape(key)}"]`);
+  if (box && l) box.parentElement.lastChild.textContent = " " + plain(l.title);
+}
 page.addEventListener("keydown", (e) => {
   const el = e.target.closest("[contenteditable]");
   if (!el) return;
