@@ -609,11 +609,19 @@ async function startAdmin() {
     httpsCallable = f.httpsCallable;
     fns = f.getFunctions(auth.getApp());
     fs = store;
-    await Promise.all([loadDrafts(), indexReady]);
   } catch (err) {
     say("לא הצלחתי לטעון את העריכה. נסו לרענן את הדף.");
     return;
   }
+  // Editing lessons on the site doesn't depend on the drafts loading.
+  try {
+    await loadDrafts();
+  } catch (err) {
+    DRAFTS = [];
+    DATA[NEW] = { L: newDraftData(), draft: true };
+    say("תפריט העריכה לא נטען: " + ((err && (err.code || err.message)) || "שגיאה") + ". עריכת השיעורים עובדת כרגיל.");
+  }
+  await indexReady.catch(() => {});
   isAdmin = true;
   SELECTED = (loadSelection() || defaultSelection()).filter((k) => !isDraft(k) || DATA[k]);
   drawMenus();
