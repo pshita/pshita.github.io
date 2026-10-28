@@ -180,14 +180,15 @@ async function loadDrafts() {
 // from the lesson design, formatting pasted from elsewhere) is dropped.
 const RED = '<span style="color:#B5432A">';
 const isRedEl = (n) => n.style.color === "rgb(181, 67, 42)" || (n.getAttribute("color") || "").toLowerCase() === "#b5432a";
-function ser(node) {
+function ser(node, keepColor = true) {
   let out = "";
   node.childNodes.forEach((n) => {
     if (n.nodeType === 3) { out += n.textContent.replace(/\u00a0/g, " ").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); return; }
     if (n.nodeType !== 1) return;
-    const t = n.tagName, inner = ser(n);
+    const t = n.tagName, inner = ser(n, keepColor);
     if (t === "BR") out += " ";
     else if (!inner) return;
+    else if (keepColor && (t === "B" || t === "STRONG") && n.style.color && !isRedEl(n)) out += `<b style="color:${n.style.color}">${inner}</b>`;  // the lesson's colored key words
     else if (t === "B" || t === "STRONG" || (t === "SPAN" && /^(bold|[6-9]00)$/.test(n.style.fontWeight))) out += `<${t === "STRONG" ? "strong" : "b"}>${inner}</${t === "STRONG" ? "strong" : "b"}>`;
     else if (t === "I" || t === "EM") out += `<i>${inner}</i>`;
     else if ((t === "SPAN" || t === "FONT") && isRedEl(n)) out += `${RED}${inner}</span>`;
@@ -196,11 +197,9 @@ function ser(node) {
   return out;
 }
 const tpl = document.createElement("template");
-const clean = (s) => { tpl.innerHTML = String(s); return ser(tpl.content); };
+// for reading: the design's colored key words show as plain bold (saving keeps them)
+const clean = (s) => { tpl.innerHTML = String(s); return ser(tpl.content, false); };
 const plain = (s) => { tpl.innerHTML = String(s); return tpl.content.textContent.trim(); };
-function table(t) {
-  return `<table><tr>${t.cols.map((c) => `<th>${clean(c)}</th>`).join("")}</tr>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${clean(c && c.v !== undefined ? c.v : c)}</td>`).join("")}</tr>`).join("")}</table>`;
-}
 
 // Every editable piece carries its place in the lesson data (data-p), so a
 // double-click can find it again once edit mode is on.
@@ -215,7 +214,7 @@ function renderLesson(key, d, q) {
     if (shown && s.st !== undefined && s.st !== last && L.stations[s.st] !== undefined) {
       h += `<h2${ed("st." + s.st, L.stations[s.st], "כותרת")}</h2>`; last = s.st;
     }
-    if (s.type === "intro") { if (s.question) h += `<p>${clean(s.question)}</p>`; return; }
+    if (s.type === "intro") { if (s.question) h += `<p${ed("iq." + si, s.question)}</p>`; return; }
     if (s.type === "read") {
       if (s.kicker) h += `<p><b${ed("kk." + si, s.kicker)}</b></p>`;
       (s.comic || []).forEach((p) => h += `<p>${clean(p[1])}</p>`);
@@ -223,12 +222,16 @@ function renderLesson(key, d, q) {
       if (s.quote) h += `<p>${clean(s.quote)}</p>`;
       ["before", "after"].forEach((side) => (s[side] || []).forEach((b, bi) => {
         if (b.k === "gloss") b.items.forEach((g, gi) => h += `<p${ed(`gl.${si}.${side}.${bi}.${gi}`, g)}</p>`);
-        else if (b.k === "short") h += `<p><b>בקיצור:</b> ${clean(b.text)}</p>`;
-        else if (b.k === "cards") h += `<p>${b.items.map((c) => `<b>${clean(c.t)}:</b> ${clean(c.s)}`).join(" · ")}</p>`;
+        else if (b.k === "short") h += `<p><b>בקיצור:</b> <span${ed(`sh.${si}.${side}.${bi}`, b.text)}</span></p>`;
+        else if (b.k === "cards") h += `<p>${b.items.map((c, ci) => `<b${ed(`ct.${si}.${side}.${bi}.${ci}`, c.t)}</b>: <span${ed(`cs.${si}.${side}.${bi}.${ci}`, c.s)}</span>`).join(" · ")}</p>`;
       }));
       return;
     }
-    if (s.type === "summary") { if (s.table) h += `<h2>סיכום</h2>` + table(s.table); return; }
+    if (s.type === "summary") {
+      const t = s.table, cell = (c) => (c && c.v !== undefined ? c.v : c);
+      if (t) h += `<h2>סיכום</h2><table><tr>${t.cols.map((c, ci) => `<th${ed(`tc.${si}.${ci}`, c)}</th>`).join("")}</tr>${t.rows.map((r, ri) => `<tr>${r.map((c, ci) => `<td${ed(`tr.${si}.${ri}.${ci}`, cell(c))}</td>`).join("")}</tr>`).join("")}</table>`;
+      return;
+    }
     if (!q) return;
     const opts = (list, a) => `<ol>${list.map((x, i) => `<li class="${i === a ? "ok" : ""}"${ed(`o.${si}.${i}`, x)}</li>`).join("")}</ol>`;
     if (s.type === "mc") h += `<p class="q"${ed("q." + si, s.q)}</p>` + opts(s.o, s.a);
@@ -369,7 +372,8 @@ function findAll(q) {
       r.setStart(...at(i));
       const [en, eo] = at(i + q.length - 1);
       r.setEnd(en, eo + 1);
-      hits.push({ r, block, el: block.matches("[data-p]") ? block : block.querySelector("[data-p]") });
+      const host = r.startContainer.parentElement.closest("[data-p]");
+      hits.push({ r, block, el: host && host.contains(r.endContainer) && block.contains(host) ? host : null });
     }
   });
   return hits;
@@ -425,7 +429,7 @@ async function replaceHits(list) {
     touched.add(h.el);
   });
   touched.forEach((el) => { setValue(DATA[el.dataset.h].L, el.dataset.p, cleanHtml(el)); changed(el.dataset.h); });
-  if (skipped) say(`${skipped} מקומות לא הוחלפו: הם לא חלק מהטקסט של השיעור (למשל סיכום או טבלה).`);
+  if (skipped) say(`${skipped} מקומות לא הוחלפו, כי אי אפשר לערוך אותם מכאן.`);
   runFind(false);
 }
 $("findBtn").onclick = (e) => { e.stopPropagation(); closePanels(); $("bar").classList.remove("show"); openFind(); };
@@ -529,6 +533,16 @@ function setValue(L, p, v) {
     case "q": L.screens[n(1)].q = v; break;
     case "o": L.screens[n(1)].o[n(2)] = v; break;
     case "tf": L.screens[n(1)].s = v; break;
+    case "iq": L.screens[n(1)].question = v; break;
+    case "sh": L.screens[n(1)][a[2]][n(3)].text = v; break;
+    case "ct": L.screens[n(1)][a[2]][n(3)].items[n(4)].t = v; break;
+    case "cs": L.screens[n(1)][a[2]][n(3)].items[n(4)].s = v; break;
+    case "tc": L.screens[n(1)].table.cols[n(2)] = v; break;
+    case "tr": {
+      const row = L.screens[n(1)].table.rows[n(2)], c = row[n(3)];
+      if (c && typeof c === "object") c.v = v; else row[n(3)] = v;
+      break;
+    }
   }
 }
 
