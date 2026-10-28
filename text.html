@@ -27,6 +27,10 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 .panel a:hover{background:#f3f3f5}
 .sec-b a{padding-inline-start:26px}
 .panel .opt{border-bottom:1px solid var(--line)}
+.hello{display:flex;align-items:center;justify-content:space-between;gap:8px;height:34px;padding:0 14px}
+.hello span{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hello button{flex:none;font:inherit;font-size:12px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:2px 10px;cursor:pointer}
+.hello button:hover{color:var(--accent);border-color:currentColor}
 #msg{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:5;max-width:calc(100vw - 32px);background:#b00020;color:#fff;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 #msg:empty{display:none}
 /* lesson pickers: about 10 rows, then scroll */
@@ -253,7 +257,7 @@ function drawMenus() {
   // the site menu, as on every page: lessons by page/amud, then the account
   const site = GROUPS.map((g) => secHtml("site:" + g.name, g.name, g.lessons.map((l) => `<a href="${esc(l.key)}">${esc(plain(l.title))}</a>`).join(""))).join("");
   const account = USER
-    ? `<a href="achievements.html">ההישגים שלי</a><a href="#" id="logout">התנתקות</a>`
+    ? `<a href="achievements.html">ההישגים שלי</a><div class="hello"><span>שלום ${esc(USER.displayName || "")}</span><button type="button" id="logout">יציאה</button></div>`
     : `<a href="login.html">התחברות</a>`;
   const view = menus().map((g) => secHtml(g.name, g.name, g.items.map((it) =>
     `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`).join(""))).join("");
@@ -282,7 +286,7 @@ Object.entries(BTN).forEach(([p, b]) => $(b).onclick = (e) => {
 });
 $("panels").onclick = (e) => {
   e.stopPropagation();
-  if (e.target.id === "logout") { e.preventDefault(); auth.logoutUser().then(() => location.reload()); return; }
+  if (e.target.id === "logout") { auth.logoutUser().then(() => location.reload()); return; }
   const h = e.target.closest(".sec-h");
   if (!h) return;
   const sec = h.parentElement, name = sec.dataset.name;

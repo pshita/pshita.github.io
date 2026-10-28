@@ -224,6 +224,10 @@ button.dropdown-item {
 }
 .auth-link-primary:hover { color: #fff; opacity: .9; }
 .auth-user-name { font-size: .85rem; color: var(--ink-soft); padding: 0 10px; }
+.auth-hello { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.auth-hello .auth-user-name { padding: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auth-logout { flex: none; font: inherit; font-size: .8rem; color: var(--ink-soft); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.auth-logout:hover { color: var(--accent-strong); border-color: currentColor; }
 
 .auth-form {
   display: flex;

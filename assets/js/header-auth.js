@@ -16,7 +16,7 @@ watchAuthState((user) => {
   const isLoggedIn = Boolean(user);
   if (loggedOutEl) loggedOutEl.hidden = isLoggedIn;
   if (loggedInEl) loggedInEl.hidden = !isLoggedIn;
-  if (userNameEl) userNameEl.textContent = isLoggedIn && user.displayName ? `מחובר/ת: ${user.displayName}` : "";
+  if (userNameEl) userNameEl.textContent = isLoggedIn && user.displayName ? `שלום ${user.displayName}` : "";
 });
 
 // Admin-only link to the continuous text page (view + edit all lessons).
