@@ -390,7 +390,7 @@ document.addEventListener("click", () => { closePanels(); $("bar").classList.rem
 
 // ---------- text size: pinch with two fingers (or the trackpad), remembered on this device ----------
 // The text itself grows or shrinks and rewraps, so every line still fits the page.
-const FS_KEY = "pshita.text.size", FS_MIN = 12, FS_MAX = 34;
+const FS_KEY = "pshita.text.size", FS_MIN = 13, FS_MAX = 30;
 let FS_SAVE;
 const curSize = () => parseFloat(getComputedStyle($("page")).fontSize);
 function setSize(px) {
@@ -437,7 +437,7 @@ addEventListener("wheel", (e) => {
   e.preventDefault();
   sizeAround(curSize() * Math.exp(-e.deltaY * 0.01), e.clientX, e.clientY);
 }, { passive: false });
-try { const v = +localStorage.getItem(FS_KEY); if (v) setSize(v); } catch (e) {}
+try { const v = +localStorage.getItem(FS_KEY); if (v) setSize(Math.min(FS_MAX, Math.max(FS_MIN, v))); } catch (e) {}
 
 // ---------- search and replace ----------
 // Matches are found in the text of every page shown and marked with the CSS
