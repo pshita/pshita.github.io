@@ -1,0 +1,42 @@
+# Deploys the Cloud Functions and the Firestore security rules to Firebase
+# whenever they change on main, so nobody has to run `firebase deploy` by hand.
+# Needs the repository secret FIREBASE_SERVICE_ACCOUNT: the JSON key of a
+# Google Cloud service account allowed to deploy project avot-926d7.
+name: Deploy to Firebase
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/**"
+      - "firestore.rules"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/deploy-firebase.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install the functions' dependencies
+        run: npm install --prefix functions --no-audit --no-fund
+
+      - name: Sign in to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # --force: also removes functions that were deleted from the code
+      - name: Deploy functions and Firestore rules
+        run: npx --yes firebase-tools@latest deploy --only functions,firestore:rules --project avot-926d7 --force --non-interactive
