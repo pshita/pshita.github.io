@@ -66,6 +66,7 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 #fmt button{width:30px;height:28px;border:0;border-radius:5px;background:none;color:#fff;font:700 15px Arial,sans-serif;cursor:pointer}
 #fmt button:hover{background:#444}
 #fmt .red{color:#ff8a7a}
+#fmt .hd{width:auto;padding:0 8px;font-size:13px;border-inline-start:1px solid #555;border-radius:0 5px 5px 0}
 .page{max-width:820px;margin:0 auto 40px;background:var(--page);box-shadow:0 1px 4px rgba(0,0,0,.15);padding:56px 64px;font-family:var(--text);font-size:17px;line-height:1.5}
 .page h1{font-size:25px;font-weight:700;margin:0 0 2px}
 .page h1:not(:first-child){margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
@@ -108,7 +109,7 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
   <div class="frow" id="replRow" hidden><input type="text" id="replQ" placeholder="החלפה ב…" autocomplete="off">
     <button type="button" id="replOne">החלפה</button><button type="button" id="replAll">החלפת הכול</button></div>
 </div>
-<div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="red" class="red" title="אדום">A</button></div>
+<div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="red" class="red" title="אדום">A</button><button type="button" data-cmd="heading" class="hd" title="להפוך לכותרת">כותרת</button></div>
 <div class="page" id="page"><p class="empty">טוען…</p></div>
 <div id="panels"></div>
 <div id="tb" hidden></div>
@@ -464,14 +465,36 @@ document.addEventListener("selectionchange", () => {
   const host = s.rangeCount && !s.isCollapsed && EDIT ? s.anchorNode && s.anchorNode.parentElement && s.anchorNode.parentElement.closest("#page [contenteditable]") : null;
   if (!host) { fmt.hidden = true; return; }
   const r = s.getRangeAt(0).getBoundingClientRect();
+  fmt.querySelector(".hd").hidden = !selectionParts(host);
   fmt.hidden = false;
   fmt.style.top = `${r.top + scrollY - fmt.offsetHeight - 6}px`;
   fmt.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - fmt.offsetWidth / 2, innerWidth - fmt.offsetWidth - 8)) + scrollX}px`;
 });
+// Selected text inside one paragraph -> the text before it, the selection, the text after it.
+// null when it can't become a heading (not a paragraph, or the very start of a section,
+// which already has its heading).
+function selectionParts(el) {
+  const s = getSelection();
+  if (!s.rangeCount || el.dataset.p.split(".")[0] !== "tx") return null;
+  const r = s.getRangeAt(0);
+  if (!el.contains(r.startContainer) || !el.contains(r.endContainer)) return null;
+  const part = (from, to) => { const x = document.createRange(); x.selectNodeContents(el); if (from) x.setStart(from[0], from[1]); if (to) x.setEnd(to[0], to[1]); const d = document.createElement("div"); d.appendChild(x.cloneContents()); return cleanHtml(d); };
+  const name = plain(part([r.startContainer, r.startOffset], [r.endContainer, r.endOffset]));
+  if (!name) return null;
+  const before = part(null, [r.startContainer, r.startOffset]), after = part([r.endContainer, r.endOffset], null);
+  const [, si, ti] = el.dataset.p.split(".").map(Number), L = DATA[el.dataset.h].L, S = L.screens[si];
+  if (!plain(before) && ti === 0 && !L.screens.slice(0, si).some((x) => x.st === S.st)) return null;
+  return { before, name, after };
+}
 fmt.addEventListener("mousedown", (e) => e.preventDefault());
 fmt.addEventListener("click", (e) => {
   const b = e.target.closest("[data-cmd]");
   if (!b) return;
+  if (b.dataset.cmd === "heading") {
+    const el = getSelection().anchorNode.parentElement.closest("#page [contenteditable]"), parts = el && selectionParts(el);
+    if (parts) { fmt.hidden = true; runOp(el, "toHeading", parts.before, parts.name, parts.after); }
+    return;
+  }
   if (b.dataset.cmd === "bold") {
     document.execCommand("styleWithCSS", false, false);
     document.execCommand("bold");
@@ -558,6 +581,25 @@ const OPS = {
     L.screens.splice(si + 1, 0, N);
     if (emptyScreen(S)) L.screens.splice(si, 1);
     return { p: `st.${k + 1}` };
+  },
+  // Selected text becomes a heading: the paragraph splits around it, and what
+  // follows (the rest of the paragraph and of the section) goes under the new heading.
+  toHeading(L, si, ti, before, name, after) {
+    const S = L.screens[si], k = S.st;
+    const rest = S.text.splice(ti + 1);
+    if (plain(after)) rest.unshift(after);
+    if (plain(before)) S.text[ti] = before; else S.text.splice(ti, 1);
+    L.screens.forEach((s, j) => {
+      if (s.st === undefined || s.type === "summary") return;
+      if (s.st > k) s.st++;
+      else if (s.st === k && j > si) s.st = k + 1;
+    });
+    L.stations.splice(k + 1, 0, name);
+    const N = { type: "read", st: k + 1, text: rest.length ? rest : [""] };
+    if (rest.length && S.after) { N.after = S.after; delete S.after; }
+    L.screens.splice(si + 1, 0, N);
+    if (emptyScreen(S)) L.screens.splice(si, 1);
+    return { p: `tx.${L.screens.indexOf(N)}.0`, start: true };
   },
   // Backspace in an empty paragraph
   delPara(L, si, ti) {
