@@ -30,7 +30,7 @@ watchAuthState((user) => {
   a.id = "admin-text-link";
   a.className = "dropdown-item";
   a.href = (location.pathname.includes("/lessons/") ? "../" : "") + "text.html";
-  a.textContent = "טקסט רציף (עריכה)";
+  a.textContent = "טקסט";
   const auth = menu.querySelector(".auth-area");
   menu.insertBefore(a, auth || null);
 });
