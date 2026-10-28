@@ -88,9 +88,12 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 .empty{color:var(--muted)}
 .page [data-ph]:empty::before{content:attr(data-ph);color:#aaa}
 /* edit mode (double-click any text, admin only) */
-.editing [contenteditable]{outline:none;border-radius:3px;transition:background .15s}
-.editing [contenteditable]:hover{background:#f6f6f6}
-.editing [contenteditable]:focus{background:var(--edit)}
+/* the whole page is one editing area: select and delete across paragraphs like in a document */
+.page.editing{outline:none}
+.editing [data-p]{border-radius:3px;transition:background .15s}
+.editing [data-p]:hover{background:#f6f6f6}
+.editing .cur{background:var(--edit)}
+.editing span[data-p],.editing b[data-p]{display:inline-block;min-width:.6em}
 #tb{position:absolute;z-index:2;font:13px Arial,sans-serif}
 #tb[hidden]{display:none}
 #tb button{font:inherit;padding:3px 10px;border:1px solid #bbb;border-radius:5px;background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
@@ -211,9 +214,11 @@ const plain = (s) => { tpl.innerHTML = String(s); return tpl.content.textContent
 // double-click can find it again once edit mode is on.
 function renderLesson(key, d, q) {
   const L = d.L, editable = EDIT && (d.draft || (!d.noEdit && d.base));
-  const ed = (p, v, ph = "") => ` data-h="${esc(key)}" data-p="${p}" data-ph="${esc(ph)}"` + (editable ? ` contenteditable="true">${v}` : `>${clean(v)}`);
+  const ed = (p, v, ph = "") => ` data-h="${esc(key)}" data-p="${p}" data-ph="${esc(ph)}">` + (editable ? v : clean(v));
+  // in edit mode the page is one editing area; text that isn't part of the lesson data is locked
+  const ro = (html) => (EDIT ? `<span contenteditable="false">${html}</span>` : html), roA = EDIT ? ' contenteditable="false"' : "";
   let h = `<h1${ed("tt", L.title, "שם השיעור")}</h1>` + (d.draft ? "" : `<p class="ref"${ed("rf", L.ref || "", "דף ועמוד")}</p>`);
-  if (EDIT && !editable) h += `<p class="note">את השיעור הזה אי אפשר לערוך מכאן.</p>`;
+  if (EDIT && !editable) h += `<p class="note"${roA}>את השיעור הזה אי אפשר לערוך מכאן.</p>`;
   let last = -1;
   L.screens.forEach((s, si) => {
     const shown = s.type === "read" || (q && !["intro", "summary"].includes(s.type));
@@ -224,36 +229,36 @@ function renderLesson(key, d, q) {
       if (s.question) h += `<p${ed("iq." + si, s.question)}</p>`;
       // the big cards of the opening screen: name, line, and where it's written
       (s.cards || []).forEach((c, ci) => {
-        h += `<p class="icard"><b${ed(`ict.${si}.${ci}`, c.t || "")}</b>: <span${ed(`ics.${si}.${ci}`, c.s || "")}</span>` + (c.w !== undefined ? ` <span class="iw">(<span${ed(`icw.${si}.${ci}`, c.w)}</span>)</span>` : "") + `</p>`;
+        h += `<p class="icard"><b${ed(`ict.${si}.${ci}`, c.t || "")}</b>${ro(": ")}<span${ed(`ics.${si}.${ci}`, c.s || "")}</span>` + (c.w !== undefined ? ` <span class="iw">${ro("(")}<span${ed(`icw.${si}.${ci}`, c.w)}</span>${ro(")")}</span>` : "") + `</p>`;
       });
       return;
     }
     if (s.type === "read") {
       if (s.kicker) h += `<p><b${ed("kk." + si, s.kicker)}</b></p>`;
-      (s.comic || []).forEach((p) => h += `<p>${clean(p[1])}</p>`);
+      (s.comic || []).forEach((p) => h += `<p${roA}>${clean(p[1])}</p>`);
       (s.text || []).forEach((t, ti) => h += `<p${ed(`tx.${si}.${ti}`, t, "טקסט")}</p>`);
-      if (s.quote) h += `<p>${clean(s.quote)}</p>`;
+      if (s.quote) h += `<p${roA}>${clean(s.quote)}</p>`;
       ["before", "after"].forEach((side) => (s[side] || []).forEach((b, bi) => {
         if (b.k === "gloss") b.items.forEach((g, gi) => h += `<p${ed(`gl.${si}.${side}.${bi}.${gi}`, g)}</p>`);
-        else if (b.k === "short") h += `<p><b>בקיצור:</b> <span${ed(`sh.${si}.${side}.${bi}`, b.text)}</span></p>`;
-        else if (b.k === "cards") h += `<p>${b.items.map((c, ci) => `<b${ed(`ct.${si}.${side}.${bi}.${ci}`, c.t)}</b>: <span${ed(`cs.${si}.${side}.${bi}.${ci}`, c.s)}</span>`).join(" · ")}</p>`;
+        else if (b.k === "short") h += `<p>${ro("<b>בקיצור:</b> ")}<span${ed(`sh.${si}.${side}.${bi}`, b.text)}</span></p>`;
+        else if (b.k === "cards") h += `<p>${b.items.map((c, ci) => `<b${ed(`ct.${si}.${side}.${bi}.${ci}`, c.t)}</b>${ro(": ")}<span${ed(`cs.${si}.${side}.${bi}.${ci}`, c.s)}</span>`).join(ro(" · "))}</p>`;
       }));
       return;
     }
     if (s.type === "summary") {
       const t = s.table, cell = (c) => (c && c.v !== undefined ? c.v : c);
-      if (t) h += `<h2>סיכום</h2><table><tr>${t.cols.map((c, ci) => `<th${ed(`tc.${si}.${ci}`, c)}</th>`).join("")}</tr>${t.rows.map((r, ri) => `<tr>${r.map((c, ci) => `<td${ed(`tr.${si}.${ri}.${ci}`, cell(c))}</td>`).join("")}</tr>`).join("")}</table>`;
+      if (t) h += `<h2${roA}>סיכום</h2><table><tr>${t.cols.map((c, ci) => `<th${ed(`tc.${si}.${ci}`, c)}</th>`).join("")}</tr>${t.rows.map((r, ri) => `<tr>${r.map((c, ci) => `<td${ed(`tr.${si}.${ri}.${ci}`, cell(c))}</td>`).join("")}</tr>`).join("")}</table>`;
       return;
     }
     if (!q) return;
     const opts = (list, a) => `<ol>${list.map((x, i) => `<li class="${i === a ? "ok" : ""}"${ed(`o.${si}.${i}`, x)}</li>`).join("")}</ol>`;
     if (s.type === "mc") h += `<p class="q"${ed("q." + si, s.q)}</p>` + opts(s.o, s.a);
-    else if (s.type === "fill") h += `<p class="q">${clean(s.before)} ___ ${clean(s.after)}</p>` + opts(s.o, s.a);
-    else if (s.type === "judge") h += `<p class="q">${s.sides.map((x) => clean(x[0] + ": " + x[1])).join(" / ")}</p>` + opts(s.o, s.a);
-    else if (s.type === "tf") h += `<p class="q">נכון או לא נכון: <span${ed("tf." + si, s.s)}</span></p><p>${s.a ? "נכון" : "לא נכון"}</p>`;
-    else if (s.q) h += `<p class="q">${clean(s.q)}</p>` + (s.ans ? `<p>${clean(s.ans)}</p>` : "");
+    else if (s.type === "fill") h += `<p class="q"${roA}>${clean(s.before)} ___ ${clean(s.after)}</p>` + opts(s.o, s.a);
+    else if (s.type === "judge") h += `<p class="q"${roA}>${s.sides.map((x) => clean(x[0] + ": " + x[1])).join(" / ")}</p>` + opts(s.o, s.a);
+    else if (s.type === "tf") h += `<p class="q">${ro("נכון או לא נכון: ")}<span${ed("tf." + si, s.s)}</span></p><p${roA}>${s.a ? "נכון" : "לא נכון"}</p>`;
+    else if (s.q) h += `<p class="q"${roA}>${clean(s.q)}</p>` + (s.ans ? `<p${roA}>${clean(s.ans)}</p>` : "");
   });
-  return h;
+  return `<section class="lsn" data-key="${esc(key)}"${EDIT && !editable ? ' contenteditable="false"' : ""}>${h}</section>`;
 }
 
 async function render(focus) {
@@ -264,20 +269,29 @@ async function render(focus) {
     if (EDIT) await loadForEdit(key);
     else if (!DATA[key]) DATA[key] = await loadLesson(key).catch(() => null);
   }));
-  $("page").classList.toggle("editing", EDIT);
-  $("page").innerHTML = list.map((k) => {
+  const page = $("page");
+  page.classList.toggle("editing", EDIT);
+  page.contentEditable = EDIT ? "true" : "false";
+  page.innerHTML = list.map((k) => {
     const d = DATA[k];
-    return d ? renderLesson(k, d, SHOWQ) : `<p class="empty">לא נטען: ${esc(k)}</p>`;
+    return d ? renderLesson(k, d, SHOWQ) : `<p class="empty"${EDIT ? ' contenteditable="false"' : ""}>לא נטען: ${esc(k)}</p>`;
   }).join("");
+  CUR = null;
+  if (EDIT) page.querySelectorAll("[data-p]").forEach((el) => { if (el.isContentEditable) BASE.set(el, cleanHtml(el)); });
   hideTb();
   if (!$("find").hidden) runFind(false);
-  if (focus) {
-    const el = document.querySelector(`[data-h="${CSS.escape(focus.h)}"][data-p="${focus.p}"]`);
-    if (el && el.isContentEditable) {
-      el.focus();
-      if (focus.point) placeCaretAtPoint(el, focus.point); else placeCaret(el, focus.start);
-      showTb(el);
+  if (focus && EDIT) {
+    page.focus({ preventScroll: Boolean(focus.point) });
+    const el = focus.p && document.querySelector(`[data-h="${CSS.escape(focus.h)}"][data-p="${focus.p}"]`);
+    if (focus.point) {
+      // edit mode can shift the layout a little: keep the clicked piece where it was
+      if (el && focus.top !== undefined) scrollBy(0, el.getBoundingClientRect().top - focus.top);
+      const r = el && el.getBoundingClientRect(), inside = r && focus.point.y >= r.top && focus.point.y <= r.bottom;
+      if (el && !inside) placeCaret(el, false);
+      else { placeCaretAtPoint(page, focus.point); snapCaret(el || document.elementFromPoint(focus.point.x, focus.point.y)); }
     }
+    else if (el && focus.offset !== undefined) placeCaretAtOffset(el, focus.offset);
+    else if (el) placeCaret(el, focus.start);
   }
 }
 
@@ -456,7 +470,7 @@ async function replaceHits(list) {
     if (to) h.r.insertNode(document.createTextNode(to));
     touched.add(h.el);
   });
-  touched.forEach((el) => { setValue(DATA[el.dataset.h].L, el.dataset.p, cleanHtml(el)); changed(el.dataset.h); });
+  touched.forEach((el) => { const v = cleanHtml(el); BASE.set(el, v); applyEdit(el, v, true); });
   if (skipped) say(`${skipped} מקומות לא הוחלפו, כי אי אפשר לערוך אותם מכאן.`);
   runFind(false);
 }
@@ -490,18 +504,51 @@ function loadSelection() {
 // ---------- editing ----------
 const cleanHtml = (el) => ser(el).replace(/\s+/g, " ").trim();
 
-// Bold / red bubble over selected text while editing.
+// The editable piece (paragraph, heading, cell...) a DOM node is in.
+const elOf = (n) => { const e = n && (n.nodeType === 1 ? n : n.parentElement); const p = e && e.closest("#page [data-p]"); return p && p.isContentEditable ? p : null; };
+const kindOf = (el) => el.dataset.p.split(".")[0];
+let CUR = null;
+const BASE = new WeakMap();  // each piece's text as last synced into the lesson data
+
+// Bold / red bubble over selected text, the current piece marked, and the
+// lesson's name saved when the caret leaves it.
 const fmt = $("fmt");
 document.addEventListener("selectionchange", () => {
-  const s = getSelection();
-  const host = s.rangeCount && !s.isCollapsed && EDIT ? s.anchorNode && s.anchorNode.parentElement && s.anchorNode.parentElement.closest("#page [contenteditable]") : null;
-  if (!host) { fmt.hidden = true; return; }
+  if (!EDIT) { fmt.hidden = true; return; }
+  const s = getSelection(), el = s.rangeCount ? elOf(s.anchorNode) : null;
+  if (CUR !== el) {
+    if (CUR) { CUR.classList.remove("cur"); if (LAZY(CUR) && DIRTY.has(CUR.dataset.h)) saveNow(CUR.dataset.h); }
+    CUR = el;
+    if (CUR) CUR.classList.add("cur");
+  }
+  if (CUR && s.isCollapsed) showTb(CUR); else hideTb();
+  if (!el || s.isCollapsed) { fmt.hidden = true; return; }
   const r = s.getRangeAt(0).getBoundingClientRect();
-  fmt.querySelector(".hd").hidden = !selectionParts(host);
+  fmt.querySelector(".hd").hidden = !selectionParts(el);
   fmt.hidden = false;
   fmt.style.top = `${r.top + scrollY - fmt.offsetHeight - 6}px`;
   fmt.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - fmt.offsetWidth / 2, innerWidth - fmt.offsetWidth - 8)) + scrollX}px`;
 });
+// A click on an empty piece (only its gray placeholder showing) can leave the caret
+// outside it: put it inside.
+function snapCaret(target) {
+  const s = getSelection();
+  if (s.rangeCount && elOf(s.anchorNode)) return;
+  const el = elOf(target);
+  if (el) placeCaret(el, false);
+}
+document.addEventListener("mouseup", (e) => { if (EDIT && $("page").contains(e.target)) setTimeout(() => snapCaret(e.target), 0); });
+// HTML of a piece from `from` to `to` ([node, offset]; null = its start / end)
+function partHtml(el, from, to) {
+  const x = document.createRange();
+  x.selectNodeContents(el);
+  if (from) x.setStart(from[0], from[1]);
+  if (to) x.setEnd(to[0], to[1]);
+  const d = document.createElement("div");
+  d.appendChild(x.cloneContents());
+  return cleanHtml(d);
+}
+const textLen = (html) => { tpl.innerHTML = String(html); return tpl.content.textContent.length; };
 // Selected text inside one paragraph -> the text before it, the selection, the text after it.
 // null when it can't become a heading (not a paragraph, or the very start of a section,
 // which already has its heading).
@@ -510,7 +557,7 @@ function selectionParts(el) {
   if (!s.rangeCount || el.dataset.p.split(".")[0] !== "tx") return null;
   const r = s.getRangeAt(0);
   if (!el.contains(r.startContainer) || !el.contains(r.endContainer)) return null;
-  const part = (from, to) => { const x = document.createRange(); x.selectNodeContents(el); if (from) x.setStart(from[0], from[1]); if (to) x.setEnd(to[0], to[1]); const d = document.createElement("div"); d.appendChild(x.cloneContents()); return cleanHtml(d); };
+  const part = (from, to) => partHtml(el, from, to);
   const name = plain(part([r.startContainer, r.startOffset], [r.endContainer, r.endOffset]));
   if (!name) return null;
   const before = part(null, [r.startContainer, r.startOffset]), after = part([r.endContainer, r.endOffset], null);
@@ -523,7 +570,7 @@ fmt.addEventListener("click", (e) => {
   const b = e.target.closest("[data-cmd]");
   if (!b) return;
   if (b.dataset.cmd === "heading") {
-    const el = getSelection().anchorNode.parentElement.closest("#page [contenteditable]"), parts = el && selectionParts(el);
+    const el = elOf(getSelection().anchorNode), parts = el && selectionParts(el);
     if (parts) { fmt.hidden = true; runOp(el, "toHeading", parts.before, parts.name, parts.after); }
     return;
   }
@@ -542,6 +589,20 @@ function placeCaret(el, start) {
   r.selectNodeContents(el);
   r.collapse(Boolean(start));
   const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+function placeCaretAtOffset(el, n) {
+  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let t;
+  while ((t = w.nextNode())) {
+    if (n <= t.data.length) {
+      const r = document.createRange();
+      r.setStart(t, n); r.collapse(true);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      return;
+    }
+    n -= t.data.length;
+  }
+  placeCaret(el, false);
 }
 function placeCaretAtPoint(el, { x, y }) {
   const r = document.caretRangeFromPoint ? document.caretRangeFromPoint(x, y) : null;
@@ -694,10 +755,16 @@ const OPS = {
 function runOp(el, name, ...extra) {
   const key = el.dataset.h, a = el.dataset.p.split(".").map((x) => isNaN(x) ? x : +x);
   const L = DATA[key].L;
+  snapshot(key);
   setValue(L, el.dataset.p, cleanHtml(el));
   const next = OPS[name](L, ...a.slice(1), ...extra);
-  changed(key);
-  render(next ? { h: el.dataset.h, ...next } : null);
+  const k = changed(key);
+  return render(next ? { h: k, ...next } : null);
+}
+// A change made to the data directly (not through one piece): save, redraw, put the caret back.
+function commit(key, next) {
+  const k = changed(key);
+  return render(next ? { h: k, ...next } : null);
 }
 
 // ---------- autosave ----------
@@ -712,6 +779,7 @@ function changed(key) {
   TIMERS[key] = setTimeout(() => saveNow(key), isDraft(key) ? 1200 : 4000);
   if (isDraft(key)) updateDraftLabel(key);
   backup(key);
+  return key;
 }
 
 // Every change is also kept in this browser until it's saved, so nothing
@@ -843,67 +911,194 @@ tb.addEventListener("mousedown", (e) => e.preventDefault());
 tb.addEventListener("click", () => { if (tb.ed) runOp(tb.ed, "paraToHeading"); });
 
 const page = $("page");
-page.addEventListener("focusin", (e) => { const el = e.target.closest("[contenteditable]"); if (el) showTb(el); });
-// A lesson's name and page line are saved when you leave them, not while typing:
-// a new name also updates the lesson list, which is a bigger save.
+// A lesson's name and page line are saved when the caret leaves them, not while
+// typing: a new name also updates the lesson list, which is a bigger save.
 const LAZY = (el) => !isDraft(el.dataset.h) && /^(tt|rf)$/.test(el.dataset.p);
-page.addEventListener("focusout", (e) => {
-  const el = e.target.closest && e.target.closest("[contenteditable]");
-  if (el && LAZY(el) && DIRTY.has(el.dataset.h)) saveNow(el.dataset.h);
-  setTimeout(() => { const a = document.activeElement; if (!a || !a.isContentEditable) hideTb(); }, 0);
-});
-page.addEventListener("input", (e) => {
-  const el = e.target.closest("[contenteditable]");
-  if (!el) return;
-  setValue(DATA[el.dataset.h].L, el.dataset.p, cleanHtml(el));
-  if (LAZY(el)) {
-    DIRTY.add(el.dataset.h);
-    clearTimeout(TIMERS[el.dataset.h]);
-    backup(el.dataset.h);
-    if (el.dataset.p === "tt") renameInMenu(el.dataset.h);
-  } else changed(el.dataset.h);
-  showTb(el);
-});
+page.addEventListener("focusout", () => { if (CUR && LAZY(CUR) && DIRTY.has(CUR.dataset.h)) saveNow(CUR.dataset.h); });
+
+// One edited piece -> the lesson data.
+function applyEdit(el, v, now = false) {
+  const key = el.dataset.h;
+  setValue(DATA[key].L, el.dataset.p, v);
+  if (LAZY(el) && !now) {
+    DIRTY.add(key);
+    clearTimeout(TIMERS[key]);
+    backup(key);
+    if (el.dataset.p === "tt") renameInMenu(key);
+  } else changed(key);
+}
+// After typing (or bold/red over several pieces): copy whatever changed into the data.
+function syncEdits() {
+  const s = getSelection();
+  if (!s.rangeCount) return;
+  const r = s.getRangeAt(0);
+  page.querySelectorAll("[data-p]").forEach((el) => {
+    if (!el.isContentEditable || !r.intersectsNode(el)) return;
+    const v = cleanHtml(el);
+    if (v === BASE.get(el)) return;
+    if (!TYPING) { snapshot(el.dataset.h); TYPING = true; }
+    BASE.set(el, v);
+    applyEdit(el, v);
+  });
+  clearTimeout(TYPING_T); TYPING_T = setTimeout(() => { TYPING = false; }, 1200);
+}
+let TYPING = false, TYPING_T;
+page.addEventListener("input", () => { if (EDIT) { syncEdits(); if (CUR) showTb(CUR); } });
 function renameInMenu(key) {
   const l = GROUPS.flatMap((g) => g.lessons).find((x) => x.key === key);
   if (l) l.title = plain(DATA[key].L.title) || l.title;
   const box = document.querySelector(`#panels input[data-key="${CSS.escape(key)}"]`);
   if (box && l) box.parentElement.lastChild.textContent = " " + plain(l.title);
 }
-page.addEventListener("keydown", (e) => {
-  const el = e.target.closest("[contenteditable]");
-  if (!el) return;
-  const kind = el.dataset.p.split(".")[0];
-  if (e.key === "Enter") {
+
+// Undo: the lesson as it was before each change (typing counts once per burst).
+const UNDO = [];
+function snapshot(key) {
+  UNDO.push({ key, L: JSON.stringify(DATA[key].L) });
+  if (UNDO.length > 100) UNDO.shift();
+}
+function undo() {
+  const u = UNDO.pop();
+  if (!u || !DATA[u.key]) return;
+  DATA[u.key].L = JSON.parse(u.L);
+  TYPING = false;
+  commit(u.key, null);
+}
+
+// Caret at the very start / end of a piece?
+function caretAt(el, end) {
+  const s = getSelection();
+  if (!s.rangeCount || !s.isCollapsed) return false;
+  const r = s.getRangeAt(0), x = document.createRange();
+  x.selectNodeContents(el);
+  if (end) x.setStart(r.endContainer, r.endOffset); else x.setEnd(r.startContainer, r.startOffset);
+  return !x.toString().length;
+}
+// The piece before / after el in the same lesson.
+function sibling(el, d) {
+  const all = [...page.querySelectorAll("[data-p]")].filter((e) => e.dataset.h === el.dataset.h && e.isContentEditable);
+  return all[all.indexOf(el) + d] || null;
+}
+const pathNums = (el) => el.dataset.p.split(".").slice(1).map(Number);
+
+// Removing paragraphs / headings when a selection across them is deleted.
+function removePara(L, si, ti) {
+  const S = L.screens[si];
+  S.text.splice(ti, 1);
+  if (emptyScreen(S)) L.screens.splice(si, 1);
+}
+function removeHeading(L, k) {
+  if (k === 0) { L.stations[0] = ""; return; }
+  L.screens.forEach((s) => { if (s.st !== undefined && s.type !== "summary" && s.st >= k) s.st--; });
+  L.stations.splice(k, 1);
+}
+// Delete (or type over) a selection that spans several pieces: the text before it
+// and the text after it join into the first piece, everything between goes.
+function deleteAcross(r, a, b, ins = "") {
+  const key = a.dataset.h;
+  if (b.dataset.h !== key) { say("אפשר למחוק יחד רק טקסט מאותו שיעור."); return null; }
+  const all = [...page.querySelectorAll("[data-p]")].filter((e) => e.dataset.h === key && e.isContentEditable);
+  // boxes in between (בקיצור, cards, tables, questions) stay; only paragraphs and headings go
+  const items = all.slice(all.indexOf(a), all.indexOf(b) + 1).filter((e, i, arr) => i === 0 || i === arr.length - 1 || /^(tx|st)$/.test(kindOf(e)));
+  if (!items.length || !/^(tx|st)$/.test(kindOf(a)) || !/^(tx|st)$/.test(kindOf(b))) { say("אפשר למחוק יחד רק מפסקה או כותרת עד פסקה או כותרת."); return null; }
+  say("");
+  const before = partHtml(a, null, [r.startContainer, r.startOffset]) + escText(ins), after = partHtml(b, [r.endContainer, r.endOffset], null);
+  const L = DATA[key].L;
+  snapshot(key);
+  for (let x = items.length - 1; x >= 1; x--) {
+    const n = pathNums(items[x]);
+    if (kindOf(items[x]) === "tx") removePara(L, n[0], n[1]); else removeHeading(L, n[0]);
+  }
+  setValue(L, a.dataset.p, before + after);
+  // a heading left with nothing under it goes too (unless it's the one we're typing in)
+  const keep = kindOf(a) === "st" ? pathNums(a)[0] : -1;
+  for (let k = L.stations.length - 1; k > 0; k--) if (k !== keep && !L.screens.some((s) => s.st === k)) removeHeading(L, k);
+  return commit(key, { p: a.dataset.p, offset: textLen(before) });
+}
+
+page.addEventListener("beforeinput", (e) => {
+  if (!EDIT) return;
+  const t = e.inputType, s = getSelection();
+  if (t === "historyUndo") { e.preventDefault(); undo(); return; }
+  if (t === "historyRedo" || /Drop|Drag/.test(t)) { e.preventDefault(); return; }
+  if (!s.rangeCount) return;
+  const r = s.getRangeAt(0), a = elOf(r.startContainer), b = elOf(r.endContainer);
+  if (!a || !b) { e.preventDefault(); return; }
+  if (a !== b) {
+    if (t.startsWith("format")) return;  // bold etc. across pieces is fine
     e.preventDefault();
-    if (e.shiftKey) return;
+    deleteAcross(r, a, b, t === "insertText" || t === "insertReplacementText" ? (e.data || (e.dataTransfer && e.dataTransfer.getData("text/plain")) || "") : "");
+    return;
+  }
+  const kind = kindOf(a);
+  if (t === "insertParagraph" || t === "insertLineBreak") {
+    e.preventDefault();
+    if (t === "insertLineBreak") return;
     if (kind === "tx") {
       // split at the caret, like a word processor
-      const r = getSelection().getRangeAt(0);
       r.deleteContents();
       const tail = document.createRange();
-      tail.selectNodeContents(el);
+      tail.selectNodeContents(a);
       tail.setStart(r.startContainer, r.startOffset);
       const box = document.createElement("div");
       box.appendChild(tail.extractContents());
-      runOp(el, "splitPara", cleanHtml(box));
-    } else if (kind === "st") runOp(el, "addParaInStation");
-    else if (kind === "tt") runOp(el, "fromTitle");
-    else el.blur();
-  } else if (e.key === "Backspace" && !el.textContent.trim()) {
-    if (kind === "tx") { e.preventDefault(); runOp(el, "delPara"); }
-    else if (kind === "st" && +el.dataset.p.split(".")[1] > 0) { e.preventDefault(); runOp(el, "delHeading"); }
+      runOp(a, "splitPara", cleanHtml(box));
+      return;
+    }
+    if (kind === "st") runOp(a, "addParaInStation");
+    else if (kind === "tt") runOp(a, "fromTitle");
+    return;
+  }
+  const back = /^delete(Content|Word|SoftLine|HardLine)Backward$/.test(t), fwd = /^delete(Content|Word|SoftLine|HardLine)Forward$/.test(t);
+  if (back && caretAt(a, false)) {
+    e.preventDefault();
+    const prev = sibling(a, -1);
+    if (!cleanHtml(a)) {
+      if (kind === "tx") runOp(a, "delPara");
+      else if (kind === "st" && pathNums(a)[0] > 0) runOp(a, "delHeading");
+    } else if (kind === "tx" && prev && kindOf(prev) === "tx") {
+      // join this paragraph to the one before it
+      const key = a.dataset.h, L = DATA[key].L, [si, ti] = pathNums(a), pv = cleanHtml(prev);
+      snapshot(key);
+      setValue(L, prev.dataset.p, pv + cleanHtml(a));
+      OPS.delPara(L, si, ti);
+      commit(key, { p: prev.dataset.p, offset: textLen(pv) });
+    }
+    return;
+  }
+  if (fwd && caretAt(a, true)) {
+    e.preventDefault();
+    const next = sibling(a, 1);
+    if (kind === "tx" && !cleanHtml(a)) { runOp(a, "delPara"); return; }
+    if (kind === "tx" && next && kindOf(next) === "tx") {
+      // join the next paragraph to this one
+      const key = a.dataset.h, L = DATA[key].L, [si, ti] = pathNums(next), av = cleanHtml(a);
+      snapshot(key);
+      setValue(L, a.dataset.p, av + cleanHtml(next));
+      OPS.delPara(L, si, ti);
+      commit(key, { p: a.dataset.p, offset: textLen(av) });
+    }
   }
 });
 // paste as plain text, so formatting from Word or other sites doesn't come along
 // Pasting from Word, Google Docs or a website keeps headings, bold, red and the
 // split into paragraphs; everything else about the formatting is dropped.
 // In a heading, a question or an answer it goes in as one line of plain text.
-page.addEventListener("paste", (e) => {
-  const el = e.target.closest("[contenteditable]");
-  if (!el) return;
+page.addEventListener("paste", async (e) => {
+  if (!EDIT) return;
   e.preventDefault();
-  const text = e.clipboardData.getData("text/plain") || "", html = e.clipboardData.getData("text/html");
+  let s = getSelection();
+  if (!s.rangeCount) return;
+  const a = elOf(s.getRangeAt(0).startContainer), b = elOf(s.getRangeAt(0).endContainer);
+  if (!a || !b) return;
+  const text0 = e.clipboardData.getData("text/plain") || "", html0 = e.clipboardData.getData("text/html");
+  if (a !== b && !(await deleteAcross(s.getRangeAt(0), a, b))) return;
+  s = getSelection();
+  const el = s.rangeCount && elOf(s.getRangeAt(0).startContainer);
+  if (!el) return;
+  pasteInto(el, text0, html0);
+});
+function pasteInto(el, text, html) {
   if (el.dataset.p.split(".")[0] !== "tx") {
     document.execCommand("insertText", false, text.replace(/\s*\n\s*/g, " ").trim());
     return;
@@ -915,9 +1110,8 @@ page.addEventListener("paste", (e) => {
   // several paragraphs or a heading: split this paragraph at the caret and put them in between
   const r = getSelection().getRangeAt(0);
   r.deleteContents();
-  const part = (head) => { const x = document.createRange(); x.selectNodeContents(el); if (head) x.setEnd(r.startContainer, r.startOffset); else x.setStart(r.startContainer, r.startOffset); const d = document.createElement("div"); d.appendChild(x.cloneContents()); return cleanHtml(d); };
-  runOp(el, "pasteBlocks", part(true), blocks, part(false));
-});
+  runOp(el, "pasteBlocks", partHtml(el, null, [r.startContainer, r.startOffset]), blocks, partHtml(el, [r.startContainer, r.startOffset], null));
+}
 
 const escText = (t) => t.replace(/\u00a0/g, " ").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 // Is this CSS color a red (pure red, Word's dark red, the kit's red...)?
@@ -979,10 +1173,10 @@ function pastedBlocks(html) {
 // Double-click any text (admin only) to start editing right there.
 page.addEventListener("dblclick", async (e) => {
   if (!isAdmin || EDIT) return;
-  const el = e.target.closest("[data-p]");
-  const point = { x: e.clientX, y: e.clientY };
+  const point = { x: e.clientX, y: e.clientY }, el = e.target.closest("[data-p]");
+  const top = el && el.getBoundingClientRect().top;
   EDIT = true;
-  await render(el ? { h: el.dataset.h, p: el.dataset.p, point } : null);
+  await render(el ? { h: el.dataset.h, p: el.dataset.p, point, top } : { point });
 });
 
 // ---------- admin ----------
