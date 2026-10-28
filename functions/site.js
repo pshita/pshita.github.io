@@ -41,6 +41,12 @@ function lessonShellHtml({ id, title }) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&family=Frank+Ruhl+Libre:wght@700;900&display=swap">
 <link rel="stylesheet" href="../assets/css/lesson-player.css?v=${PLAYER_VERSION}">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="../assets/icons/favicon-64.png">
+<link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="פשיטא">
+<meta name="theme-color" content="#ffffff">
 </head>
 <body data-lesson="${escapeHtml(id)}">
 <div class="wrap">
