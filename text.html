@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>טקסט | פשיטא</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;600&family=Rubik:wght@400;600;700&display=swap">
 <style>
 /* plain continuous text of the lessons, like a word-processor page */
 :root{--ink:#111;--muted:#666;--line:#ddd;--desk:#e9e9ec;--page:#fff;--accent:#1a5fb4;--edit:#fff8d6;--text:'Frank Ruhl Libre',David,'Times New Roman',serif}
@@ -14,45 +14,42 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 /* the top bar hides; a click on the strip at the top of the screen brings it back */
 #hot{position:fixed;top:0;left:0;right:0;height:14px;z-index:2;cursor:pointer}
 #hot::after{content:"";position:absolute;top:4px;left:50%;width:48px;height:4px;margin-left:-24px;border-radius:2px;background:#c4c4c8}
-.bar{position:fixed;top:0;left:0;right:0;transform:translateY(-100%);transition:transform .18s;box-shadow:0 2px 8px rgba(0,0,0,.08);z-index:3;background:#f7f7f8;border-bottom:1px solid var(--line);padding:8px 16px;display:flex;flex-wrap:nowrap;gap:14px;align-items:center;font-size:14px;overflow-x:auto;white-space:nowrap}
+/* bar and menus: same look as the site header and its menu (assets/css/style.css) */
+:root{--s-bg:#faf6ee;--s-ink:#2b241b;--s-soft:#5c5347;--s-line:#e4d9c4;--s-accent-soft:#f1e3d1;--s-accent-strong:#6d3a22;--s-head:"Rubik","Heebo","Arial Hebrew",sans-serif}
+.bar{position:fixed;top:0;left:0;right:0;z-index:3;transform:translateY(-100%);transition:transform .18s;background:#fff;border-bottom:1px solid var(--s-line);box-shadow:0 2px 10px rgba(43,36,27,.08);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;font-family:var(--s-head);color:var(--s-ink)}
 .bar.show{transform:none}
-.bar a{color:var(--accent)}
-.bar button{font:inherit;padding:5px 11px;border:1px solid #bbb;border-radius:6px;background:#fff;cursor:pointer;flex:none}
-.bar label{display:inline-flex;gap:5px;align-items:center;cursor:pointer;flex:none}
-.bar .sep{width:1px;align-self:stretch;background:var(--line);flex:none}
-.bar .menu.open{background:#e8eef8;border-color:var(--accent)}
-.bar .menu small{color:var(--muted)}
-.bar .brand{font-weight:700;border-color:transparent;background:none}
-.panel a{display:flex;align-items:center;height:30px;padding:0 14px;color:inherit;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.panel a:hover{background:#f3f3f5}
-.sec-b a{padding-inline-start:26px}
-.panel .opt{border-bottom:1px solid var(--line)}
-.hello{display:flex;align-items:center;justify-content:space-between;gap:8px;height:34px;padding:0 14px}
-.hello span{color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hello button{flex:none;font:inherit;font-size:12px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:999px;padding:2px 10px;cursor:pointer}
-.hello button:hover{color:var(--accent);border-color:currentColor}
+.bar button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
+.brand{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:700;line-height:1.2}
+.brand .mark{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--s-accent-soft);color:var(--s-accent-strong);font-size:1.1rem}
+.bar .view{display:flex;align-items:center;gap:6px;font-size:.95rem;padding:8px 10px;border-radius:8px}
+.bar .view:hover,.bar .view.open{background:var(--s-accent-soft);color:var(--s-accent-strong)}
+.chev{width:16px;height:16px;flex:none;transition:transform .2s}
+.view.open .chev,.sec.open>.sec-h .chev{transform:rotate(180deg)}
+.panel{position:fixed;z-index:4;min-width:220px;max-width:calc(100vw - 16px);max-height:min(430px,calc(100vh - 90px));overflow-y:auto;background:#fff;border:1px solid var(--s-line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px;display:flex;flex-direction:column;gap:6px;font-family:var(--s-head);color:var(--s-ink);line-height:1.75}
+.panel *{flex-shrink:0}
+.panel[hidden]{display:none}
+.panel a,.panel label,.sec-h{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;color:var(--s-ink);text-decoration:none;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.panel a:hover,.panel label:hover,.sec-h:hover{background:var(--s-accent-soft);color:var(--s-accent-strong)}
+.sec-h{width:100%;justify-content:space-between;border:0;background:none;font-family:inherit;text-align:start}
+.sec-b{margin:4px 0 0;padding:6px;border:1px solid var(--s-line);border-radius:8px;background:var(--s-bg);display:flex;flex-direction:column;gap:2px}
+.sec:not(.open) .sec-b{display:none}
+.sec-b a,.sec-b label{font-size:.88rem}
+.panel label.new{color:var(--s-soft)}
+.panel .opt{border-bottom:1px solid var(--s-line);border-radius:8px 8px 0 0;padding-bottom:10px}
+.panel .acct{border-top:1px solid var(--s-line);padding-top:10px;margin-top:4px;display:flex;flex-direction:column;gap:6px}
+.hello{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px}
+.hello span{font-size:.85rem;color:var(--s-soft);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hello button{flex:none;font:inherit;font-size:.8rem;color:var(--s-soft);background:none;border:1px solid var(--s-line);border-radius:999px;padding:3px 10px;cursor:pointer}
+.hello button:hover{color:var(--s-accent-strong);border-color:currentColor}
 #msg{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:5;max-width:calc(100vw - 32px);background:#b00020;color:#fff;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 #msg:empty{display:none}
-/* lesson pickers: about 10 rows, then scroll */
-.panel{position:fixed;z-index:4;background:#fff;border:1px solid #bbb;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.15);padding:6px 0;font-size:14px;max-height:316px;overflow-y:auto;min-width:220px;max-width:calc(100vw - 16px)}
-.panel[hidden]{display:none}
-.panel label{display:flex;gap:8px;align-items:center;height:30px;padding:0 14px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.panel label:hover{background:#f3f3f5}
-.panel label.new{color:var(--muted)}
-.sec-h{display:flex;justify-content:space-between;align-items:center;width:100%;height:30px;padding:0 14px;border:0;background:none;font:inherit;font-weight:700;cursor:pointer;text-align:right}
-.sec-h:hover{background:#f3f3f5}
-.sec-h span{color:var(--muted);transition:transform .15s}
-.sec:not(.open) .sec-h span{transform:rotate(90deg)}
-.sec:not(.open) .sec-b{display:none}
-.sec-b label{padding-inline-start:26px}
-.sec+.sec{border-top:1px solid var(--line)}
 /* bold / red on selected text */
 #fmt{position:absolute;z-index:4;display:flex;gap:2px;background:#222;border-radius:7px;padding:3px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
 #fmt[hidden]{display:none}
 #fmt button{width:30px;height:28px;border:0;border-radius:5px;background:none;color:#fff;font:700 15px Arial,sans-serif;cursor:pointer}
 #fmt button:hover{background:#444}
 #fmt .red{color:#ff8a7a}
-.page{max-width:820px;margin:22px auto 40px;background:var(--page);box-shadow:0 1px 4px rgba(0,0,0,.15);padding:56px 64px;font-family:var(--text);font-size:17px;line-height:1.5}
+.page{max-width:820px;margin:0 auto 40px;background:var(--page);box-shadow:0 1px 4px rgba(0,0,0,.15);padding:56px 64px;font-family:var(--text);font-size:17px;line-height:1.5}
 .page h1{font-size:25px;font-weight:700;margin:0 0 2px}
 .page h1:not(:first-child){margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
 .page .ref{color:var(--muted);font-size:14px;margin:0 0 14px}
@@ -81,8 +78,8 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 <body>
 <div id="hot" title="תפריט"></div>
 <div class="bar" id="bar">
-  <button type="button" class="menu brand" id="siteBtn"><span>📖</span> פשיטא</button>
-  <button type="button" class="menu" id="viewBtn">תצוגה <small>▾</small></button>
+  <button type="button" class="brand" id="siteBtn"><span class="mark">📖</span><span>פשיטא</span></button>
+  <button type="button" class="view" id="viewBtn">תצוגה <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 </div>
 <div id="msg"></div>
 <div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="red" class="red" title="אדום">A</button></div>
@@ -249,9 +246,10 @@ function menus() {
   return m;
 }
 let SHOWQ = true, USER = null;
+const CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 // a collapsible section; `key` remembers whether it's open
 const secHtml = (key, label, body) => `<div class="sec${OPEN.has(key) ? " open" : ""}" data-name="${esc(key)}">
-    <button type="button" class="sec-h">${esc(label)}<span>▾</span></button><div class="sec-b">${body}</div></div>`;
+    <button type="button" class="sec-h"><span>${esc(label)}</span>${CHEV}</button><div class="sec-b">${body}</div></div>`;
 function drawMenus() {
   const open = ["sitePanel", "viewPanel"].find((id) => $(id) && !$(id).hidden), scroll = open ? $(open).scrollTop : 0;
   // the site menu, as on every page: lessons by page/amud, then the account
@@ -261,7 +259,7 @@ function drawMenus() {
     : `<a href="login.html">התחברות</a>`;
   const view = menus().map((g) => secHtml(g.name, g.name, g.items.map((it) =>
     `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`).join(""))).join("");
-  $("panels").innerHTML = `<div class="panel" id="sitePanel" hidden><a href="index.html">דף הבית</a>${site}<div class="sec">${account}</div></div>
+  $("panels").innerHTML = `<div class="panel" id="sitePanel" hidden><a href="index.html">דף הבית</a>${site}<div class="acct">${account}</div></div>
     <div class="panel" id="viewPanel" hidden><label class="opt"><input type="checkbox" id="optQ"${SHOWQ ? " checked" : ""}> שאלות</label>${view}</div>`;
   if (open) { openPanel(open); $(open).scrollTop = scroll; }
 }
@@ -272,10 +270,19 @@ function openPanel(id) {
   const r = b.getBoundingClientRect();
   p.style.top = `${r.bottom + 4}px`;
   p.hidden = false;
-  // aligned to the button, but kept inside the screen
-  const right = Math.max(8, innerWidth - r.right);
-  p.style.right = `${Math.min(right, Math.max(8, innerWidth - p.offsetWidth - 8))}px`;
   b.classList.add("open");
+  placePanel(p, r);
+}
+// Under its button, on the button's side of the screen, never past the edge.
+function placePanel(p, r = $(BTN[p.id]).getBoundingClientRect()) {
+  const w = p.offsetWidth;
+  if (r.left + r.width / 2 < innerWidth / 2) {
+    p.style.right = "auto";
+    p.style.left = `${Math.max(8, Math.min(r.left, innerWidth - w - 8))}px`;
+  } else {
+    p.style.left = "auto";
+    p.style.right = `${Math.max(8, Math.min(innerWidth - r.right, innerWidth - w - 8))}px`;
+  }
 }
 function closePanels() {
   Object.entries(BTN).forEach(([p, b]) => { if ($(p)) $(p).hidden = true; $(b).classList.remove("open"); });
@@ -292,6 +299,7 @@ $("panels").onclick = (e) => {
   const sec = h.parentElement, name = sec.dataset.name;
   sec.classList.toggle("open");
   if (sec.classList.contains("open")) OPEN.add(name); else OPEN.delete(name);
+  placePanel(sec.closest(".panel"));
 };
 $("panels").onchange = (e) => {
   if (e.target.id === "optQ") { SHOWQ = e.target.checked; render(); return; }
