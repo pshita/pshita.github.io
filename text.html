@@ -55,7 +55,9 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 .tools{display:flex;align-items:center;gap:6px}
 .bar .icon{padding:8px}
 /* pinching changes the text size (the lines rewrap), not the page zoom */
-html,body{touch-action:pan-x pan-y}
+/* the page never gets wider than the screen and never moves sideways */
+html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
+.page{overflow-wrap:break-word}
 .bar .icon svg{width:20px;height:20px;display:block}
 #find{position:fixed;top:10px;left:16px;z-index:6;background:#fff;border:1px solid var(--s-line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:8px;display:flex;flex-direction:column;gap:6px;font-family:var(--s-head);font-size:14px;max-width:calc(100vw - 32px)}
 #find[hidden]{display:none}
@@ -84,7 +86,8 @@ html,body{touch-action:pan-x pan-y}
 .page ol{list-style-type:hebrew;margin:0 0 8px;padding-inline-start:28px}
 .page li.ok{font-weight:700}
 .page li.ok::after{content:" ✓"}
-.page table{border-collapse:collapse;margin:8px 0 12px;font-size:.88em}
+.page table{border-collapse:collapse;margin:8px 0 12px;font-size:.88em;max-width:100%}
+.page table.fit{width:100%;table-layout:fixed}
 .page td,.page th{border:1px solid #999;padding:3px 8px}
 .page .note{color:var(--muted);font-size:14px;font-family:Arial,sans-serif}
 .empty{color:var(--muted)}
@@ -95,7 +98,7 @@ html,body{touch-action:pan-x pan-y}
 .editing [data-p]{border-radius:3px;transition:background .15s}
 .editing [data-p]:hover{background:#f6f6f6}
 .editing .cur{background:var(--edit)}
-.editing span[data-p],.editing b[data-p]{display:inline-block;min-width:.6em}
+.editing span[data-p],.editing b[data-p]{display:inline-block;min-width:.6em;max-width:100%}
 #tb{position:absolute;z-index:2;font:13px Arial,sans-serif}
 #tb[hidden]{display:none}
 #tb button{font:inherit;padding:3px 10px;border:1px solid #bbb;border-radius:5px;background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
@@ -286,6 +289,7 @@ async function render(focus) {
     return d ? renderLesson(k, d, SHOWQ) : `<p class="empty"${EDIT ? ' contenteditable="false"' : ""}>לא נטען: ${esc(k)}</p>`;
   }).join("");
   CUR = null;
+  fitTables();
   if (EDIT) page.querySelectorAll("[data-p]").forEach((el) => { if (el.isContentEditable) BASE.set(el, cleanHtml(el)); });
   hideTb();
   if (!$("find").hidden) runFind(false);
@@ -387,6 +391,19 @@ $("hot").onclick = (e) => { e.stopPropagation(); $("bar").classList.add("show");
 $("bar").onclick = (e) => e.stopPropagation();
 document.addEventListener("click", () => { closePanels(); $("bar").classList.remove("show"); });
 
+// A table wider than the page: smaller text in it first, then columns that share the width.
+function fitTables() {
+  const page = $("page"), cs = getComputedStyle(page), w = page.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  page.querySelectorAll("table").forEach((t) => {
+    t.classList.remove("fit");
+    t.style.fontSize = "";
+    let fs = parseFloat(getComputedStyle(t).fontSize);
+    while (t.scrollWidth > w + 1 && fs > 11) { fs -= 1; t.style.fontSize = `${fs}px`; }
+    if (t.scrollWidth > w + 1) t.classList.add("fit");
+  });
+}
+addEventListener("resize", () => fitTables());
+
 // ---------- text size: pinch with two fingers (or the trackpad), remembered on this device ----------
 // The text itself grows or shrinks and rewraps, so every line still fits the page.
 const FS_KEY = "pshita.text.size", FS_MIN = 13, FS_MAX = 30;
@@ -395,6 +412,7 @@ const curSize = () => parseFloat(getComputedStyle($("page")).fontSize);
 function setSize(px) {
   if (!px) return;
   document.documentElement.style.setProperty("--fs", `${px}px`);
+  fitTables();
   clearTimeout(FS_SAVE);
   FS_SAVE = setTimeout(() => {
     try { localStorage.setItem(FS_KEY, px); } catch (e) {}
