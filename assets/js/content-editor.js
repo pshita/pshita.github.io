@@ -105,7 +105,7 @@ function wireHoverTarget(el, buildButtons) {
 
 function cardLessonId(card) {
   const href = card.getAttribute("href") || "";
-  const m = href.match(/^lessons\/([a-z0-9-]+)\.html$/);
+  const m = href.match(/^lessons\/([a-z0-9-]+)(?:\.html)?$/);
   return m ? m[1] : null;
 }
 
@@ -192,7 +192,7 @@ function buildNewLessonTile(groupTitle, grid) {
     statusEl2.textContent = "יוצר…";
     ensureFns();
     createLessonFn({ lessonId: id, titleText: title, sourceText: groupTitle, afterLessonId })
-      .then(() => { window.location.href = "lessons/" + id + ".html"; })
+      .then(() => { window.location.href = "lessons/" + id; })
       .catch((err) => { statusEl2.textContent = (err && err.message) || "יצירת השיעור נכשלה."; });
   });
 
@@ -314,7 +314,7 @@ function genSave(el, before, after, all) {
   if (!pairs.length) return;
   ensureFns();
   genSetStatus("שומר…");
-  const path = location.pathname.replace(/^.*?\/(lessons\/[^/]+\.html)$/, "$1");
+  const path = "lessons/" + document.body.dataset.lesson + ".html";
   replaceTextFn({ path, pairs, all: !!all })
     .then((res) => {
       const d = res.data || {};
@@ -456,7 +456,7 @@ watchAuthState((user) => {
   if (!user || user.email !== ALLOWED_EMAIL) return;
   if (document.querySelector(".group-panel")) {
     initIndexEditor();
-  } else if (/\/lessons\/[a-z0-9-]+\.html$/.test(location.pathname)) {
+  } else if (/\/lessons\/[a-z0-9-]+(\.html)?$/.test(location.pathname) && document.body.dataset.lesson) {
     initGenericEditor();
   }
 });

@@ -9,7 +9,7 @@
 //   assets/js/lesson-player.js - the one shared lesson engine
 //   assets/css/lesson-player.css
 
-const PLAYER_VERSION = 1;
+const PLAYER_VERSION = 2;
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -88,7 +88,7 @@ function groupPanelsHtml(groups) {
         </button>
         <div class="dropdown-menu lessons-menu">
         <div class="lesson-grid">
-${g.lessons.map((l) => `          <a class="lesson-card" href="lessons/${l.id}.html">
+${g.lessons.map((l) => `          <a class="lesson-card" href="lessons/${l.id}">
             <h3>${escapeText(l.title)}</h3>
           </a>`).join("\n")}
         </div>
@@ -105,7 +105,7 @@ function groupSubmenusHtml(groups, hrefPrefix) {
               ${ARROW("submenu-arrow")}
             </button>
             <div class="dropdown-menu submenu-panel" hidden>
-${g.lessons.map((l) => `            <a class="dropdown-item" href="${hrefPrefix}${l.id}.html">${escapeText(l.title)}</a>`).join("\n")}
+${g.lessons.map((l) => `            <a class="dropdown-item" href="${hrefPrefix}${l.id}">${escapeText(l.title)}</a>`).join("\n")}
             </div>
           </div>`).join("\n          ");
 }

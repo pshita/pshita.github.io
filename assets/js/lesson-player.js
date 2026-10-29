@@ -10,8 +10,8 @@ Promise.all([
 ]).then(([L, site]) => {
   const order = site ? [].concat(...site.groups.map((g) => g.lessons.map((l) => l.id))) : [];
   const i = order.indexOf(id);
-  L.prev = i > 0 ? order[i - 1] + ".html" : "";
-  L.next = i > -1 && i < order.length - 1 ? order[i + 1] + ".html" : "";
+  L.prev = i > 0 ? order[i - 1] : "";
+  L.next = i > -1 && i < order.length - 1 ? order[i + 1] : "";
   run(L);
 }).catch(() => { view0.innerHTML = '<p style="padding:24px;text-align:center">לא הצלחתי לטעון את השיעור. נסו לרענן את הדף.</p>'; });
 

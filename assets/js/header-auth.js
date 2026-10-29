@@ -29,7 +29,7 @@ watchAuthState((user) => {
   const a = document.createElement("a");
   a.id = "admin-text-link";
   a.className = "dropdown-item";
-  a.href = (location.pathname.includes("/lessons/") ? "../" : "") + "text.html";
+  a.href = (location.pathname.includes("/lessons/") ? "../" : "") + "text";
   a.textContent = "טקסט";
   // last in the menu, below the account, set apart by a line
   menu.appendChild(a);

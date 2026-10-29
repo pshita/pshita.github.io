@@ -325,12 +325,12 @@ const secHtml = (key, label, body) => `<div class="sec${OPEN.has(key) ? " open" 
 function drawMenus() {
   const open = ["sitePanel", "viewPanel"].find((id) => $(id) && !$(id).hidden), scroll = open ? $(open).scrollTop : 0;
   // the site menu, as on every page: lessons by page/amud, then the account
-  const site = GROUPS.map((g) => secHtml("site:" + g.name, g.name, g.lessons.map((l) => `<a href="${esc(l.key)}">${esc(plain(l.title))}</a>`).join(""))).join("");
+  const site = GROUPS.map((g) => secHtml("site:" + g.name, g.name, g.lessons.map((l) => `<a href="${esc(l.key.replace(/\.html$/, ""))}">${esc(plain(l.title))}</a>`).join(""))).join("");
   // exactly the site's menu (index.html etc.): pages, then the account; the admin also gets "טקסט" at the end
   const account = USER
     ? `<div class="hello"><span>שלום ${esc(USER.displayName || "")}</span><button type="button" id="logout">יציאה</button></div>`
-    : `<a class="login" href="login.html">התחברות</a>`;
-  const textLink = USER && USER.email === ADMIN_EMAIL ? `<a class="textlink" href="text.html">טקסט</a>` : "";
+    : `<a class="login" href="login">התחברות</a>`;
+  const textLink = USER && USER.email === ADMIN_EMAIL ? `<a class="textlink" href="text">טקסט</a>` : "";
   const view = menus().map((g) => secHtml(g.name, g.name, g.items.map((it) =>
     `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`).join(""))).join("");
   $("panels").innerHTML = `<div class="panel" id="sitePanel" hidden>${site}<div class="acct">${account}</div>${textLink}</div>
