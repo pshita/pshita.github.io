@@ -70,6 +70,8 @@ body{margin:0;background:var(--page);color:var(--ink);font-family:Arial,'Segoe U
 /* pinching changes the text size (the lines rewrap), not the page zoom */
 /* the page never gets wider than the screen and never moves sideways */
 html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
+/* the text moves down below the open bar (and back): keep it where it is on screen, not where it was */
+body{overflow-anchor:none;transition:padding-top .18s}
 .page{overflow-wrap:break-word}
 .bar .icon svg{width:20px;height:20px;display:block}
 #find{position:fixed;top:10px;left:16px;z-index:6;background:#fff;border:1px solid var(--s-line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:8px;display:flex;flex-direction:column;gap:6px;font-family:var(--s-head);font-size:14px;max-width:calc(100vw - 32px)}
@@ -422,22 +424,27 @@ $("panels").onchange = (e) => {
 // The bar shows when the mouse reaches the top of the screen (or on a tap there) and hides
 // when the mouse leaves it, unless one of its menus is open. A click anywhere else
 // closes whatever is open: the bar, its menus, the search.
-$("hot").onclick = (e) => { e.stopPropagation(); HOVER = false; $("bar").classList.add("show"); };
+// While the bar is open the text moves down below it, so the bar never covers it.
+function showBar(on) {
+  $("bar").classList.toggle("show", on);
+  document.body.style.paddingTop = on ? `${$("bar").offsetHeight}px` : "";
+}
+$("hot").onclick = (e) => { e.stopPropagation(); HOVER = false; showBar(true); };
 let HOVER = false;
-$("hot").onmouseenter = () => { if (!$("bar").classList.contains("show")) { HOVER = true; $("bar").classList.add("show"); } };
+$("hot").onmouseenter = () => { if (!$("bar").classList.contains("show")) { HOVER = true; showBar(true); } };
 const siteMenuOpen = () => Boolean(document.querySelector("#siteMenu .brand-menu:not([hidden])"));
 const closeSiteMenu = () => { const m = document.querySelector("#siteMenu .brand-menu"); if (m) m.hidden = true; };
 document.addEventListener("mousemove", (e) => {
   if (!HOVER || e.clientY < $("bar").offsetHeight + 20 || siteMenuOpen() || Object.keys(BTN).some((id) => $(id) && !$(id).hidden)) return;
   HOVER = false;
-  $("bar").classList.remove("show");
+  showBar(false);
 });
 $("bar").onclick = (e) => e.stopPropagation();
 document.addEventListener("click", () => {
   HOVER = false;
   closePanels();
   closeSiteMenu();
-  $("bar").classList.remove("show");
+  showBar(false);
   if (!$("find").hidden) closeFind();
 });
 
@@ -588,7 +595,7 @@ async function replaceHits(list) {
   if (skipped) say(`${skipped} מקומות לא הוחלפו, כי אי אפשר לערוך אותם מכאן.`);
   runFind(false);
 }
-$("findBtn").onclick = (e) => { e.stopPropagation(); closePanels(); $("bar").classList.remove("show"); openFind(); };
+$("findBtn").onclick = (e) => { e.stopPropagation(); closePanels(); showBar(false); openFind(); };
 $("find").addEventListener("click", (e) => e.stopPropagation());
 $("findQ").addEventListener("input", () => { NOW = 0; runFind(); });
 $("findQ").addEventListener("keydown", (e) => {
