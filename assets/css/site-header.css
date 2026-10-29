@@ -44,3 +44,4 @@ body:has(> .site-header) { margin: 0; }
 .site-header .score-badges {display: flex; gap: 5px; }
 .site-header .score-badge-dot {width: 12px; height: 12px; border-radius: 50%; background: var(--bg-elevated); border: 2px solid var(--line); flex: none; }
 .site-header .score-badge-dot.achieved {background: var(--esh); border-color: var(--esh); }
+.site-header .done-marks { color: var(--regel); font-weight: 700; }

@@ -642,3 +642,4 @@ footer.site-footer {
 .ed-field-status { margin: 8px 0 0; font-size: .8rem; color: #b23b3b; }
 
 .ed-busy { opacity: .5; pointer-events: none; }
+.done-marks { color: var(--regel); font-weight: 700; }

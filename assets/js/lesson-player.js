@@ -108,7 +108,7 @@ function drawPlay(){const list=screens();if(cur>=list.length)cur=list.length-1;c
  <div class="foot ${isQ?'two':''}">${isQ?`<button class="skip" id="skipq">דלג על התרגול</button>`:''}<button class="go" id="go">${s.type==='summary'?'מתחילים מחדש':s.type==='intro'?'יוצאים לדרך':'המשך'}</button></div></div>`;
  view.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{cur=+b.dataset.goto;draw();window.scrollTo(0,0)});
  const sk=document.getElementById('skipq');if(sk)sk.onclick=()=>{let i=cur+1;while(i<list.length&&!NONQ.includes(list[i].type))i++;cur=Math.min(i,list.length-1);draw();window.scrollTo(0,0)};
- document.getElementById('go').onclick=()=>{if(s.type==='summary'){cur=0;R={}}else cur++;draw();window.scrollTo(0,0)};
+ document.getElementById('go').onclick=()=>{if(s.type==='summary'){cur=0;R={};FIN=false}else cur++;draw();window.scrollTo(0,0)};
  wire(s)}
 function drawList(){let h='',last=-1,n=0;
  LESSON.screens.forEach(s=>{if(s.type==='read'||s.type==='summary')return;n++;
@@ -126,10 +126,12 @@ function drawList(){let h='',last=-1,n=0;
   else if(s.type==='open'){q=s.q;c=`<span class="c">${s.ans}</span>`}
   h+=`<div class="li"><div class="h">${n}. <span>${KIND[s.type]}</span></div><div>${q}</div><div>${c}</div>${s.why||s.din?`<div class="w">${s.why||s.din}</div>`:''}</div>`});
  view.innerHTML=`<div class="list">${h}</div>`}
-// Tell the page (student.js) about each question answered correctly and about reaching the end.
+// Tell the page (student.js) about each question answered correctly, and about finishing
+// the lesson: reaching the end with every question answered (none skipped). Each round
+// from the start ("מתחילים מחדש") counts again.
 const SENT={};let FIN=false;
 function report(){Object.keys(R).forEach(k=>{const r=R[k],s=LESSON.screens[k];if(r.done&&r.ok===true&&SCORED.includes(s.type)&&!SENT[k]){SENT[k]=1;dispatchEvent(new CustomEvent('pshita:correct',{detail:{q:+k}}))}});
- const list=screens();if(!FIN&&list[cur]&&list[cur].type==='summary'){FIN=true;dispatchEvent(new CustomEvent('pshita:finished'))}}
+ const list=screens();if(!FIN&&list[cur]&&list[cur].type==='summary'){FIN=true;if(list.filter(x=>SCORED.includes(x.type)).every(x=>st(x).done))dispatchEvent(new CustomEvent('pshita:finished'))}}
 function draw(){drawPlay();report()}
 draw();
 }

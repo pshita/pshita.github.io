@@ -64,3 +64,25 @@ watchAuthState(async (user) => {
     sub.hidden = !any;
   });
 });
+
+// A ✓ next to each lesson the signed-in user finished with all its questions, one
+// for each time (users/{uid}/progress/lessons, see student.js): in the menu and on
+// the home page's lesson cards.
+watchAuthState(async (user) => {
+  document.querySelectorAll(".done-marks").forEach((m) => m.remove());
+  if (!user) return;
+  let lessons = {};
+  try {
+    const snap = await getDoc(doc(getDb(), "users", user.uid, "progress", "lessons"));
+    lessons = (snap.exists() && snap.data().lessons) || {};
+  } catch (e) { return; }
+  document.querySelectorAll(".brand-menu a.dropdown-item, a.lesson-card").forEach((a) => {
+    const id = (a.getAttribute("href") || "").split("/").pop().replace(/\.html$/, "");
+    const n = (lessons[id] && lessons[id].times) || 0;
+    if (!n) return;
+    const marks = document.createElement("span");
+    marks.className = "done-marks";
+    marks.textContent = " " + "✓".repeat(Math.min(n, 10));
+    (a.querySelector("h3") || a).appendChild(marks);
+  });
+});

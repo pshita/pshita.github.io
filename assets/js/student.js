@@ -1,13 +1,14 @@
 // A signed-in student's progress and the messages to the parents:
 // - in a lesson, records each question answered correctly (users/{uid}/progress/quiz)
-//   and each lesson finished (users/{uid}/progress/lessons), from the player's events;
+//   and each time a lesson is finished with all its questions (users/{uid}/progress/lessons:
+//   times), from the player's events;
 // - says how many correct answers are left until the next message to the parents
 //   (every `step` answers: the default in settings/sms, or the student's own,
 //   both set on the admin page; nothing is said while messages are off for them);
 // - once a message was sent (the server sets users/{uid}.lastSms), tells the student.
 import { watchAuthState, getDb, isReady } from "./auth.js";
 import {
-  doc, getDoc, setDoc, updateDoc, onSnapshot,
+  doc, getDoc, setDoc, updateDoc, onSnapshot, increment,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const STEP_DEFAULT = 10;
@@ -123,6 +124,6 @@ if (lessonId) {
   addEventListener("pshita:finished", () => {
     if (!USER) return;
     setDoc(doc(getDb(), "users", USER.uid, "progress", "lessons"),
-      { lessons: { [lessonId]: { finishedAt: new Date().toISOString() } } }, { merge: true }).catch(() => {});
+      { lessons: { [lessonId]: { finishedAt: new Date().toISOString(), times: increment(1) } } }, { merge: true }).catch(() => {});
   });
 }

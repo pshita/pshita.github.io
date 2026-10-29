@@ -107,12 +107,13 @@ function planOf(s) {
   return { on: mode === "on" || (mode === "default" && SMS.enabled), step: Number.isInteger(s.smsStep) && s.smsStep > 0 ? s.smsStep : SMS.step };
 }
 function rowHtml(s) {
-  // lessons in site order: correct answers in each, and whether it was finished
+  // lessons in site order: correct answers in each, and how many times it was finished
+  const times = (id) => (s.finished[id] && s.finished[id].times) || 0;
   const perLesson = {};
   Object.keys(s.correct).forEach((q) => { if (s.correct[q] && q.includes(":")) { const id = q.split(":")[0]; perLesson[id] = (perLesson[id] || 0) + 1; } });
-  const did = LESSONS.filter((l) => perLesson[l.id] || s.finished[l.id]);
-  const done = did.filter((l) => s.finished[l.id]).length;
-  const pills = did.map((l) => `<span class="adm-pill${s.finished[l.id] ? " done" : ""}" title="${s.finished[l.id] ? "סיים את השיעור" : "התחיל את השיעור"}">${s.finished[l.id] ? "✓ " : ""}${esc(l.title)} <i>${perLesson[l.id] || 0}</i></span>`).join("");
+  const did = LESSONS.filter((l) => perLesson[l.id] || times(l.id));
+  const done = did.filter((l) => times(l.id)).length;
+  const pills = did.map((l) => `<span class="adm-pill${times(l.id) ? " done" : ""}">${"✓".repeat(Math.min(times(l.id), 10))}${times(l.id) ? " " : ""}${esc(l.title)} <i>${perLesson[l.id] || 0}</i></span>`).join("");
   const lessons = did.length ? `<details><summary>${did.length}${done ? ` (סיים ${done})` : ""}</summary><div class="adm-pills">${pills}</div></details>` : '<span class="adm-dim">—</span>';
   const mode = modeOf(s);
   return `<tr data-id="${esc(s.id)}">
