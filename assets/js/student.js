@@ -2,7 +2,8 @@
 // - in a lesson, records each question answered correctly (users/{uid}/progress/quiz)
 //   and each lesson finished (users/{uid}/progress/lessons), from the player's events;
 // - says how many correct answers are left until the next message to the parents
-//   (every `step` answers, set on the admin page: settings/sms);
+//   (every `step` answers, set on the admin page: settings/sms; nothing is said
+//   while the admin has the messages turned off there);
 // - once a message was sent (the server sets users/{uid}.lastSms), tells the student.
 import { watchAuthState, getDb, isReady } from "./auth.js";
 import {
@@ -10,23 +11,23 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const STEP_DEFAULT = 10;
-let USER = null, INFO = null, SECTIONS = null, STEP = STEP_DEFAULT;
+let USER = null, INFO = null, SECTIONS = null, STEP = STEP_DEFAULT, ENABLED = false;
 let unwatch = null;
 const ready = [];
 
-export async function smsStep() {
+async function smsSettings() {
   try {
     const snap = await getDoc(doc(getDb(), "settings", "sms"));
-    const v = snap.exists() ? snap.data().step : null;
-    return Number.isInteger(v) && v > 0 ? v : STEP_DEFAULT;
+    const v = snap.exists() ? snap.data() : {};
+    return { step: Number.isInteger(v.step) && v.step > 0 ? v.step : STEP_DEFAULT, enabled: v.enabled === true };
   } catch (e) {
-    return STEP_DEFAULT;
+    return { step: STEP_DEFAULT, enabled: false };
   }
 }
 
 // "עוד 3 תשובות נכונות ונשלח הודעה להורים", or "" when no message will be sent.
 export function remainingText(count, step = STEP, info = INFO) {
-  if (!info || info.notify === false || !(info.fatherPhone || info.motherPhone)) return "";
+  if (!ENABLED || !info || info.notify === false || !(info.fatherPhone || info.motherPhone)) return "";
   const left = step - (count % step);
   return left === 1 ? "עוד תשובה נכונה אחת ונשלח הודעה להורים" : `עוד ${left} תשובות נכונות ונשלח הודעה להורים`;
 }
@@ -65,12 +66,13 @@ if (isReady()) {
     USER = user; INFO = null; SECTIONS = null;
     if (user) {
       const db = getDb();
-      const [quiz, step] = await Promise.all([
+      const [quiz, sms] = await Promise.all([
         getDoc(doc(db, "users", user.uid, "progress", "quiz")).catch(() => null),
-        smsStep(),
+        smsSettings(),
       ]);
       SECTIONS = (quiz && quiz.exists() && quiz.data().sections) || {};
-      STEP = step;
+      STEP = sms.step;
+      ENABLED = sms.enabled;
       await new Promise((resolve) => {
         unwatch = onSnapshot(doc(db, "users", user.uid), (snap) => {
           INFO = snap.exists() ? snap.data() : {};

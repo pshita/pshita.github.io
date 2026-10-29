@@ -25,7 +25,8 @@ const SMS4FREE_SENDER = defineSecret("SMS4FREE_SENDER");
 const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 
 // Parent SMS settings, edited on the admin page (admin.html) and stored in
-// settings/sms: send every `step` correct answers, with `template` as the text.
+// settings/sms: whether messages go out at all (`enabled`, off until the admin
+// turns it on), every `step` correct answers, with `template` as the text.
 // In the template, {שם} is the student's first name, {שם מלא} the full name and
 // {מספר} the number of correct answers.
 const SMS_DEFAULTS = {
@@ -38,7 +39,7 @@ async function smsSettings() {
   const v = snap.exists ? snap.data() : {};
   const step = Number.isInteger(v.step) && v.step > 0 ? v.step : SMS_DEFAULTS.step;
   const template = typeof v.template === "string" && v.template.trim() ? v.template : SMS_DEFAULTS.template;
-  return { step, template };
+  return { step, template, enabled: v.enabled === true };
 }
 
 function smsText(template, userData, count) {
@@ -94,7 +95,8 @@ exports.notifyParentsOnQuizMilestone = onDocumentWritten(
     const newScore = countCorrect(after.sections);
     if (newScore <= prevScore) return;
 
-    const { step, template } = await smsSettings();
+    const { step, template, enabled } = await smsSettings();
+    if (!enabled) return;
     const prevMilestone = Math.floor(prevScore / step) * step;
     const newMilestone = Math.floor(newScore / step) * step;
     if (newMilestone <= prevMilestone || newMilestone === 0) return;

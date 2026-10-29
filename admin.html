@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@300;400;600&family=Rubik:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/style.css?v=48" />
-  <link rel="stylesheet" href="assets/css/admin.css?v=1" />
+  <link rel="stylesheet" href="assets/css/admin.css?v=2" />
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
@@ -90,6 +90,8 @@
       <section id="tab-sms" hidden>
         <div class="adm-card">
           <h2>מתי נשלחת הודעה</h2>
+          <label class="adm-switch"><input type="checkbox" id="sms-enabled"> שליחת הודעות להורים פעילה</label>
+          <p class="adm-note">כל עוד זה לא מסומן, לא נשלחות הודעות בכלל, והתלמידים לא רואים כמה נשאר עד הודעה. כל ההגדרות נשמרות.</p>
           <label class="adm-step">כל <input type="number" id="sms-step" min="1" max="500" inputmode="numeric"> תשובות נכונות</label>
           <p class="adm-note">ההודעה נשלחת רק לתלמידים שמסומן אצלם "הודעות להורים" ויש להם מספר טלפון של אבא או של אמא.</p>
         </div>
@@ -128,6 +130,6 @@
   <script src="assets/js/main.js?v=3"></script>
   <script type="module" src="assets/js/header-auth.js?v=7"></script>
   <script type="module" src="assets/js/score.js"></script>
-  <script type="module" src="assets/js/admin.js?v=1"></script>
+  <script type="module" src="assets/js/admin.js?v=2"></script>
 </body>
 </html>

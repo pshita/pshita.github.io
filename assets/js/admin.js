@@ -10,7 +10,7 @@ import {
 
 const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 // the same defaults as the server (functions/index.js)
-const SMS_DEFAULTS = { step: 10, template: "{שם} ענה נכון על {מספר} שאלות בשיעורי הגמרא באתר פשיטא 🎉" };
+const SMS_DEFAULTS = { enabled: false, step: 10, template: "{שם} ענה נכון על {מספר} שאלות בשיעורי הגמרא באתר פשיטא 🎉" };
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
@@ -76,6 +76,7 @@ const dateOf = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLo
 
 // What will happen next with this student's parents.
 function nextText(s) {
+  if (!SMS.enabled) return "השליחה להורים כבויה כרגע";
   if (s.notify === false) return "ההודעות להורים כבויות";
   if (!s.fatherPhone && !s.motherPhone) return "אין מספר טלפון של ההורים";
   const left = SMS.step - (countOf(s) % SMS.step);
@@ -148,6 +149,7 @@ $("adm-list").addEventListener("change", async (e) => {
 // ---------- the message to the parents ----------
 const fillTemplate = (t, count) => t.split("{שם מלא}").join("ישראל ישראלי").split("{שם}").join("ישראל").split("{מספר}").join(String(count));
 function fillSms() {
+  $("sms-enabled").checked = SMS.enabled === true;
   $("sms-step").value = SMS.step;
   $("sms-template").value = SMS.template;
   preview();
@@ -177,8 +179,9 @@ $("sms-save").addEventListener("click", async () => {
   status.className = "adm-status";
   status.textContent = "שומר…";
   try {
-    await setDoc(doc(getDb(), "settings", "sms"), { step, template, updatedAt: new Date().toISOString() }, { merge: true });
-    SMS = { ...SMS, step, template };
+    const enabled = $("sms-enabled").checked;
+    await setDoc(doc(getDb(), "settings", "sms"), { enabled, step, template, updatedAt: new Date().toISOString() }, { merge: true });
+    SMS = { ...SMS, enabled, step, template };
     drawStudents();
     status.textContent = "נשמר ✓";
   } catch (err) {
