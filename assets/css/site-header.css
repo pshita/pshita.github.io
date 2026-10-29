@@ -1,10 +1,10 @@
 /* The site's header (the פשיטא button and its menu) on lesson pages, which don't load
    style.css. Generated from style.css's header rules, everything scoped under
    .site-header so nothing touches the lesson player. */
-.site-header {--bg: #faf6ee; --bg-elevated: #ffffff; --ink: #2b241b; --ink-soft: #5c5347; --line: #e4d9c4; --accent: #8a4b2e; --accent-soft: #f1e3d1; --accent-faint: color-mix(in srgb, var(--accent-soft) 45%, var(--bg-elevated) 55%); --accent-strong: #6d3a22; --shen: #a0522d; --regel: #6b7f3f; --bor: #3f6f7f; --esh: #b23b2e; --sun: #d99a2b; --sky: #4a8fbd; --shadow: 0 4px 16px rgba(43, 36, 27, 0.08); --radius: 14px; --font-head: "Rubik", "Heebo", "Arial Hebrew", sans-serif; --font-body: "Heebo", "Arial Hebrew", sans-serif; font-family: var(--font-body); color: var(--ink); direction: rtl; }
+.site-header {--bg: #faf6ee; --bg-elevated: #ffffff; --ink: #2b241b; --ink-soft: #5c5347; --line: #e4d9c4; --accent: #8a4b2e; --accent-soft: #f1e3d1; --accent-faint: color-mix(in srgb, var(--accent-soft) 45%, var(--bg-elevated) 55%); --accent-strong: #6d3a22; --shen: #a0522d; --regel: #6b7f3f; --bor: #3f6f7f; --esh: #b23b2e; --sun: #d99a2b; --sky: #4a8fbd; --shadow: 0 4px 16px rgba(43, 36, 27, 0.08); --radius: 14px; --font-head: "Rubik", "Heebo", "Arial Hebrew", sans-serif; --font-body: "Heebo", "Arial Hebrew", sans-serif; font-family: var(--font-body); color: var(--ink); direction: rtl; line-height: 1.75; }
 .site-header [hidden] { display: none !important; }
 body:has(> .site-header) { margin: 0; }
-.site-header .sh-wrap { max-width: 880px; margin: 0 auto; padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
+.site-header .sh-wrap { max-width: 880px; margin: 0 auto; padding-inline: 20px; }
 .site-header a { color: var(--accent-strong); }
 .site-header .dropdown-item, .site-header .auth-link, .site-header .score-badge { font-family: var(--font-head); }
 .site-header {border-bottom: 1px solid var(--line); background: var(--bg-elevated); position: sticky; top: 0; z-index: 10; }
@@ -45,3 +45,4 @@ body:has(> .site-header) { margin: 0; }
 .site-header .score-badge-dot {width: 12px; height: 12px; border-radius: 50%; background: var(--bg-elevated); border: 2px solid var(--line); flex: none; }
 .site-header .score-badge-dot.achieved {background: var(--esh); border-color: var(--esh); }
 .site-header .done-marks { color: var(--regel); font-weight: 700; }
+.site-header .brand-menu { width: 280px; max-width: calc(100vw - 32px); max-height: calc(100vh - 90px); overflow-y: auto; }

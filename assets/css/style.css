@@ -117,6 +117,9 @@ h1, h2, h3 { font-family: var(--font-head); color: var(--ink); margin: 0 0 .4em;
   gap: 6px;
   z-index: 20;
 }
+/* The site's menu: always the same width, scrolling when it's taller than the screen
+   (the same in site-header.css, for lesson pages and the text page). */
+.brand-menu { width: 280px; max-width: calc(100vw - 32px); max-height: calc(100vh - 90px); overflow-y: auto; }
 .dropdown-item {
   display: block;
   padding: 8px 10px;
@@ -558,88 +561,4 @@ footer.site-footer {
   .lesson-nav-btn:hover{ transform: none; }
 }
 
-/* ===========================================================
-   Inline admin editor - only ever created for the one
-   authorized account (content-editor.js checks this before
-   adding any of it), so none of this is seen by readers.
-   =========================================================== */
-
-.ed-toolbar {
-  position: absolute;
-  z-index: 600;
-  display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 10px;
-  background: var(--ink);
-  box-shadow: var(--shadow);
-}
-.ed-ctrl-btn {
-  font-family: var(--font-body);
-  font-size: .78rem;
-  font-weight: 700;
-  line-height: 1;
-  min-width: 26px;
-  height: 26px;
-  padding: 0 7px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #fff;
-  cursor: pointer;
-}
-.ed-ctrl-btn:hover { background: rgba(255, 255, 255, 0.18); }
-.ed-ctrl-active { background: var(--accent); }
-.ed-ctrl-del:hover { background: #b23b3b; }
-
-.ed-new-lesson-tile {
-  display: flex;
-  justify-content: center;
-  margin: 10px 0 20px;
-}
-.ed-add-toggle {
-  font-family: var(--font-body);
-  font-size: .82rem;
-  font-weight: 600;
-  color: var(--accent-strong);
-  background: none;
-  border: 1px dashed var(--line);
-  border-radius: 999px;
-  padding: 7px 16px;
-  cursor: pointer;
-}
-.ed-add-toggle:hover { border-color: var(--accent); }
-
-.ed-new-lesson-tile { flex-direction: column; align-items: center; }
-.ed-new-lesson-form {
-  margin-top: 10px;
-  width: 100%;
-  max-width: 360px;
-  padding: 14px;
-  border-radius: 12px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--line);
-}
-.ed-new-lesson-form label {
-  display: block;
-  font-size: .8rem;
-  color: var(--ink-soft);
-  margin-bottom: 10px;
-}
-.ed-new-lesson-form input {
-  display: block;
-  width: 100%;
-  margin-top: 4px;
-  font-family: var(--font-body);
-  font-size: .9rem;
-  color: var(--ink);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
-}
-.ed-new-lesson-actions { display: flex; gap: 8px; }
-.ed-field-status { margin: 8px 0 0; font-size: .8rem; color: #b23b3b; }
-
-.ed-busy { opacity: .5; pointer-events: none; }
 .done-marks { color: var(--regel); font-weight: 700; }

@@ -15,7 +15,7 @@ A lesson's JSON has `title`, `ref`, `stations` (the headings) and `screens`. Eac
 ## Editing
 - In-lesson editing (admin, **✎ עריכה**) calls `replaceLessonText`. It replaces whole string values in the data file.
 - `text.html` (admin) calls `getLessonData` and `saveLessonData`. These read and write the whole data file. The save is refused if the file changed since it was loaded.
-- Adding, moving and deleting lessons from the home page call `createLesson`, `moveLesson` and `deleteLesson`. They update `lessons.json` and regenerate `index.html` and the header menus. Lesson pages are not touched.
+- Adding, moving and deleting lessons from the text page ("תצוגה") call `createLesson`, `moveLesson` and `deleteLesson`. They update `lessons.json` and regenerate `index.html` and the header menus. Lesson pages are not touched.
 
 ## Adding a lesson built elsewhere (a full HTML file with its own engine and `const LESSON={...}`)
 1. Take the `LESSON` object out of the file and remove its `prev` and `next`.

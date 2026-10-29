@@ -25,6 +25,11 @@ watchAuthState((user) => {
 // all lessons) and the admin page (students, parent messages).
 const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 watchAuthState((user) => {
+  // the admin's home page is the text page
+  if (user && user.email === ADMIN_EMAIL && /\/(index(\.html)?)?$/.test(location.pathname) && document.querySelector(".hero")) {
+    location.replace("text");
+    return;
+  }
   const menu = document.querySelector(".brand-menu");
   const old = document.getElementById("admin-text-link");
   if (!user || user.email !== ADMIN_EMAIL) { if (old) old.remove(); document.getElementById("admin-page-link")?.remove(); return; }

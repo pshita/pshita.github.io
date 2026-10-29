@@ -12,14 +12,16 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--page);color:var(--ink);font-family:Arial,'Segoe UI',sans-serif}
 /* the top bar hides; the mouse at the top of the screen (or a tap there) brings it back */
-#hot{position:fixed;top:0;left:0;right:0;height:14px;z-index:2;cursor:pointer}
+/* a solid strip along the top: more room to tap for the bar, and a hard edge (no blur
+   over the text when scrolling, as Safari does under the status bar) */
+#hot{position:fixed;top:0;left:0;right:0;height:22px;z-index:2;cursor:pointer;background:var(--page)}
 /* bar and menus: same look as the site header and its menu (assets/css/style.css) */
 :root{--s-bg:#faf6ee;--s-ink:#2b241b;--s-soft:#5c5347;--s-line:#e4d9c4;--s-accent-soft:#f1e3d1;--s-accent-strong:#6d3a22;--s-head:"Rubik","Heebo","Arial Hebrew",sans-serif}
 .bar{position:fixed;top:0;left:0;right:0;z-index:3;transform:translateY(-100%);transition:transform .18s;background:#fff;border-bottom:1px solid var(--s-line);box-shadow:0 2px 10px rgba(43,36,27,.08);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;font-family:var(--s-head);color:var(--s-ink)}
 .bar.show{transform:none}
 .bar button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
-.brand{display:flex;align-items:center;gap:10px;font-size:1.25rem;font-weight:700;line-height:1.2}
-.brand .mark{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--s-accent-soft);color:var(--s-accent-strong);font-size:1.1rem}
+/* the site's menu, exactly as on every other page (site-header.css), inside this bar */
+.site-header.sh-inline{position:static;border:0;background:none;box-shadow:none}
 .bar .view{display:flex;align-items:center;gap:6px;font-size:.95rem;padding:8px 10px;border-radius:8px}
 .bar .view:hover,.bar .view.open{background:var(--s-accent-soft);color:var(--s-accent-strong)}
 .chev{width:16px;height:16px;flex:none;transition:transform .2s}
@@ -36,13 +38,23 @@ body{margin:0;background:var(--page);color:var(--ink);font-family:Arial,'Segoe U
 .panel label.new{color:var(--s-soft)}
 .panel .opt{border-bottom:1px solid var(--s-line);border-radius:8px 8px 0 0;padding-bottom:10px}
 .panel .acct{border-top:1px solid var(--s-line);padding-top:10px;margin-top:4px;display:flex;flex-direction:column;gap:6px}
-.panel a.login{align-self:flex-start;background:#8a4b2e;color:#fff;font-size:.9rem;padding:7px 16px;border-radius:999px}
-.panel a.login:hover{background:#8a4b2e;color:#fff;opacity:.9}
-.panel a.textlink{border-top:1px solid var(--s-line);border-radius:0 0 8px 8px;margin-top:4px;padding-top:10px}
-.hello{font-family:"Heebo","Arial Hebrew",sans-serif;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px}
-.hello span{font-size:.85rem;color:var(--s-soft);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hello button{flex:none;font:inherit;line-height:1.75;font-size:.8rem;color:var(--s-soft);background:none;border:1px solid var(--s-line);border-radius:999px;padding:3px 10px;cursor:pointer}
-.hello button:hover{color:var(--s-accent-strong);border-color:currentColor}
+/* adding, moving and deleting lessons (admin), in "תצוגה" */
+.panel .lrow{display:flex;align-items:center}
+.panel .lrow label{flex:1;min-width:0}
+.panel .lctl{display:flex;flex:none}
+.panel .lctl button{border:0;background:none;font:inherit;font-size:.85rem;color:var(--s-soft);padding:4px 6px;border-radius:6px;cursor:pointer}
+.panel .lctl button:hover{background:var(--s-accent-soft);color:var(--s-accent-strong)}
+.panel .lctl .del:hover{background:#f6d8d2;color:#b23b2e}
+.panel .lrow.busy{opacity:.5;pointer-events:none}
+.panel .newl>button{border:1px dashed var(--s-line);background:none;font:inherit;font-size:.88rem;color:var(--s-soft);border-radius:8px;padding:6px 10px;cursor:pointer;width:100%;text-align:start}
+.panel .nl-form{display:flex;flex-direction:column;gap:6px;padding:6px 4px}
+.panel .nl-form[hidden]{display:none}
+.panel .nl-form label{flex-direction:column;align-items:stretch;gap:2px;padding:0;font-size:.85rem;cursor:default;white-space:normal}
+.panel .nl-form label:hover{background:none;color:var(--s-ink)}
+.panel .nl-form input{font:inherit;padding:4px 8px;border:1px solid var(--s-line);border-radius:6px}
+.panel .nl-actions{display:flex;gap:6px}
+.panel .nl-actions button{font:inherit;font-size:.85rem;border:1px solid var(--s-line);background:#fff;border-radius:6px;padding:3px 12px;cursor:pointer}
+.panel .nl-status{margin:0;font-size:.8rem;color:#b23b2e;white-space:normal}
 #msg{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:5;max-width:calc(100vw - 32px);background:#b00020;color:#fff;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 #msg:empty{display:none}
 /* undo / redo, in the top bar while editing */
@@ -77,7 +89,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 #fmt .red{color:#ff8a7a}
 #fmt .it{font-style:italic;font-family:Georgia,serif}
 #fmt .hd{width:auto;padding:0 8px;font-size:13px;border-inline-start:1px solid #555;border-radius:0 5px 5px 0}
-.page{min-height:100vh;background:var(--page);padding:28px clamp(16px,3vw,40px) 48px;font-family:var(--text);font-size:var(--fs,17px);line-height:1.4}
+.page{min-height:100vh;background:var(--page);padding:22px clamp(16px,3vw,40px) 48px;font-family:var(--text);font-size:var(--fs,17px);line-height:1.4}
 /* the lesson's name, and on the same line its page and amud */
 .page .lh{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:2px 16px;margin:0 0 14px}
 .page .lsn+.lsn .lh{margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
@@ -114,6 +126,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 @media (max-width:640px){.page{padding:20px 14px 40px;font-size:var(--fs,16px)}}
 @media print{.bar,.panel,#tb,#hot,#fmt,#msg,#find,#hist{display:none}body{background:#fff}.page{padding:0;min-height:0}}
 </style>
+<link rel="stylesheet" href="assets/css/site-header.css?v=10">
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
@@ -124,7 +137,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 <body>
 <div id="hot" title="תפריט"></div>
 <div class="bar" id="bar">
-  <button type="button" class="brand" id="siteBtn"><span class="mark">📖</span><span>פשיטא</span></button>
+  <div class="site-header sh-inline" id="siteMenu"></div>
   <span class="tools">
   <span id="hist" hidden><button type="button" id="undoBtn" title="ביטול (Ctrl+Z)" disabled>↶</button><button type="button" id="redoBtn" title="החזרה (Ctrl+Y)" disabled>↷</button></span>
   <button type="button" class="view icon" id="findBtn" title="חיפוש והחלפה"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
@@ -329,7 +342,7 @@ async function render(focus) {
 const draftTitle = (key) => plain(DATA[key].L.title) || "ללא שם";
 const OPEN = new Set(["עריכה"]);
 function menus() {
-  const m = GROUPS.map((g) => ({ name: g.name, items: g.lessons.map((l) => ({ key: l.key, title: l.title })) }));
+  const m = GROUPS.map((g) => ({ name: g.name, site: true, items: g.lessons.map((l) => ({ key: l.key, title: l.title })) }));
   if (isAdmin) m.push({ name: "עריכה", items: [...DRAFTS.map((d) => ({ key: "draft:" + d.id, title: draftTitle("draft:" + d.id) })), { key: NEW, title: "עמוד חדש", cls: "new" }] });
   return m;
 }
@@ -339,23 +352,25 @@ const CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="
 const secHtml = (key, label, body) => `<div class="sec${OPEN.has(key) ? " open" : ""}" data-name="${esc(key)}">
     <button type="button" class="sec-h"><span>${esc(label)}</span>${CHEV}</button><div class="sec-b">${body}</div></div>`;
 function drawMenus() {
-  const open = ["sitePanel", "viewPanel"].find((id) => $(id) && !$(id).hidden), scroll = open ? $(open).scrollTop : 0;
-  // the site menu, as on every page: lessons by page/amud, then the account
-  const site = GROUPS.map((g) => secHtml("site:" + g.name, g.name, g.lessons.map((l) => `<a href="${esc(l.key.replace(/\.html$/, ""))}">${esc(plain(l.title))}</a>`).join(""))).join("");
-  // exactly the site's menu (index.html etc.): pages, then the account; the admin also gets "טקסט" at the end
-  const account = USER
-    ? `<div class="hello"><span>שלום ${esc(USER.displayName || "")}</span><button type="button" id="logout">יציאה</button></div>`
-    : `<a class="login" href="login">התחברות</a>`;
-  const textLink = USER && USER.email === ADMIN_EMAIL ? `<a class="textlink" href="text">טקסט</a><a href="admin">ניהול</a>` : "";
-  const view = menus().map((g) => secHtml(g.name, g.name, g.items.map((it) =>
-    `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`).join(""))).join("");
-  $("panels").innerHTML = `<div class="panel" id="sitePanel" hidden>${site}<div class="acct">${account}</div>${textLink}</div>
-    <div class="panel" id="viewPanel" hidden><label class="opt"><input type="checkbox" id="optQ"${SHOWQ ? " checked" : ""}> שאלות</label>${view}</div>`;
+  const open = ["viewPanel"].find((id) => $(id) && !$(id).hidden), scroll = open ? $(open).scrollTop : 0;
+  const item = (it) => `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`;
+  // the admin moves and deletes lessons of the site here, and adds new ones to a page/amud
+  const lessonRow = (it) => `<div class="lrow" data-key="${esc(it.key)}">${item(it)}<span class="lctl"><button type="button" data-mv="up" title="הזזה למעלה">↑</button><button type="button" data-mv="down" title="הזזה למטה">↓</button><button type="button" class="del" data-del title="מחיקה">✕</button></span></div>`;
+  const newLesson = (g) => `<div class="newl" data-group="${esc(g.name)}"><button type="button" class="nl-toggle">+ שיעור חדש</button>
+    <div class="nl-form" hidden>
+      <label>מזהה (אנגלית, מקפים) <input type="text" class="nl-id" dir="ltr"></label>
+      <label>כותרת (דיבור המתחיל) <input type="text" class="nl-title"></label>
+      <div class="nl-actions"><button type="button" class="nl-create">יצירה</button><button type="button" class="nl-cancel">ביטול</button></div>
+      <p class="nl-status"></p>
+    </div></div>`;
+  const view = menus().map((g) => secHtml(g.name, g.name, g.items.map((it) => (g.site && isAdmin ? lessonRow(it) : item(it))).join("") + (g.site && isAdmin ? newLesson(g) : ""))).join("");
+  $("panels").innerHTML = `<div class="panel" id="viewPanel" hidden><label class="opt"><input type="checkbox" id="optQ"${SHOWQ ? " checked" : ""}> שאלות</label>${view}</div>`;
   if (open) { openPanel(open); $(open).scrollTop = scroll; }
 }
-const BTN = { sitePanel: "siteBtn", viewPanel: "viewBtn" };
+const BTN = { viewPanel: "viewBtn" };
 function openPanel(id) {
   closePanels();
+  closeSiteMenu();
   const b = $(BTN[id]), p = $(id);
   const r = b.getBoundingClientRect();
   p.style.top = `${r.bottom + 8}px`;
@@ -383,7 +398,7 @@ Object.entries(BTN).forEach(([p, b]) => $(b).onclick = (e) => {
 });
 $("panels").onclick = (e) => {
   e.stopPropagation();
-  if (e.target.id === "logout") { auth.logoutUser().then(() => location.reload()); return; }
+  if (lessonAction(e.target)) return;
   const h = e.target.closest(".sec-h");
   if (!h) return;
   const sec = h.parentElement, name = sec.dataset.name;
@@ -392,6 +407,7 @@ $("panels").onclick = (e) => {
   placePanel(sec.closest(".panel"));
 };
 $("panels").onchange = (e) => {
+  if (!e.target.dataset.key && e.target.id !== "optQ") return;
   if (e.target.id === "optQ") { SHOWQ = e.target.checked; render(); return; }
   const key = e.target.dataset.key;
   SELECTED = SELECTED.filter((k) => k !== key);
@@ -409,8 +425,10 @@ $("panels").onchange = (e) => {
 $("hot").onclick = (e) => { e.stopPropagation(); HOVER = false; $("bar").classList.add("show"); };
 let HOVER = false;
 $("hot").onmouseenter = () => { if (!$("bar").classList.contains("show")) { HOVER = true; $("bar").classList.add("show"); } };
+const siteMenuOpen = () => Boolean(document.querySelector("#siteMenu .brand-menu:not([hidden])"));
+const closeSiteMenu = () => { const m = document.querySelector("#siteMenu .brand-menu"); if (m) m.hidden = true; };
 document.addEventListener("mousemove", (e) => {
-  if (!HOVER || e.clientY < $("bar").offsetHeight + 20 || Object.keys(BTN).some((id) => $(id) && !$(id).hidden)) return;
+  if (!HOVER || e.clientY < $("bar").offsetHeight + 20 || siteMenuOpen() || Object.keys(BTN).some((id) => $(id) && !$(id).hidden)) return;
   HOVER = false;
   $("bar").classList.remove("show");
 });
@@ -418,6 +436,7 @@ $("bar").onclick = (e) => e.stopPropagation();
 document.addEventListener("click", () => {
   HOVER = false;
   closePanels();
+  closeSiteMenu();
   $("bar").classList.remove("show");
   if (!$("find").hidden) closeFind();
 });
@@ -1528,6 +1547,87 @@ import("./assets/js/auth.js").then((m) => {
 }).catch(() => {});
 
 function say(t) { $("msg").textContent = t; }  // shown only when something went wrong
+
+// ---------- the site's menu, the same as on every page (site-menu.js) ----------
+import("./assets/js/site-menu.js?v=1").then(async (m) => {
+  const box = await m.buildMenu();
+  $("siteMenu").appendChild(box);
+  box.addEventListener("menu-toggle", () => closePanels());
+  await m.activateMenu();
+}).catch(() => {});
+
+// ---------- adding, moving and deleting lessons on the site (admin, in "תצוגה") ----------
+// The server changes lessons.json, the menus and the home page (createLesson,
+// moveLesson, deleteLesson in functions/index.js).
+const idOfKey = (key) => key.replace(/^lessons\/|\.html$/g, "");
+function lessonAction(t) {
+  const row = t.closest(".lrow"), nl = t.closest(".newl"), b = t.closest("button");
+  if (row && b && b.dataset.mv) { moveSiteLesson(row, b.dataset.mv); return true; }
+  if (row && b && b.hasAttribute("data-del")) { deleteSiteLesson(row); return true; }
+  if (!nl) return false;
+  const form = nl.querySelector(".nl-form");
+  if (b && b.classList.contains("nl-toggle")) form.hidden = !form.hidden;
+  else if (b && b.classList.contains("nl-cancel")) form.hidden = true;
+  else if (b && b.classList.contains("nl-create")) createSiteLesson(nl);
+  return true;
+}
+function sortSelected() {
+  const order = menus().flatMap((g) => g.items.map((it) => it.key));
+  SELECTED.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  saveSelection();
+}
+async function moveSiteLesson(row, direction) {
+  const key = row.dataset.key;
+  row.classList.add("busy");
+  try {
+    await httpsCallable(fns, "moveLesson")({ lessonId: idOfKey(key), direction });
+    const g = GROUPS.find((x) => x.lessons.some((l) => l.key === key)), i = g.lessons.findIndex((l) => l.key === key), j = direction === "up" ? i - 1 : i + 1;
+    [g.lessons[i], g.lessons[j]] = [g.lessons[j], g.lessons[i]];
+    sortSelected();
+    drawMenus();
+    render();
+  } catch (err) {
+    row.classList.remove("busy");
+    say((err && err.message) || "שינוי הסדר נכשל.");
+  }
+}
+async function deleteSiteLesson(row) {
+  const key = row.dataset.key, l = GROUPS.flatMap((g) => g.lessons).find((x) => x.key === key);
+  if (!confirm('למחוק את השיעור "' + plain(l ? l.title : idOfKey(key)) + '"? הפעולה לא הפיכה.')) return;
+  row.classList.add("busy");
+  try {
+    await httpsCallable(fns, "deleteLesson")({ lessonId: idOfKey(key) });
+    GROUPS.forEach((g) => { g.lessons = g.lessons.filter((x) => x.key !== key); });
+    SELECTED = SELECTED.filter((k) => k !== key);
+    delete DATA[key];
+    saveSelection();
+    drawMenus();
+    render();
+  } catch (err) {
+    row.classList.remove("busy");
+    say((err && err.message) || "המחיקה נכשלה.");
+  }
+}
+async function createSiteLesson(nl) {
+  const status = nl.querySelector(".nl-status"), id = nl.querySelector(".nl-id").value.trim(), title = nl.querySelector(".nl-title").value.trim();
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) { status.textContent = "מזהה לא תקין (אותיות אנגליות קטנות, ספרות ומקפים בלבד)."; return; }
+  if (!title) { status.textContent = "צריך כותרת."; return; }
+  const g = GROUPS.find((x) => x.name === nl.dataset.group), last = g && g.lessons[g.lessons.length - 1];
+  status.textContent = "יוצר…";
+  try {
+    await httpsCallable(fns, "createLesson")({ lessonId: id, titleText: title, sourceText: nl.dataset.group, afterLessonId: last ? idOfKey(last.key) : null });
+    // the new lesson, straight from the repository (the site takes a minute or two to show it)
+    const key = `lessons/${id}.html`, src = (await httpsCallable(fns, "getLessonData")({ path: key })).data.src;
+    DATA[key] = { L: JSON.parse(src), base: src };
+    g.lessons.push({ key, title: DATA[key].L.title });
+    SELECTED.push(key);
+    sortSelected();
+    drawMenus();
+    render();
+  } catch (err) {
+    status.textContent = (err && err.message) || "יצירת השיעור נכשלה.";
+  }
+}
 
 // First visit: the first lesson; after that, whatever was open last time.
 function defaultSelection() {

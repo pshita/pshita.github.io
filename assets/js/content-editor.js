@@ -1,8 +1,6 @@
-// Admin editing, loaded on the home page and on every lesson page. It does
-// nothing for anyone except the one authorized account.
-//
-// index.html: lesson cards get hover move/delete controls, and each group
-// gets a "+" tile to create a new lesson.
+// Admin editing, loaded on every lesson page. It does nothing for anyone except
+// the one authorized account. (Adding, moving and deleting lessons is on the text
+// page, text.html.)
 //
 // Lesson pages: "✎ עריכה" makes the text on screen editable in place; each
 // change is saved into the lesson's data file (see lessons/README.md).
@@ -13,205 +11,12 @@ import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/
 const ALLOWED_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 
 let fns = null;
-let createLessonFn = null;
-let moveLessonFn = null;
-let deleteLessonFn = null;
 let replaceTextFn = null;
 
 function ensureFns() {
   if (fns) return;
   fns = getFunctions(getApp());
-  createLessonFn = httpsCallable(fns, "createLesson");
-  moveLessonFn = httpsCallable(fns, "moveLesson");
-  deleteLessonFn = httpsCallable(fns, "deleteLesson");
   replaceTextFn = httpsCallable(fns, "replaceLessonText");
-}
-
-function preventFocusSteal(e) {
-  e.preventDefault();
-}
-
-// ---------------------------------------------------------------------
-// Floating toolbar: one shared element, repositioned and rebuilt for
-// whichever block is currently hovered or focused.
-// ---------------------------------------------------------------------
-
-let toolbarEl = null;
-let toolbarOwner = null;
-let toolbarHoverLocked = false;
-let hideTimer = null;
-
-function ensureToolbar() {
-  if (toolbarEl) return toolbarEl;
-  toolbarEl = document.createElement("div");
-  toolbarEl.className = "ed-toolbar";
-  toolbarEl.hidden = true;
-  toolbarEl.addEventListener("mouseenter", () => { toolbarHoverLocked = true; clearTimeout(hideTimer); });
-  toolbarEl.addEventListener("mouseleave", () => { toolbarHoverLocked = false; scheduleHideToolbar(); });
-  document.body.appendChild(toolbarEl);
-  return toolbarEl;
-}
-
-function scheduleHideToolbar() {
-  clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => {
-    if (toolbarHoverLocked) return;
-    if (toolbarOwner && document.activeElement === toolbarOwner) return;
-    toolbarEl.hidden = true;
-    toolbarOwner = null;
-  }, 250);
-}
-
-function addCtrlButton(container, { label, title, cls, active, onClick }) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "ed-ctrl-btn" + (cls ? " " + cls : "") + (active ? " ed-ctrl-active" : "");
-  btn.textContent = label;
-  if (title) btn.title = title;
-  btn.addEventListener("mousedown", preventFocusSteal);
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    onClick();
-  });
-  container.appendChild(btn);
-  return btn;
-}
-
-
-// `buttons` is an array of button configs (see addCtrlButton).
-function showToolbarFor(el, buttons) {
-  clearTimeout(hideTimer);
-  const toolbar = ensureToolbar();
-  toolbarOwner = el;
-  toolbar.innerHTML = "";
-  buttons.forEach((b) => addCtrlButton(toolbar, b));
-  const rect = el.getBoundingClientRect();
-  toolbar.style.top = window.scrollY + rect.top - 38 + "px";
-  toolbar.style.left = window.scrollX + rect.left + "px";
-  toolbar.hidden = false;
-}
-
-function wireHoverTarget(el, buildButtons) {
-  const show = () => showToolbarFor(el, buildButtons());
-  el.addEventListener("mouseenter", show);
-  el.addEventListener("focusin", show);
-  el.addEventListener("mouseleave", scheduleHideToolbar);
-  el.addEventListener("focusout", scheduleHideToolbar);
-}
-
-// ---------------------------------------------------------------------
-// index.html bootstrap: per-card move/delete, "+ new lesson" per group.
-// ---------------------------------------------------------------------
-
-function cardLessonId(card) {
-  const href = card.getAttribute("href") || "";
-  const m = href.match(/^lessons\/([a-z0-9-]+)(?:\.html)?$/);
-  return m ? m[1] : null;
-}
-
-function wireLessonCard(card) {
-  wireHoverTarget(card, () => [
-    { label: "↑", title: "הזזה למעלה", onClick: () => runLessonMove(cardLessonId(card), "up", card) },
-    { label: "↓", title: "הזזה למטה", onClick: () => runLessonMove(cardLessonId(card), "down", card) },
-    { label: "✕", title: "מחיקה", cls: "ed-ctrl-del", onClick: () => runLessonDelete(cardLessonId(card), card) },
-  ]);
-}
-
-function runLessonMove(id, direction, card) {
-  if (!id) return;
-  ensureFns();
-  card.classList.add("ed-busy");
-  moveLessonFn({ lessonId: id, direction })
-    .then(() => window.location.reload())
-    .catch((err) => {
-      card.classList.remove("ed-busy");
-      window.alert((err && err.message) || "שינוי הסדר נכשל.");
-    });
-}
-
-function runLessonDelete(id, card) {
-  if (!id) return;
-  const h3 = card.querySelector("h3");
-  if (!window.confirm('למחוק את השיעור "' + (h3 ? h3.textContent : id) + '"? הפעולה לא הפיכה.')) return;
-  ensureFns();
-  card.classList.add("ed-busy");
-  deleteLessonFn({ lessonId: id })
-    .then(() => window.location.reload())
-    .catch((err) => {
-      card.classList.remove("ed-busy");
-      window.alert((err && err.message) || "המחיקה נכשלה.");
-    });
-}
-
-function buildNewLessonTile(groupTitle, grid) {
-  const tile = document.createElement("div");
-  tile.className = "ed-new-lesson-tile";
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "ed-add-toggle";
-  btn.textContent = "+ שיעור חדש";
-
-  const form = document.createElement("div");
-  form.className = "ed-new-lesson-form";
-  form.hidden = true;
-  form.innerHTML = `
-    <label>מזהה (אנגלית, מקפים) <input type="text" class="ed-field-id" dir="ltr"></label>
-    <label>כותרת (דיבור המתחיל) <input type="text" class="ed-field-title"></label>
-    <div class="ed-new-lesson-actions">
-      <button type="button" class="ed-add-toggle ed-field-create">יצירה</button>
-      <button type="button" class="ed-add-toggle ed-field-cancel">ביטול</button>
-    </div>
-    <p class="ed-field-status"></p>
-  `;
-
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    form.hidden = !form.hidden;
-  });
-  form.querySelector(".ed-field-cancel").addEventListener("click", (e) => {
-    e.stopPropagation();
-    form.hidden = true;
-  });
-  form.querySelector(".ed-field-create").addEventListener("click", (e) => {
-    e.stopPropagation();
-    const idInput = form.querySelector(".ed-field-id");
-    const titleInput = form.querySelector(".ed-field-title");
-    const statusEl2 = form.querySelector(".ed-field-status");
-    const id = idInput.value.trim();
-    const title = titleInput.value.trim();
-    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) {
-      statusEl2.textContent = "מזהה לא תקין (אותיות אנגליות קטנות, ספרות ומקפים בלבד).";
-      return;
-    }
-    if (!title) {
-      statusEl2.textContent = "צריך כותרת.";
-      return;
-    }
-    const lastCard = grid.querySelector(".lesson-card:last-of-type");
-    const afterLessonId = lastCard ? cardLessonId(lastCard) : null;
-    statusEl2.textContent = "יוצר…";
-    ensureFns();
-    createLessonFn({ lessonId: id, titleText: title, sourceText: groupTitle, afterLessonId })
-      .then(() => { window.location.href = "lessons/" + id; })
-      .catch((err) => { statusEl2.textContent = (err && err.message) || "יצירת השיעור נכשלה."; });
-  });
-
-  tile.appendChild(btn);
-  tile.appendChild(form);
-  return tile;
-}
-
-function initIndexEditor() {
-  document.querySelectorAll(".group-panel").forEach((panel) => {
-    const titleEl = panel.querySelector(".group-title span");
-    const groupTitle = titleEl ? titleEl.textContent.trim() : "";
-    const grid = panel.querySelector(".lesson-grid");
-    if (!grid) return;
-    grid.querySelectorAll(".lesson-card").forEach(wireLessonCard);
-    grid.after(buildNewLessonTile(groupTitle, grid));
-  });
-
-  document.body.classList.add("admin-edit-mode");
 }
 
 // ---------------------------------------------------------------------
@@ -454,9 +259,7 @@ function initGenericEditor() {
 
 watchAuthState((user) => {
   if (!user || user.email !== ALLOWED_EMAIL) return;
-  if (document.querySelector(".group-panel")) {
-    initIndexEditor();
-  } else if (/\/lessons\/[a-z0-9-]+(\.html)?$/.test(location.pathname) && document.body.dataset.lesson) {
+  if (/\/lessons\/[a-z0-9-]+(\.html)?$/.test(location.pathname) && document.body.dataset.lesson) {
     initGenericEditor();
   }
 });
