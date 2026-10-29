@@ -17,7 +17,6 @@ const db = getFirestore();
 const SMS4FREE_KEY = defineSecret("SMS4FREE_KEY");
 const SMS4FREE_USER = defineSecret("SMS4FREE_USER");
 const SMS4FREE_PASS = defineSecret("SMS4FREE_PASS");
-const SMS4FREE_SENDER = defineSecret("SMS4FREE_SENDER");
 
 // Set once via: firebase functions:secrets:set GITHUB_TOKEN
 // A GitHub fine-grained personal access token scoped to this repo only,
@@ -30,7 +29,7 @@ const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 //   step     - every how many correct answers
 //   template - the text; {שם} is the student's first name, {שם מלא} the full
 //              name and {מספר} the number of correct answers
-//   sender   - the number (or name) the message comes from; empty = SMS4FREE_SENDER
+//   sender   - the number (or name) the message comes from, sent with each message
 // A student may have their own: users/{uid}.smsMode ("on" / "off"; none = the
 // default; the older notify === false also means off) and users/{uid}.smsStep.
 const SMS_DEFAULTS = {
@@ -72,7 +71,7 @@ function smsSecrets(sender) {
     key: SMS4FREE_KEY.value(),
     user: SMS4FREE_USER.value(),
     pass: SMS4FREE_PASS.value(),
-    sender: sender || SMS4FREE_SENDER.value(),
+    sender,
   };
 }
 
@@ -109,7 +108,7 @@ async function sendAndLog({ kind, uid = null, name = "", to, msg, count = null, 
 exports.notifyParentsOnQuizMilestone = onDocumentWritten(
   {
     document: "users/{uid}/progress/quiz",
-    secrets: [SMS4FREE_KEY, SMS4FREE_USER, SMS4FREE_PASS, SMS4FREE_SENDER],
+    secrets: [SMS4FREE_KEY, SMS4FREE_USER, SMS4FREE_PASS],
   },
   async (event) => {
     const uid = event.params.uid;
@@ -149,7 +148,7 @@ exports.notifyParentsOnQuizMilestone = onDocumentWritten(
 // Admin page: send the message (as it will look) to one phone number, to check
 // that the SMS4Free account details work.
 exports.sendTestSms = onCall(
-  { secrets: [SMS4FREE_KEY, SMS4FREE_USER, SMS4FREE_PASS, SMS4FREE_SENDER] },
+  { secrets: [SMS4FREE_KEY, SMS4FREE_USER, SMS4FREE_PASS] },
   async (request) => {
     try {
       return await testSms(request);

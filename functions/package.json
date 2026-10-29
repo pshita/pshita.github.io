@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "description": "Cloud Functions for pshita: lesson content editing (commits to GitHub) and SMS to parents on score milestones",
-  "engines": { "node": "20" },
+  "engines": { "node": "22" },
   "main": "index.js",
   "scripts": {
     "deploy": "firebase deploy --only functions"
