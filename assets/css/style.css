@@ -251,6 +251,25 @@ button.dropdown-item {
   background: var(--bg-elevated);
   color: var(--ink);
 }
+.auth-form select {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--ink);
+}
+.auth-form select:focus { outline: none; border-color: var(--accent); }
+.auth-note {
+  background: var(--accent-faint);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: -8px 0 22px;
+  color: var(--ink);
+  font-size: .95rem;
+}
 .auth-form input:focus {
   outline: none;
   border-color: var(--accent);

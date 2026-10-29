@@ -15,13 +15,13 @@ import {
 import { firebaseConfig, isFirebaseConfigured } from "./firebase-config.js";
 
 // Firebase Auth needs an email + a 6+ character password. Users only enter a
-// first/last name and a 4-digit PIN, so both are turned into values Firebase
-// will accept:
+// first/last name and a password of 4+ characters (once a 4-digit PIN), so both
+// are turned into values Firebase will accept:
 // - the email is a deterministic hash of the normalized name, so login can
 //   recompute the same value from the name alone (no separate lookup table).
-// - the PIN is padded with a fixed suffix to clear the 6-character minimum.
+// - the password is padded with a fixed suffix to clear the 6-character minimum.
 //   This is NOT extra security (the suffix is public, right here); it only
-//   satisfies Firebase's API requirement so a real 4-digit PIN can be used.
+//   satisfies Firebase's API requirement so a short password can be used.
 const EMAIL_DOMAIN = "arba-avot-users.local";
 const PIN_PAD_SUFFIX = "-avot-pin";
 
@@ -73,14 +73,14 @@ export function getAuthInstance() {
   return auth;
 }
 
-export async function registerUser({ firstName, lastName, fatherPhone, motherPhone, pin }) {
+export async function registerUser({ firstName, lastName, fatherPhone, motherPhone, password }) {
   if (!isFirebaseConfigured) {
     throw new Error("ההרשמה עדיין לא מוגדרת באתר. נסו שוב מאוחר יותר.");
   }
   const email = await nameToEmail(firstName, lastName);
   let credential;
   try {
-    credential = await createUserWithEmailAndPassword(auth, email, pinToPassword(pin));
+    credential = await createUserWithEmailAndPassword(auth, email, pinToPassword(password));
   } catch (err) {
     if (err.code === "auth/email-already-in-use") {
       throw new Error("כבר קיים משתמש רשום עם השם הזה. אם זה אתה, נסו להתחבר במקום להירשם.");
@@ -101,15 +101,17 @@ export async function registerUser({ firstName, lastName, fatherPhone, motherPho
   return credential.user;
 }
 
-export async function loginUser({ firstName, lastName, pin }) {
+// Login from the list of users (see listUsers in functions/index.js): the
+// account's email comes from the list, the user types only the password.
+export async function loginWithEmail(email, password) {
   if (!isFirebaseConfigured) {
     throw new Error("ההתחברות עדיין לא מוגדרת באתר. נסו שוב מאוחר יותר.");
   }
-  const email = await nameToEmail(firstName, lastName);
   try {
-    await signInWithEmailAndPassword(auth, email, pinToPassword(pin));
+    await signInWithEmailAndPassword(auth, email, pinToPassword(password));
   } catch (err) {
-    throw new Error("שם או קוד אישי שגויים.");
+    if (err.code === "auth/too-many-requests") throw new Error("היו יותר מדי ניסיונות. נסו שוב בעוד כמה דקות.");
+    throw new Error("הסיסמה שגויה.");
   }
 }
 

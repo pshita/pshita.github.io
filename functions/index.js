@@ -3,6 +3,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
+const { getAuth } = require("firebase-admin/auth");
 const logger = require("firebase-functions/logger");
 const {
   MENU_PAGES, formatLessonJson, formatSiteJson, lessonShellHtml, newLessonData, setIndexPanels, setMenu,
@@ -139,6 +140,32 @@ exports.sendTestSms = onCall(
     return { msg };
   }
 );
+
+// Login page: the list of everyone registered, so a student picks their name and
+// types only the password. Returns each account's name (the admin's as "ניהול") and
+// its sign-in email, which is a hash of the name and reveals nothing else.
+exports.listUsers = onCall(async () => {
+  const people = [];
+  let page;
+  do {
+    page = await getAuth().listUsers(1000, page && page.pageToken);
+    page.users.forEach((u) => { if (u.email && !u.disabled) people.push({ uid: u.uid, email: u.email, name: (u.displayName || "").trim() }); });
+  } while (page.pageToken);
+  // a name missing from the account: take it from the profile
+  const missing = people.filter((p) => !p.name);
+  if (missing.length) {
+    const docs = await db.getAll(...missing.map((p) => db.collection("users").doc(p.uid)));
+    docs.forEach((d, i) => {
+      const v = d.exists ? d.data() : {};
+      missing[i].name = `${v.firstName || ""} ${v.lastName || ""}`.trim();
+    });
+  }
+  const list = people
+    .map((p) => ({ name: p.email === ALLOWED_EMAIL ? "ניהול" : p.name, email: p.email }))
+    .filter((p) => p.name)
+    .sort((a, b) => a.name.localeCompare(b.name, "he"));
+  return { users: list };
+});
 
 // ---------------------------------------------------------------------
 // Admin content editing: every change is committed straight to the

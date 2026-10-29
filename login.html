@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@300;400;600&family=Rubik:wght@400;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/style.css?v=47" />
+  <link rel="stylesheet" href="assets/css/style.css?v=48" />
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
@@ -70,16 +70,14 @@
 
     <form id="login-form" class="auth-form">
       <label>
-        שם פרטי
-        <input type="text" name="firstName" required />
+        מי נכנס?
+        <select name="email" id="login-user" required disabled>
+          <option value="">טוען את הרשימה…</option>
+        </select>
       </label>
       <label>
-        שם משפחה
-        <input type="text" name="lastName" required />
-      </label>
-      <label>
-        קוד אישי (4 ספרות)
-        <input type="password" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required />
+        סיסמה
+        <input type="password" name="password" id="login-password" autocomplete="current-password" required />
       </label>
 
       <p class="auth-error" id="form-error" hidden></p>
@@ -98,30 +96,50 @@
   <script type="module" src="assets/js/header-auth.js?v=7"></script>
   <script type="module" src="assets/js/score.js"></script>
   <script type="module">
-    import { loginUser, isReady } from "./assets/js/auth.js";
+    import { loginWithEmail, isReady, getApp } from "./assets/js/auth.js";
 
     const form = document.getElementById("login-form");
+    const select = document.getElementById("login-user");
     const errorEl = document.getElementById("form-error");
+    const LAST_KEY = "pshita.login.last";  // the name picked last time on this device
+    const showError = (text) => { errorEl.textContent = text; errorEl.hidden = !text; };
+
+    // Everyone registered, by name (from the server; the admin shows as "ניהול").
+    async function loadUsers() {
+      if (!isReady()) { showError("ההתחברות עדיין לא מוגדרת באתר. נסו שוב מאוחר יותר."); return; }
+      try {
+        const f = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-functions.js");
+        const res = await f.httpsCallable(f.getFunctions(getApp()), "listUsers")();
+        const users = res.data.users || [];
+        const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+        select.innerHTML = '<option value="">בחרו את השם שלכם</option>' +
+          users.map((u) => `<option value="${esc(u.email)}">${esc(u.name)}</option>`).join("");
+        let last = "";
+        try { last = localStorage.getItem(LAST_KEY) || ""; } catch (e) {}
+        if (users.some((u) => u.email === last)) select.value = last;
+        select.disabled = false;
+        if (select.value) document.getElementById("login-password").focus();
+      } catch (err) {
+        select.innerHTML = '<option value="">הרשימה לא נטענה</option>';
+        showError("לא הצלחתי לטעון את רשימת המשתמשים. נסו לרענן את הדף.");
+      }
+    }
+    loadUsers();
+    select.addEventListener("change", () => { if (select.value) document.getElementById("login-password").focus(); });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      errorEl.hidden = true;
-
-      if (!isReady()) {
-        errorEl.textContent = "ההתחברות עדיין לא מוגדרת באתר. נסו שוב מאוחר יותר.";
-        errorEl.hidden = false;
-        return;
-      }
-
+      showError("");
       const data = Object.fromEntries(new FormData(form).entries());
+      if (!data.email) { showError("בחרו את השם שלכם ברשימה."); return; }
       const submitBtn = form.querySelector(".auth-submit");
       submitBtn.disabled = true;
       try {
-        await loginUser(data);
+        await loginWithEmail(data.email, data.password);
+        try { localStorage.setItem(LAST_KEY, data.email); } catch (e) {}
         window.location.href = "./";
       } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.hidden = false;
+        showError(err.message);
         submitBtn.disabled = false;
       }
     });

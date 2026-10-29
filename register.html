@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@300;400;600&family=Rubik:wght@400;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/style.css?v=47" />
+  <link rel="stylesheet" href="assets/css/style.css?v=48" />
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
@@ -70,6 +70,7 @@
     <p style="color: var(--ink-soft); margin-bottom: 24px;">
       אפשר להמשיך ולגלוש באתר גם בלי להירשם. הרשמה מאפשרת לשמור מעקב התקדמות בשיעורים.
     </p>
+    <p class="auth-note">הודעות של נחת יישלחו להורים על מענה של תשובות נכונות.</p>
 
     <form id="register-form" class="auth-form">
       <label>
@@ -89,12 +90,8 @@
         <input type="tel" name="motherPhone" placeholder="05XXXXXXXX" required />
       </label>
       <label>
-        קוד אישי (4 ספרות)
-        <input type="password" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required />
-      </label>
-      <label>
-        אימות קוד אישי
-        <input type="password" name="confirmPin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required />
+        סיסמה (לפחות 4 תווים)
+        <input type="password" name="password" minlength="4" autocomplete="new-password" required />
       </label>
 
       <p class="auth-error" id="form-error" hidden></p>
@@ -118,7 +115,6 @@
     const form = document.getElementById("register-form");
     const errorEl = document.getElementById("form-error");
     const phonePattern = /^0\d{8,9}$/;
-    const pinPattern = /^\d{4}$/;
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -137,13 +133,8 @@
         errorEl.hidden = false;
         return;
       }
-      if (!pinPattern.test(data.pin)) {
-        errorEl.textContent = "הקוד האישי חייב להיות בדיוק 4 ספרות.";
-        errorEl.hidden = false;
-        return;
-      }
-      if (data.pin !== data.confirmPin) {
-        errorEl.textContent = "הקודים האישיים אינם תואמים.";
+      if (data.password.length < 4) {
+        errorEl.textContent = "הסיסמה צריכה להיות לפחות 4 תווים.";
         errorEl.hidden = false;
         return;
       }
