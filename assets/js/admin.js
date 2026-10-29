@@ -1,20 +1,26 @@
 // Admin page (admin.html), for the site admin only:
-// - "תלמידים": every student, the lessons they did, how many questions they got
-//   right, their parents' phone numbers (editable) and whether the parents get messages;
-// - "הודעה להורים": every how many correct answers a message goes out, and its text
-//   (settings/sms, used by notifyParentsOnQuizMilestone in functions/index.js).
+// - "תלמידים": a table of every student: name (editable), correct answers, the
+//   lessons they did, parents' phones, and their own message settings (on / off /
+//   the default, every how many answers);
+// - "הודעה להורים": the default for everyone (on / off, every how many answers),
+//   the sender and the text (settings/sms, used by notifyParentsOnQuizMilestone
+//   in functions/index.js);
+// - "ארכיון הודעות": every message sent (smsLog), with its date.
 import { watchAuthState, getDb, getApp, isReady } from "./auth.js";
 import {
-  collection, doc, getDoc, getDocs, setDoc, updateDoc,
+  collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteField,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 // the same defaults as the server (functions/index.js)
-const SMS_DEFAULTS = { enabled: false, step: 10, template: "{שם} ענה נכון על {מספר} שאלות בשיעורי הגמרא באתר פשיטא 🎉" };
+const SMS_DEFAULTS = { enabled: false, step: 10, sender: "", template: "{שם} ענה נכון על {מספר} שאלות בשיעורי הגמרא באתר פשיטא 🎉" };
+// every message is counted by this many characters (spaces included)
+const SMS_CHARS = 140;
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
-let STUDENTS = [], LESSONS = [], SMS = { ...SMS_DEFAULTS };
+const errText = (err) => (err && (err.message || err.code)) || "שגיאה";
+let STUDENTS = [], LESSONS = [], SMS = { ...SMS_DEFAULTS }, LOG_LOADED = false;
 
 if (!isReady()) $("adm-gate").textContent = "החיבור לנתונים לא מוגדר באתר.";
 else watchAuthState((user) => {
@@ -26,7 +32,7 @@ else watchAuthState((user) => {
   }
   start(user).catch((err) => {
     $("adm-gate").hidden = false;
-    $("adm-gate").textContent = "לא הצלחתי לטעון את הנתונים: " + ((err && (err.code || err.message)) || "שגיאה");
+    $("adm-gate").textContent = "לא הצלחתי לטעון את הנתונים: " + errText(err);
   });
 });
 
@@ -54,15 +60,15 @@ async function start(admin) {
   $("adm-main").hidden = false;
   drawStudents();
   fillSms();
-  showTab(location.hash === "#sms" ? "sms" : "students");
+  showTab({ "#sms": "sms", "#log": "log" }[location.hash] || "students");
 }
 
 // ---------- tabs ----------
 function showTab(name) {
   document.querySelectorAll(".adm-tabs [data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
-  $("tab-students").hidden = name !== "students";
-  $("tab-sms").hidden = name !== "sms";
-  history.replaceState(null, "", name === "sms" ? "#sms" : location.pathname);
+  ["students", "sms", "log"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
+  history.replaceState(null, "", name === "students" ? location.pathname : "#" + name);
+  if (name === "log" && !LOG_LOADED) loadLog();
 }
 document.querySelector(".adm-tabs").addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]");
@@ -73,76 +79,103 @@ document.querySelector(".adm-tabs").addEventListener("click", (e) => {
 const fullName = (s) => `${s.firstName || ""} ${s.lastName || ""}`.trim() || "ללא שם";
 const countOf = (s) => Object.values(s.correct).filter(Boolean).length;
 const dateOf = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "2-digit" }); };
+const timeOf = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("he-IL", { day: "numeric", month: "numeric", year: "2-digit", hour: "2-digit", minute: "2-digit" }); };
 
+// This student's messages, the same rule as studentPlan in functions/index.js.
+const modeOf = (s) => (s.smsMode === "on" || s.smsMode === "off" ? s.smsMode : s.notify === false ? "off" : "default");
+function planOf(s) {
+  const mode = modeOf(s);
+  return { on: mode === "on" || (mode === "default" && SMS.enabled), step: Number.isInteger(s.smsStep) && s.smsStep > 0 ? s.smsStep : SMS.step };
+}
 // What will happen next with this student's parents.
 function nextText(s) {
-  if (!SMS.enabled) return "השליחה להורים כבויה כרגע";
-  if (s.notify === false) return "ההודעות להורים כבויות";
-  if (!s.fatherPhone && !s.motherPhone) return "אין מספר טלפון של ההורים";
-  const left = SMS.step - (countOf(s) % SMS.step);
-  return `עוד ${left} ${left === 1 ? "תשובה נכונה" : "תשובות נכונות"} להודעה הבאה`;
+  const { on, step } = planOf(s);
+  let t;
+  if (!on) t = "כבויות";
+  else if (!s.fatherPhone && !s.motherPhone) t = "אין טלפון";
+  else { const left = step - (countOf(s) % step); t = `עוד ${left} ${left === 1 ? "תשובה" : "תשובות"}`; }
+  return t + (s.lastSms ? ` · אחרונה: ${dateOf(s.lastSms.at)}` : "");
 }
 
-function studentHtml(s) {
-  const count = countOf(s);
+function rowHtml(s) {
   // lessons in site order: correct answers in each, and whether it was finished
   const perLesson = {};
   Object.keys(s.correct).forEach((q) => { if (s.correct[q] && q.includes(":")) { const id = q.split(":")[0]; perLesson[id] = (perLesson[id] || 0) + 1; } });
   const did = LESSONS.filter((l) => perLesson[l.id] || s.finished[l.id]);
+  const done = did.filter((l) => s.finished[l.id]).length;
   const pills = did.map((l) => `<span class="adm-pill${s.finished[l.id] ? " done" : ""}" title="${s.finished[l.id] ? "סיים את השיעור" : "התחיל את השיעור"}">${s.finished[l.id] ? "✓ " : ""}${esc(l.title)} <i>${perLesson[l.id] || 0}</i></span>`).join("");
-  const last = s.lastSms ? ` · הודעה אחרונה: ${dateOf(s.lastSms.at)}, על ${s.lastSms.count} תשובות` : "";
-  return `<article class="adm-st" data-id="${esc(s.id)}">
-    <div><h3>${esc(fullName(s))}<span class="since">${s.createdAt ? "נרשם " + dateOf(s.createdAt) : ""}</span></h3></div>
-    <div class="adm-score"><b>${count}</b><span>תשובות נכונות</span></div>
-    <div class="adm-lessons">${pills || '<span class="none">עדיין לא ענה נכון על שאלות בשיעורים.</span>'}</div>
-    <div class="adm-contact">
-      <label>אבא <input type="tel" data-f="fatherPhone" value="${esc(s.fatherPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></label>
-      <label>אמא <input type="tel" data-f="motherPhone" value="${esc(s.motherPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></label>
-      <label class="notify"><input type="checkbox" data-f="notify"${s.notify === false ? "" : " checked"}> הודעות להורים</label>
-      <span class="adm-next">${esc(nextText(s))}${esc(last)}</span>
-      <span class="adm-status"></span>
-    </div>
-  </article>`;
+  const lessons = did.length ? `<details><summary>${did.length}${done ? ` (סיים ${done})` : ""}</summary><div class="adm-pills">${pills}</div></details>` : '<span class="adm-dim">—</span>';
+  const mode = modeOf(s), def = SMS.enabled ? "פתוחה" : "סגורה";
+  return `<tr data-id="${esc(s.id)}">
+    <td><input type="text" class="name" data-f="firstName" value="${esc(s.firstName || "")}" autocomplete="off"></td>
+    <td><input type="text" class="name" data-f="lastName" value="${esc(s.lastName || "")}" autocomplete="off"></td>
+    <td class="num">${countOf(s)}</td>
+    <td>${lessons}</td>
+    <td><input type="tel" data-f="fatherPhone" value="${esc(s.fatherPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></td>
+    <td><input type="tel" data-f="motherPhone" value="${esc(s.motherPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></td>
+    <td><select data-f="smsMode">
+      <option value="default"${mode === "default" ? " selected" : ""}>ברירת מחדל (${def})</option>
+      <option value="on"${mode === "on" ? " selected" : ""}>פתוחה</option>
+      <option value="off"${mode === "off" ? " selected" : ""}>סגורה</option>
+    </select></td>
+    <td><input type="number" class="step" data-f="smsStep" min="1" max="500" inputmode="numeric" value="${Number.isInteger(s.smsStep) ? s.smsStep : ""}" placeholder="${SMS.step}"></td>
+    <td><span class="adm-next">${esc(nextText(s))}</span><span class="adm-status"></span></td>
+  </tr>`;
 }
 
 function drawStudents() {
   const q = $("adm-search").value.trim();
   const shown = STUDENTS.filter((s) => !q || fullName(s).includes(q));
-  $("adm-list").innerHTML = shown.map(studentHtml).join("") || '<p class="adm-note">אין תלמידים להצגה.</p>';
+  $("adm-list").innerHTML = shown.map(rowHtml).join("") || '<tr><td colspan="9" class="adm-dim">אין תלמידים להצגה.</td></tr>';
   $("adm-count").textContent = q ? `${shown.length} מתוך ${STUDENTS.length}` : `${STUDENTS.length} תלמידים`;
 }
 $("adm-search").addEventListener("input", drawStudents);
 
-// Phone numbers and "הודעות להורים" save as soon as they change.
+function rowStatus(row, text, bad = false) {
+  const st = row.querySelector(".adm-status");
+  st.className = "adm-status" + (bad ? " err" : "");
+  st.textContent = text;
+  if (text === "נשמר ✓") setTimeout(() => { if (st.textContent === "נשמר ✓") st.textContent = ""; }, 2000);
+}
+
+// Every change in the table saves right away.
 $("adm-list").addEventListener("change", async (e) => {
   const input = e.target.closest("[data-f]");
   if (!input) return;
-  const card = input.closest(".adm-st"), s = STUDENTS.find((x) => x.id === card.dataset.id), f = input.dataset.f;
-  const status = card.querySelector(".adm-status");
-  let value;
-  if (f === "notify") value = input.checked;
-  else {
-    value = input.value.replace(/[^0-9]/g, "");
-    if (value && !/^05\d{8}$/.test(value)) {
-      input.classList.add("bad");
-      status.className = "adm-status err";
-      status.textContent = "מספר לא תקין (10 ספרות, מתחיל ב-05)";
-      return;
-    }
-    input.classList.remove("bad");
-    input.value = value;
-  }
-  status.className = "adm-status";
-  status.textContent = "שומר…";
+  const row = input.closest("tr"), s = STUDENTS.find((x) => x.id === row.dataset.id), f = input.dataset.f;
+  input.classList.remove("bad");
+  const bad = (text) => { input.classList.add("bad"); rowStatus(row, text, true); };
+  rowStatus(row, "שומר…");
   try {
-    await updateDoc(doc(getDb(), "users", s.id), { [f]: value });
-    s[f] = value;
-    card.querySelector(".adm-next").textContent = nextText(s);
-    status.textContent = "נשמר ✓";
-    setTimeout(() => { if (status.textContent === "נשמר ✓") status.textContent = ""; }, 2000);
+    if (f === "firstName" || f === "lastName") {
+      // the name is also the account's name (login list, "שלום ..."): changed on the server
+      const first = row.querySelector('[data-f="firstName"]').value.trim(), last = row.querySelector('[data-f="lastName"]').value.trim();
+      if (!first || !last) return bad("צריך שם פרטי ושם משפחה");
+      const fns = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-functions.js");
+      await fns.httpsCallable(fns.getFunctions(getApp()), "renameStudent")({ uid: s.id, firstName: first, lastName: last });
+      s.firstName = first; s.lastName = last;
+    } else if (f === "smsMode") {
+      const v = input.value;
+      // "default" removes the student's own setting (and the older on/off field)
+      await updateDoc(doc(getDb(), "users", s.id), v === "default" ? { smsMode: deleteField(), notify: deleteField() } : { smsMode: v, notify: deleteField() });
+      if (v === "default") delete s.smsMode; else s.smsMode = v;
+      delete s.notify;
+    } else if (f === "smsStep") {
+      const raw = input.value.trim(), v = Math.round(+raw);
+      if (raw && !(v >= 1 && v <= 500)) return bad("בין 1 ל-500");
+      await updateDoc(doc(getDb(), "users", s.id), { smsStep: raw ? v : deleteField() });
+      if (raw) { s.smsStep = v; input.value = v; } else delete s.smsStep;
+    } else {
+      const v = input.value.replace(/[^0-9]/g, "");
+      if (v && !/^05\d{8}$/.test(v)) return bad("10 ספרות, מתחיל ב-05");
+      input.value = v;
+      await updateDoc(doc(getDb(), "users", s.id), { [f]: v });
+      s[f] = v;
+    }
+    row.querySelector(".adm-next").textContent = nextText(s);
+    rowStatus(row, "נשמר ✓");
   } catch (err) {
-    status.className = "adm-status err";
-    status.textContent = "השמירה לא הצליחה: " + ((err && (err.code || err.message)) || "שגיאה");
+    rowStatus(row, "לא נשמר: " + errText(err), true);
   }
 });
 
@@ -151,42 +184,44 @@ const fillTemplate = (t, count) => t.split("{שם מלא}").join("ישראל י�
 function fillSms() {
   $("sms-enabled").checked = SMS.enabled === true;
   $("sms-step").value = SMS.step;
+  $("sms-sender").value = SMS.sender || "";
   $("sms-template").value = SMS.template;
-  preview();
+  countChars();
 }
-function preview() {
-  const step = +$("sms-step").value || SMS_DEFAULTS.step, text = fillTemplate($("sms-template").value, step);
-  $("sms-preview").textContent = text || "—";
-  // a message in Hebrew fits 70 characters; a longer one goes in parts of 67
-  const n = [...text].length, parts = n <= 70 ? 1 : Math.ceil(n / 67);
-  $("sms-length").textContent = `${n} תווים · ${parts === 1 ? "הודעה אחת" : `${parts} הודעות (כל אחת נספרת בחשבון)`}`;
+// Length of the message as sent (with an example name), and how many messages it counts as.
+function countChars() {
+  const text = fillTemplate($("sms-template").value, +$("sms-step").value || SMS_DEFAULTS.step);
+  const n = [...text].length, parts = Math.max(1, Math.ceil(n / SMS_CHARS));
+  $("sms-length").textContent = `${n} תווים (עם שם לדוגמה) · ${parts === 1 ? "הודעה אחת" : `${parts} הודעות`} · כל הודעה עד ${SMS_CHARS} תווים כולל רווחים`;
 }
-$("sms-step").addEventListener("input", preview);
-$("sms-template").addEventListener("input", preview);
+$("sms-step").addEventListener("input", countChars);
+$("sms-template").addEventListener("input", countChars);
 document.querySelector(".adm-chips").addEventListener("click", (e) => {
   const b = e.target.closest("[data-ins]");
   if (!b) return;
-  const t = $("sms-template"), a = t.selectionStart, z = t.selectionEnd;
-  t.setRangeText(b.dataset.ins, a, z, "end");
+  const t = $("sms-template");
+  t.setRangeText(b.dataset.ins, t.selectionStart, t.selectionEnd, "end");
   t.focus();
-  preview();
+  countChars();
 });
 $("sms-save").addEventListener("click", async () => {
   const step = Math.round(+$("sms-step").value), template = $("sms-template").value.trim();
-  const status = $("sms-status");
-  if (!(step >= 1 && step <= 500)) { status.className = "adm-status err"; status.textContent = "מספר התשובות צריך להיות בין 1 ל-500."; return; }
-  if (!template) { status.className = "adm-status err"; status.textContent = "נוסח ההודעה ריק."; return; }
+  const sender = $("sms-sender").value.trim().replace(/[\s-]/g, ""), status = $("sms-status");
+  const fail = (t) => { status.className = "adm-status err"; status.textContent = t; };
+  if (!(step >= 1 && step <= 500)) return fail("מספר התשובות צריך להיות בין 1 ל-500.");
+  if (!template) return fail("נוסח ההודעה ריק.");
+  if (sender && !/^0\d{8,9}$/.test(sender) && !/^[A-Za-z][A-Za-z0-9]{1,10}$/.test(sender)) return fail("מספר השולח: מספר טלפון, או שם באנגלית עד 11 תווים.");
   status.className = "adm-status";
   status.textContent = "שומר…";
   try {
     const enabled = $("sms-enabled").checked;
-    await setDoc(doc(getDb(), "settings", "sms"), { enabled, step, template, updatedAt: new Date().toISOString() }, { merge: true });
-    SMS = { ...SMS, enabled, step, template };
+    await setDoc(doc(getDb(), "settings", "sms"), { enabled, step, template, sender, updatedAt: new Date().toISOString() }, { merge: true });
+    SMS = { ...SMS, enabled, step, template, sender };
+    $("sms-sender").value = sender;
     drawStudents();
     status.textContent = "נשמר ✓";
   } catch (err) {
-    status.className = "adm-status err";
-    status.textContent = "השמירה לא הצליחה: " + ((err && (err.code || err.message)) || "שגיאה");
+    fail("השמירה לא הצליחה: " + errText(err));
   }
 });
 
@@ -203,8 +238,32 @@ $("test-send").addEventListener("click", async () => {
     status.textContent = "ההודעה נשלחה ✓ החיבור ל-SMS4Free עובד.";
   } catch (err) {
     status.className = "adm-status err";
-    status.textContent = "השליחה לא הצליחה: " + ((err && err.message) || "שגיאה");
+    status.textContent = "השליחה לא הצליחה: " + errText(err);
   } finally {
     btn.disabled = false;
+    LOG_LOADED = false;
   }
 });
+
+// ---------- archive: every message sent, newest first ----------
+async function loadLog() {
+  LOG_LOADED = true;
+  $("log-note").textContent = "טוען…";
+  try {
+    const snap = await getDocs(collection(getDb(), "smsLog"));
+    const rows = [];
+    snap.forEach((d) => rows.push(d.data()));
+    rows.sort((a, b) => String(b.at).localeCompare(String(a.at)));
+    $("log-list").innerHTML = rows.map((r) => `<tr class="${r.ok ? "" : "failed"}">
+      <td class="when">${esc(timeOf(r.at))}</td>
+      <td>${esc(r.name || "")}${r.kind === "test" ? ' <span class="adm-tag">בדיקה</span>' : ""}</td>
+      <td class="phones">${(r.to || []).map(esc).join("<br>")}</td>
+      <td class="msg">${esc(r.msg || "")}</td>
+      <td>${r.ok ? "נשלחה" : `<span class="adm-err">לא נשלחה</span><div class="adm-dim">${esc(r.error || "")}</div>`}</td>
+    </tr>`).join("");
+    $("log-note").textContent = rows.length ? `${rows.length} הודעות` : "עדיין לא נשלחו הודעות.";
+  } catch (err) {
+    LOG_LOADED = false;
+    $("log-note").textContent = "הארכיון לא נטען: " + errText(err);
+  }
+}

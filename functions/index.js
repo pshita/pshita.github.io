@@ -25,10 +25,14 @@ const SMS4FREE_SENDER = defineSecret("SMS4FREE_SENDER");
 const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 
 // Parent SMS settings, edited on the admin page (admin.html) and stored in
-// settings/sms: whether messages go out at all (`enabled`, off until the admin
-// turns it on), every `step` correct answers, with `template` as the text.
-// In the template, {שם} is the student's first name, {שם מלא} the full name and
-// {מספר} the number of correct answers.
+// settings/sms - the default for every student:
+//   enabled  - whether messages go out (off until the admin turns it on)
+//   step     - every how many correct answers
+//   template - the text; {שם} is the student's first name, {שם מלא} the full
+//              name and {מספר} the number of correct answers
+//   sender   - the number (or name) the message comes from; empty = SMS4FREE_SENDER
+// A student may have their own: users/{uid}.smsMode ("on" / "off"; none = the
+// default; the older notify === false also means off) and users/{uid}.smsStep.
 const SMS_DEFAULTS = {
   step: 10,
   template: "{שם} ענה נכון על {מספר} שאלות בשיעורי הגמרא באתר פשיטא 🎉",
@@ -39,7 +43,17 @@ async function smsSettings() {
   const v = snap.exists ? snap.data() : {};
   const step = Number.isInteger(v.step) && v.step > 0 ? v.step : SMS_DEFAULTS.step;
   const template = typeof v.template === "string" && v.template.trim() ? v.template : SMS_DEFAULTS.template;
-  return { step, template, enabled: v.enabled === true };
+  const sender = typeof v.sender === "string" ? v.sender.trim() : "";
+  return { step, template, enabled: v.enabled === true, sender };
+}
+
+// This student's messages: on or off, and every how many answers.
+function studentPlan(settings, userData) {
+  const mode = userData.smsMode === "on" || userData.smsMode === "off" ? userData.smsMode
+    : userData.notify === false ? "off" : "default";
+  const on = mode === "on" || (mode === "default" && settings.enabled);
+  const step = Number.isInteger(userData.smsStep) && userData.smsStep > 0 ? userData.smsStep : settings.step;
+  return { on, step };
 }
 
 function smsText(template, userData, count) {
@@ -53,12 +67,12 @@ function countCorrect(sections) {
   return Object.values(sections).filter(Boolean).length;
 }
 
-function smsSecrets() {
+function smsSecrets(sender) {
   return {
     key: SMS4FREE_KEY.value(),
     user: SMS4FREE_USER.value(),
     pass: SMS4FREE_PASS.value(),
-    sender: SMS4FREE_SENDER.value(),
+    sender: sender || SMS4FREE_SENDER.value(),
   };
 }
 
@@ -75,11 +89,23 @@ async function sendSms({ key, user, pass, sender, recipient, msg }) {
   return data;
 }
 
+// Every message sent (or tried) is kept in smsLog, shown on the admin page ("ארכיון").
+async function sendAndLog({ kind, uid = null, name = "", to, msg, count = null, sender }) {
+  const entry = { at: new Date().toISOString(), kind, uid, name, to, msg, count, sender: sender || "", ok: true };
+  try {
+    await sendSms({ ...smsSecrets(sender), recipient: to.join(";"), msg });
+  } catch (err) {
+    entry.ok = false;
+    entry.error = err.message;
+  }
+  await db.collection("smsLog").add(entry).catch((e) => logger.error("smsLog write failed", e));
+  if (!entry.ok) throw new Error(entry.error);
+}
+
 // Fires on every write to a user's quiz-progress doc (users/{uid}/progress/quiz),
 // which holds one entry per question answered correctly (see student.js). If the
-// score just crossed another multiple of the step, texts the parents, unless the
-// admin turned messages off for this student (users/{uid}.notify === false).
-// The student is told on the site: users/{uid}.lastSms.
+// score just crossed another multiple of this student's step and messages are on
+// for them, texts the parents. The student is told on the site: users/{uid}.lastSms.
 exports.notifyParentsOnQuizMilestone = onDocumentWritten(
   {
     document: "users/{uid}/progress/quiz",
@@ -95,22 +121,23 @@ exports.notifyParentsOnQuizMilestone = onDocumentWritten(
     const newScore = countCorrect(after.sections);
     if (newScore <= prevScore) return;
 
-    const { step, template, enabled } = await smsSettings();
-    if (!enabled) return;
-    const prevMilestone = Math.floor(prevScore / step) * step;
-    const newMilestone = Math.floor(newScore / step) * step;
-    if (newMilestone <= prevMilestone || newMilestone === 0) return;
-
     const userRef = db.collection("users").doc(uid);
     const userSnap = await userRef.get();
     if (!userSnap.exists) return;
     const userData = userSnap.data();
-    if (userData.notify === false) return;
+    const settings = await smsSettings();
+    const { on, step } = studentPlan(settings, userData);
+    if (!on) return;
+    const prevMilestone = Math.floor(prevScore / step) * step;
+    const newMilestone = Math.floor(newScore / step) * step;
+    if (newMilestone <= prevMilestone || newMilestone === 0) return;
+
     const recipients = [userData.fatherPhone, userData.motherPhone].filter(Boolean);
     if (recipients.length === 0) return;
 
+    const name = `${userData.firstName || ""} ${userData.lastName || ""}`.trim();
     try {
-      await sendSms({ ...smsSecrets(), recipient: recipients.join(";"), msg: smsText(template, userData, newMilestone) });
+      await sendAndLog({ kind: "milestone", uid, name, to: recipients, msg: smsText(settings.template, userData, newMilestone), count: newMilestone, sender: settings.sender });
       await userRef.update({ lastSms: { at: new Date().toISOString(), count: newMilestone, seen: false } });
       logger.info(`Notified parents of ${uid} at ${newMilestone} points`);
     } catch (err) {
@@ -129,19 +156,39 @@ exports.sendTestSms = onCall(
     }
     const phone = String((request.data && request.data.phone) || "").replace(/[^0-9]/g, "");
     if (!/^05\d{8}$/.test(phone)) throw new HttpsError("invalid-argument", "מספר טלפון לא תקין.");
-    const secrets = smsSecrets();
-    const missing = Object.entries(secrets).filter(([, v]) => !String(v || "").trim()).map(([k]) => k);
+    const settings = await smsSettings();
+    const missing = Object.entries(smsSecrets(settings.sender)).filter(([, v]) => !String(v || "").trim()).map(([k]) => k);
     if (missing.length) throw new HttpsError("failed-precondition", `חסרים פרטי SMS4Free: ${missing.join(", ")}`);
-    const { step, template } = await smsSettings();
-    const msg = smsText(template, { firstName: "ישראל", lastName: "ישראלי" }, step);
+    const msg = smsText(settings.template, { firstName: "ישראל", lastName: "ישראלי" }, settings.step);
     try {
-      await sendSms({ ...secrets, recipient: phone, msg });
+      await sendAndLog({ kind: "test", name: "הודעת בדיקה", to: [phone], msg, count: settings.step, sender: settings.sender });
     } catch (err) {
       throw new HttpsError("failed-precondition", err.message);
     }
     return { msg };
   }
 );
+
+// Admin page: a student's first and last name. Changes the profile and the
+// account's display name (shown in the login list and in "שלום ..."); the
+// student keeps signing in the same way (from the list, with the password).
+exports.renameStudent = onCall(async (request) => {
+  if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
+    throw new HttpsError("permission-denied", "אין הרשאה.");
+  }
+  const { uid } = request.data || {};
+  const firstName = String((request.data && request.data.firstName) || "").trim().replace(/\s+/g, " ");
+  const lastName = String((request.data && request.data.lastName) || "").trim().replace(/\s+/g, " ");
+  if (typeof uid !== "string" || !uid) throw new HttpsError("invalid-argument", "תלמיד לא מוכר.");
+  if (!firstName || !lastName || firstName.length > 40 || lastName.length > 40) {
+    throw new HttpsError("invalid-argument", "צריך שם פרטי ושם משפחה.");
+  }
+  const ref = db.collection("users").doc(uid);
+  if (!(await ref.get()).exists) throw new HttpsError("not-found", "התלמיד לא נמצא.");
+  await getAuth().updateUser(uid, { displayName: `${firstName} ${lastName}` });
+  await ref.update({ firstName, lastName });
+  return { firstName, lastName };
+});
 
 // Login page: the list of everyone registered, so a student picks their name and
 // types only the password. Returns each account's name (the admin's as "ניהול") and

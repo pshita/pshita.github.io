@@ -31,7 +31,7 @@ function render() {
   for (let i = 0; i < shownAchieved; i++) dots += '<span class="score-badge-dot achieved"></span>';
   dots += '<span class="score-badge-dot"></span>'; // next milestone, not yet reached
 
-  badge.title = remainingText(count, MILESTONE_STEP);
+  badge.title = remainingText(count);
   badge.innerHTML = `
     <span class="score-badge-text">ניקוד: ${count}</span>
     <span class="score-progress-track"><span class="score-progress-fill" style="width:${progressPct}%"></span></span>

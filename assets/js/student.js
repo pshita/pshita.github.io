@@ -2,8 +2,8 @@
 // - in a lesson, records each question answered correctly (users/{uid}/progress/quiz)
 //   and each lesson finished (users/{uid}/progress/lessons), from the player's events;
 // - says how many correct answers are left until the next message to the parents
-//   (every `step` answers, set on the admin page: settings/sms; nothing is said
-//   while the admin has the messages turned off there);
+//   (every `step` answers: the default in settings/sms, or the student's own,
+//   both set on the admin page; nothing is said while messages are off for them);
 // - once a message was sent (the server sets users/{uid}.lastSms), tells the student.
 import { watchAuthState, getDb, isReady } from "./auth.js";
 import {
@@ -25,9 +25,20 @@ async function smsSettings() {
   }
 }
 
+// Messages for this student: on or off, and every how many answers (the same rule
+// as studentPlan in functions/index.js).
+function plan(info = INFO) {
+  const v = info || {};
+  const mode = v.smsMode === "on" || v.smsMode === "off" ? v.smsMode : v.notify === false ? "off" : "default";
+  const on = (mode === "on" || (mode === "default" && ENABLED)) && Boolean(v.fatherPhone || v.motherPhone);
+  const step = Number.isInteger(v.smsStep) && v.smsStep > 0 ? v.smsStep : STEP;
+  return { on, step };
+}
+
 // "עוד 3 תשובות נכונות ונשלח הודעה להורים", or "" when no message will be sent.
-export function remainingText(count, step = STEP, info = INFO) {
-  if (!ENABLED || !info || info.notify === false || !(info.fatherPhone || info.motherPhone)) return "";
+export function remainingText(count) {
+  const { on, step } = plan();
+  if (!on) return "";
   const left = step - (count % step);
   return left === 1 ? "עוד תשובה נכונה אחת ונשלח הודעה להורים" : `עוד ${left} תשובות נכונות ונשלח הודעה להורים`;
 }
@@ -35,7 +46,7 @@ export function remainingText(count, step = STEP, info = INFO) {
 // The current student's details, once loaded: { user, info, step } (user null when signed out).
 export function onStudent(cb) {
   ready.push(cb);
-  if (SECTIONS) cb({ user: USER, info: INFO, step: STEP });
+  if (SECTIONS) cb({ user: USER, info: INFO, step: plan().step });
 }
 
 // ---------- a small message at the bottom of the screen ----------
@@ -85,7 +96,7 @@ if (isReady()) {
         }, () => resolve());
       });
     } else SECTIONS = {};
-    ready.forEach((cb) => cb({ user: USER, info: INFO, step: STEP }));
+    ready.forEach((cb) => cb({ user: USER, info: INFO, step: plan().step }));
   });
 }
 
@@ -106,7 +117,7 @@ if (lessonId) {
       { sections: { [q]: true }, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
     const count = Object.values(SECTIONS).filter(Boolean).length;
     const left = remainingText(count);
-    if (left && count % STEP === 0) toast(`כל הכבוד! ענית נכון על ${count} שאלות. שולחים הודעה להורים 🎉`, 6000);
+    if (left && count % plan().step === 0) toast(`כל הכבוד! ענית נכון על ${count} שאלות. שולחים הודעה להורים 🎉`, 6000);
     else if (left) toast(`נכון! ${left}`);
   });
   addEventListener("pshita:finished", () => {

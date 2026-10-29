@@ -17,7 +17,7 @@ function renderTotals(count) {
 
   totalCountEl.textContent = count;
   trackFillEl.style.width = pct + "%";
-  nextEl.textContent = remainingText(count, MILESTONE_STEP) || `עוד ${MILESTONE_STEP - (count - currentBase)} נקודות לאבן הדרך הבאה`;
+  nextEl.textContent = remainingText(count) || `עוד ${MILESTONE_STEP - (count - currentBase)} נקודות לאבן הדרך הבאה`;
 
   milestonesEl.innerHTML = "";
   for (let i = 1; i <= achieved; i++) {

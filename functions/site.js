@@ -9,7 +9,7 @@
 //   assets/js/lesson-player.js - the one shared lesson engine
 //   assets/css/lesson-player.css
 
-const PLAYER_VERSION = 4;
+const PLAYER_VERSION = 5;
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -41,6 +41,7 @@ function lessonShellHtml({ id, title }) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;800&family=Frank+Ruhl+Libre:wght@700;900&display=swap">
 <link rel="stylesheet" href="../assets/css/lesson-player.css?v=${PLAYER_VERSION}">
+<link rel="stylesheet" href="../assets/css/site-header.css?v=${PLAYER_VERSION}">
 <link rel="icon" type="image/png" sizes="32x32" href="../assets/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="../assets/icons/favicon-64.png">
 <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
@@ -53,7 +54,7 @@ function lessonShellHtml({ id, title }) {
   <div id="view"></div>
 </div>
 <script src="../assets/js/lesson-player.js?v=${PLAYER_VERSION}"></script>
-<script type="module" src="../assets/js/student.js?v=${PLAYER_VERSION}"></script>
+<script type="module" src="../assets/js/lesson-header.js?v=${PLAYER_VERSION}"></script>
 <script type="module" src="../assets/js/content-editor.js"></script>
 </body>
 </html>

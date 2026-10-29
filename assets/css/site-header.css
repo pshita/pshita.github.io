@@ -1,0 +1,46 @@
+/* The site's header (the פשיטא button and its menu) on lesson pages, which don't load
+   style.css. Generated from style.css's header rules, everything scoped under
+   .site-header so nothing touches the lesson player. */
+.site-header {--bg: #faf6ee; --bg-elevated: #ffffff; --ink: #2b241b; --ink-soft: #5c5347; --line: #e4d9c4; --accent: #8a4b2e; --accent-soft: #f1e3d1; --accent-faint: color-mix(in srgb, var(--accent-soft) 45%, var(--bg-elevated) 55%); --accent-strong: #6d3a22; --shen: #a0522d; --regel: #6b7f3f; --bor: #3f6f7f; --esh: #b23b2e; --sun: #d99a2b; --sky: #4a8fbd; --shadow: 0 4px 16px rgba(43, 36, 27, 0.08); --radius: 14px; --font-head: "Rubik", "Heebo", "Arial Hebrew", sans-serif; --font-body: "Heebo", "Arial Hebrew", sans-serif; font-family: var(--font-body); color: var(--ink); direction: rtl; }
+.site-header [hidden] { display: none !important; }
+body:has(> .site-header) { margin: 0; }
+.site-header .sh-wrap { max-width: 880px; margin: 0 auto; padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
+.site-header a { color: var(--accent-strong); }
+.site-header .dropdown-item, .site-header .auth-link, .site-header .score-badge { font-family: var(--font-head); }
+.site-header {border-bottom: 1px solid var(--line); background: var(--bg-elevated); position: sticky; top: 0; z-index: 10; }
+.site-header .sh-wrap {display: flex; align-items: center; justify-content: space-between; padding-block: 14px; gap: 12px; }
+.site-header .brand {display: flex; align-items: center; gap: 10px; font-family: var(--font-head); font-size: 1.25rem; font-weight: 700; text-decoration: none; color: var(--ink); }
+.site-header .brand .mark {display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-strong); font-size: 1.1rem; }
+.site-header .dropdown {position: relative; }
+.site-header .dropdown-trigger {font-family: inherit; background: none; border: none; cursor: pointer; padding: 0; }
+.site-header .dropdown-menu {position: absolute; top: calc(100% + 8px); right: 0; min-width: 220px; background: var(--bg-elevated); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, .12); padding: 10px; display: flex; flex-direction: column; gap: 6px; z-index: 20; }
+.site-header .dropdown-item {display: block; padding: 8px 10px; border-radius: 8px; color: var(--ink); text-decoration: none; font-size: .95rem; }
+.site-header button.dropdown-item {width: 100%; text-align: start; background: none; border: none; cursor: pointer; }
+.site-header .dropdown-item:hover {background: var(--accent-soft); color: var(--accent-strong); }
+.site-header .dropdown-item.active {background: var(--accent-soft); color: var(--accent-strong); font-weight: 600; }
+.site-header .dropdown-menu .auth-area {margin-inline-start: 0; border-top: 1px solid var(--line); padding-top: 10px; margin-top: 4px; }
+.site-header #auth-area-in {flex-direction: column; align-items: stretch; gap: 10px; }
+.site-header .submenu-trigger {display: flex; align-items: center; justify-content: space-between; width: 100%; font-family: inherit; font-size: .95rem; background: none; border: none; cursor: pointer; }
+.site-header .submenu-arrow {width: 16px; height: 16px; flex: none; transition: transform .2s ease; }
+.site-header .submenu:has(.submenu-panel:not([hidden])) .submenu-arrow {transform: rotate(180deg); }
+.site-header .submenu-panel {position: static; min-width: 0; margin: 4px 0 0; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); box-shadow: none; }
+.site-header .submenu-panel .dropdown-item {font-size: .88rem; }
+.site-header .auth-area {display: flex; align-items: center; gap: 12px; margin-inline-start: auto; }
+.site-header .auth-link {font-size: .9rem; color: var(--ink-soft); text-decoration: none; background: none; border: none; font-family: inherit; cursor: pointer; padding: 0; }
+.site-header .auth-link:hover {color: var(--accent-strong); }
+.site-header .auth-link-primary {background: var(--accent); color: #fff; padding: 7px 16px; border-radius: 999px; }
+.site-header .auth-link-primary:hover {color: #fff; opacity: .9; }
+.site-header .auth-user-name {font-size: .85rem; color: var(--ink-soft); padding: 0 10px; }
+.site-header #admin-text-link {border-top: 1px solid var(--line); border-top-left-radius: 0; border-top-right-radius: 0; margin-top: 4px; padding-top: 10px; }
+.site-header .auth-hello {display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.site-header .auth-hello .auth-user-name {padding: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.site-header .auth-logout {flex: none; font: inherit; font-size: .8rem; color: var(--ink-soft); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.site-header .auth-logout:hover {color: var(--accent-strong); border-color: currentColor; }
+.site-header .score-badge {display: flex; flex-direction: column; gap: 6px; font-size: .85rem; font-weight: 600; color: var(--accent-strong); background: var(--accent-soft); padding: 8px 12px; border-radius: 14px; min-width: 150px; text-decoration: none; cursor: pointer; }
+.site-header .score-badge:hover {opacity: .9; }
+.site-header .score-badge-text {font-size: .85rem; }
+.site-header .score-progress-track {display: block; height: 8px; border-radius: 999px; background: var(--bg-elevated); overflow: hidden; }
+.site-header .score-progress-fill {display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--sun), var(--esh)); transition: width .3s ease; }
+.site-header .score-badges {display: flex; gap: 5px; }
+.site-header .score-badge-dot {width: 12px; height: 12px; border-radius: 50%; background: var(--bg-elevated); border: 2px solid var(--line); flex: none; }
+.site-header .score-badge-dot.achieved {background: var(--esh); border-color: var(--esh); }

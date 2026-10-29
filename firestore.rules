@@ -11,13 +11,13 @@ service cloud.firestore {
     }
 
     // Each user's own profile (name, parent phone numbers). The admin sees and
-    // edits every student (admin.html). Only the admin turns the parent
-    // messages on or off ("notify").
+    // edits every student (admin.html). Only the admin sets the parent
+    // messages for a student (on / off, every how many answers).
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
-      allow create: if isOwner(uid) && !("notify" in request.resource.data);
+      allow create: if isOwner(uid) && !request.resource.data.keys().hasAny(["notify", "smsMode", "smsStep"]);
       allow update: if isAdmin()
-        || (isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["notify"]));
+        || (isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["notify", "smsMode", "smsStep"]));
 
       // Progress, nested under the user: "quiz" (correct answers) and "lessons" (lessons finished).
       match /progress/{lessonId} {
@@ -31,6 +31,11 @@ service cloud.firestore {
     match /settings/{id} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
+    }
+
+    // Every message sent to parents (and test messages), written by the server only.
+    match /smsLog/{id} {
+      allow read: if isAdmin();
     }
 
     // Lessons being written that aren't on the site yet (text.html "עריכה").
