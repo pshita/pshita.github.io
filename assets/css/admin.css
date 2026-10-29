@@ -9,18 +9,19 @@
 }
 .adm-tabs button[aria-selected="true"] { color: var(--accent-strong); border-bottom-color: var(--accent); }
 
-/* Every field: as wide as its text, with only a dashed line under it */
+/* Every field: as wide as its text, marked only by a background behind the text (no
+   border, no padding that would take more room) */
 .adm input[type="text"], .adm input[type="tel"], .adm input[type="number"], .adm select, .adm textarea {
-  font: inherit; color: var(--ink); background: transparent; border: 0; border-bottom: 1px dashed var(--ink-soft);
-  border-radius: 0; padding: 1px 2px; min-width: 2ch; field-sizing: content;
+  font: inherit; color: var(--ink); background: var(--accent-faint); border: 0; border-radius: 3px;
+  padding: 0; margin: 0; min-width: 2ch; field-sizing: content;
 }
-.adm input:focus, .adm select:focus, .adm textarea:focus { outline: none; border-bottom: 1px solid var(--accent); }
-.adm input.bad { border-bottom-color: var(--esh); }
+.adm input:focus, .adm select:focus, .adm textarea:focus { outline: none; background: var(--accent-soft); }
+.adm input.bad { background: #fbe1dc; }
 .adm input[type="tel"] { direction: ltr; text-align: right; font-variant-numeric: tabular-nums; }
 .adm input[type="number"] { text-align: center; -moz-appearance: textfield; appearance: textfield; }
 .adm input[type="number"]::-webkit-inner-spin-button, .adm input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .adm select { cursor: pointer; }
-.adm textarea { display: block; align-self: flex-start; background: var(--accent-faint); padding: 6px 10px; max-width: 100%; resize: none; line-height: 1.6; overflow: hidden; }
+.adm textarea { display: block; align-self: flex-start; max-width: 100%; resize: none; line-height: 1.6; overflow: hidden; }
 
 /* students and the archive: columns only as wide as they must be; the rest scrolls sideways */
 .adm-scroll { width: fit-content; max-width: 100%; overflow-x: auto; background: var(--bg-elevated); border: 1px solid var(--line); border-radius: var(--radius); }
@@ -59,3 +60,4 @@
 .adm-chips button { font: inherit; color: var(--accent-strong); background: var(--accent-soft); border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
 .adm-goals { display: flex; flex-direction: column; gap: 8px; }
 .adm-goals .adm-switch { font-weight: 400; }
+.adm-pills i { font-style: normal; color: var(--ink-soft); font-variant-numeric: tabular-nums; }

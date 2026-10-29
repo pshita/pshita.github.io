@@ -127,3 +127,35 @@ if (lessonId) {
       { lessons: { [lessonId]: { finishedAt: new Date().toISOString(), times: increment(1) } } }, { merge: true }).catch(() => {});
   });
 }
+
+// ---------- in a lesson: time spent learning ----------
+// Counted while a lesson page is open and in view, and only up to 5 minutes after the
+// last move to another screen of the lesson (or opening it, or coming back to the tab).
+// Kept per day and in total: users/{uid}/progress/time = { days: { "2026-10-29": seconds }, total }.
+const IDLE_MS = 5 * 60 * 1000;
+if (lessonId) {
+  let lastMove = Date.now(), countedTo = Date.now(), pending = 0, visible = !document.hidden;
+  const dayKey = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  // add the time since the last count, up to 5 minutes after the last move
+  const count = () => {
+    const now = Date.now(), until = Math.min(now, lastMove + IDLE_MS);
+    if (visible && until > countedTo) pending += until - countedTo;
+    countedTo = now;
+  };
+  const flush = () => {
+    count();
+    const secs = Math.round(pending / 1000);
+    if (!USER || secs < 1) return;
+    pending -= secs * 1000;
+    setDoc(doc(getDb(), "users", USER.uid, "progress", "time"),
+      { days: { [dayKey()]: increment(secs) }, total: increment(secs) }, { merge: true }).catch(() => {});
+  };
+  addEventListener("pshita:screen", () => { count(); lastMove = Date.now(); });
+  document.addEventListener("visibilitychange", () => {
+    count();
+    visible = !document.hidden;
+    if (visible) lastMove = Date.now(); else flush();
+  });
+  addEventListener("pagehide", flush);
+  setInterval(flush, 60 * 1000);
+}

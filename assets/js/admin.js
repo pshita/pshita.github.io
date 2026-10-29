@@ -52,10 +52,12 @@ async function start(admin) {
   const list = [];
   users.forEach((u) => { if (u.id !== admin.uid) list.push({ id: u.id, ...u.data() }); });
   await Promise.all(list.map(async (s) => {
-    const [quiz, lessons] = await Promise.all([
+    const [quiz, lessons, time] = await Promise.all([
       getDoc(doc(db, "users", s.id, "progress", "quiz")).catch(() => null),
       getDoc(doc(db, "users", s.id, "progress", "lessons")).catch(() => null),
+      getDoc(doc(db, "users", s.id, "progress", "time")).catch(() => null),
     ]);
+    s.time = (time && time.exists() && time.data()) || {};
     s.correct = (quiz && quiz.exists() && quiz.data().sections) || {};
     s.finished = (lessons && lessons.exists() && lessons.data().lessons) || {};
   }));
@@ -106,6 +108,15 @@ function planOf(s) {
   const mode = modeOf(s);
   return { on: mode === "on" || (mode === "default" && SMS.enabled), step: Number.isInteger(s.smsStep) && s.smsStep > 0 ? s.smsStep : SMS.step };
 }
+// Time spent learning (see student.js): the total, and opened, each day newest first.
+const hm = (secs) => { const m = Math.round((secs || 0) / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
+function timeHtml(t) {
+  const days = Object.entries(t.days || {}).filter(([, v]) => v > 0).sort((a, b) => b[0].localeCompare(a[0]));
+  if (!days.length) return '<span class="adm-dim">—</span>';
+  const day = (k) => { const [y, m, d] = k.split("-"); return `${+d}.${+m}.${y.slice(2)}`; };
+  return `<details><summary class="num">${hm(t.total)}</summary><div class="adm-pills">${days.map(([k, v]) => `<span>${day(k)} <i>${hm(v)}</i></span>`).join("")}</div></details>`;
+}
+
 function rowHtml(s) {
   // lessons in site order: correct answers in each, and how many times it was finished
   const times = (id) => (s.finished[id] && s.finished[id].times) || 0;
@@ -123,6 +134,7 @@ function rowHtml(s) {
     <td><input type="tel" data-f="motherPhone" value="${esc(s.motherPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></td>
     <td>${lessons}</td>
     <td class="num">${countOf(s)}</td>
+    <td>${timeHtml(s.time)}</td>
     <td><select data-f="smsMode">
       <option value="default"${mode === "default" ? " selected" : ""}>ברירת מחדל</option>
       <option value="on"${mode === "on" ? " selected" : ""}>פתוחה</option>
