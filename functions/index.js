@@ -427,22 +427,44 @@ exports.saveLessonData = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => 
     throw new HttpsError("internal", "השמירה נכשלה. נסו שוב.");
   }
   // A renamed lesson: its name also shows in the lesson list (home page, menus) and the page's tab.
+  // The content is saved either way: a failure here is reported along with the new
+  // source (so the next save isn't refused), and the next save of this lesson tries again.
   try {
-    await syncLessonTitle(id, lesson.title, token);
+    await withRetry((again) => syncLessonTitle(id, lesson.title, token, again));
   } catch (err) {
     logger.error(`saveLessonData: title sync failed for ${id}`, err);
-    throw new HttpsError("internal", "התוכן נשמר, אבל השם החדש לא עודכן ברשימת השיעורים. נסו לשנות אותו שוב.");
+    return { ok: true, src: out, titleError: true };
   }
   return { ok: true, src: out };
 });
 
-async function syncLessonTitle(id, title, token) {
+// Several lessons saved at once (a search and replace over all of them) change the
+// same files (lessons.json, the pages with menus): a write that lost the race is
+// refused by GitHub (409) and is done again from a fresh read.
+async function withRetry(fn, tries = 6) {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn(i > 0);
+    } catch (err) {
+      if (i >= tries - 1 || !/failed: (409|422)\b/.test(String(err && err.message))) throw err;
+      await new Promise((r) => setTimeout(r, 700 * (i + 1) + Math.random() * 700));
+    }
+  }
+}
+
+// A lesson's name in the lesson list, the menus and its page's tab. `again`: a retry
+// after a refused write, when the list may already have the name but not every page.
+async function syncLessonTitle(id, title, token, again = false) {
   const { site, sha } = await readSite(token);
   const entry = [].concat(...site.groups.map((g) => g.lessons)).find((l) => l.id === id);
-  if (!entry || entry.title === title) return;
-  entry.title = title;
+  if (!entry || (entry.title === title && !again)) return;
   const message = `שינוי שם שיעור: ${id} (עריכה מעמוד הטקסט)`;
-  await publishSite({ site, sha, token, message });
+  if (entry.title !== title) {
+    entry.title = title;
+    await publishSite({ site, sha, token, message });
+  } else {
+    await publishSite({ site, sha: null, token, message, pagesOnly: true });
+  }
   const shell = await readRepoFile(`lessons/${id}.html`, token);
   const html = lessonShellHtml({ id, title });
   if (html !== shell.text) await writeRepoFile(`lessons/${id}.html`, html, { sha: shell.sha, message, token });
@@ -473,10 +495,10 @@ async function readSite(token) {
 }
 
 // Writes lessons.json, then the pages whose markup lists the lessons.
-async function publishSite({ site, sha, token, message }) {
+async function publishSite({ site, sha, token, message, pagesOnly = false }) {
   const groups = site.groups.filter((g) => g.lessons.length);
   const clean = { groups };
-  await writeRepoFile(SITE_JSON, formatSiteJson(clean), { sha, message, token });
+  if (!pagesOnly) await writeRepoFile(SITE_JSON, formatSiteJson(clean), { sha, message, token });
   for (const page of MENU_PAGES) {
     let file;
     try {

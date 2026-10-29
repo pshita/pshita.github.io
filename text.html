@@ -1029,6 +1029,7 @@ async function doSave(key) {
   if (!DIRTY.has(key)) return;
   DIRTY.delete(key);
   const d = DATA[key];
+  let titleError = false;
   try {
     if (isDraft(key) && draftEmpty(d.L)) {
       // everything was deleted: the page goes too
@@ -1045,10 +1046,13 @@ async function doSave(key) {
       if (tidy(copy)) { DIRTY.add(key); return; }
       const res = await httpsCallable(fns, "saveLessonData")({ path: key, lesson: copy, base: d.base });
       d.base = res.data.src;
+      // saved, but the lesson list didn't take the new name (the next save tries again)
+      titleError = Boolean(res.data.titleError);
     }
     // saved: drop the local copy, or refresh it if more was typed meanwhile
     if (DIRTY.has(key)) backup(key); else dropBackup(key);
-    if (!DIRTY.size) say("");
+    if (titleError) say("התוכן נשמר, אבל השם החדש לא עודכן ברשימת השיעורים. נסו לשנות אותו שוב.");
+    else if (!DIRTY.size) say("");
   } catch (err) {
     DIRTY.add(key);
     const why = ((err && err.message) || "שגיאה").replace(/[.\s]+$/, "");
