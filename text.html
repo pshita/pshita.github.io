@@ -175,7 +175,7 @@ async function loadForEdit(href) {
     DATA[href] = { L: JSON.parse(res.data.src), base: res.data.src };
   } catch (e) {
     if (!d) DATA[href] = await loadLesson(href).catch(() => null);
-    if (DATA[href]) DATA[href].noEdit = true;
+    if (DATA[href]) { DATA[href].noEdit = true; DATA[href].why = (e && e.message) || ""; }
   }
 }
 
@@ -227,7 +227,7 @@ function renderLesson(key, d, q) {
   // in edit mode the page is one editing area; text that isn't part of the lesson data is locked
   const ro = (html) => (EDIT ? `<span contenteditable="false">${html}</span>` : html), roA = EDIT ? ' contenteditable="false"' : "";
   let h = `<h1${ed("tt", L.title, "שם השיעור")}</h1>` + (d.draft ? "" : `<p class="ref"${ed("rf", L.ref || "", "דף ועמוד")}</p>`);
-  if (EDIT && !editable) h += `<p class="note"${roA}>את השיעור הזה אי אפשר לערוך מכאן.</p>`;
+  if (EDIT && !editable) h += `<p class="note"${roA}>את השיעור הזה אי אפשר לערוך כרגע${d.why ? ` (${esc(d.why)})` : ""}.</p>`;
   let last = -1;
   L.screens.forEach((s, si) => {
     const shown = s.type === "read" || (q && !["intro", "summary"].includes(s.type));
