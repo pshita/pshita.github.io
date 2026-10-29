@@ -20,7 +20,7 @@
 .adm input[type="number"] { text-align: center; -moz-appearance: textfield; appearance: textfield; }
 .adm input[type="number"]::-webkit-inner-spin-button, .adm input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .adm select { cursor: pointer; }
-.adm textarea { display: block; align-self: flex-start; max-width: 100%; resize: none; line-height: 1.6; overflow: hidden; }
+.adm textarea { display: block; align-self: flex-start; background: var(--accent-faint); padding: 6px 10px; max-width: 100%; resize: none; line-height: 1.6; overflow: hidden; }
 
 /* students and the archive: columns only as wide as they must be; the rest scrolls sideways */
 .adm-scroll { width: fit-content; max-width: 100%; overflow-x: auto; background: var(--bg-elevated); border: 1px solid var(--line); border-radius: var(--radius); }
