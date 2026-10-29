@@ -13,7 +13,6 @@
 body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe UI',sans-serif}
 /* the top bar hides; a click on the strip at the top of the screen brings it back */
 #hot{position:fixed;top:0;left:0;right:0;height:14px;z-index:2;cursor:pointer}
-#hot::after{content:"";position:absolute;top:4px;left:50%;width:48px;height:4px;margin-left:-24px;border-radius:2px;background:#c4c4c8}
 /* bar and menus: same look as the site header and its menu (assets/css/style.css) */
 :root{--s-bg:#faf6ee;--s-ink:#2b241b;--s-soft:#5c5347;--s-line:#e4d9c4;--s-accent-soft:#f1e3d1;--s-accent-strong:#6d3a22;--s-head:"Rubik","Heebo","Arial Hebrew",sans-serif}
 .bar{position:fixed;top:0;left:0;right:0;z-index:3;transform:translateY(-100%);transition:transform .18s;background:#fff;border-bottom:1px solid var(--s-line);box-shadow:0 2px 10px rgba(43,36,27,.08);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px;font-family:var(--s-head);color:var(--s-ink)}
@@ -880,7 +879,12 @@ async function doSave(key) {
   DIRTY.delete(key);
   const d = DATA[key];
   try {
-    if (isDraft(key)) {
+    if (isDraft(key) && draftEmpty(d.L)) {
+      // everything was deleted: the page goes too
+      await fs.deleteDoc(fs.doc(auth.getDb(), "drafts", key.slice(6)));
+      if (!DIRTY.has(key) && draftEmpty(d.L)) removeDraft(key);
+      return;
+    } else if (isDraft(key)) {
       await fs.setDoc(fs.doc(auth.getDb(), "drafts", key.slice(6)), {
         title: plain(d.L.title), data: JSON.stringify(d.L), createdAt: d.createdAt, updatedAt: Date.now(),
       });
@@ -899,6 +903,24 @@ async function doSave(key) {
     const why = ((err && err.message) || "שגיאה").replace(/[.\s]+$/, "");
     say(`השמירה לא הצליחה: ${why}. השינויים שמורים במחשב הזה, וננסה שוב בשינוי הבא.`);
   }
+}
+// A draft with no text left at all (name, headings, paragraphs).
+const draftEmpty = (L) => !plain(L.title) && L.stations.every((x) => !plain(x)) &&
+  L.screens.every((s) => !(s.text || []).some((t) => plain(t)));
+function removeDraft(key) {
+  DRAFTS = DRAFTS.filter((x) => "draft:" + x.id !== key);
+  delete DATA[key];
+  dropBackup(key);
+  DIRTY.delete(key);
+  clearTimeout(TIMERS[key]);
+  // its place on the page goes to the empty "עמוד חדש", ready for typing
+  const was = SELECTED.includes(key);
+  SELECTED = SELECTED.filter((k) => k !== key && k !== NEW);
+  if (was) SELECTED.push(NEW);
+  DATA[NEW] = { L: newDraftData(), draft: true };
+  saveSelection();
+  drawMenus();
+  render(was ? { h: NEW, p: "tt" } : null);
 }
 // The empty "עמוד חדש" became a draft once something was typed in it.
 function promoteNew() {
@@ -1069,7 +1091,7 @@ function deleteAcross(r, a, b, ins = "") {
   const all = [...page.querySelectorAll("[data-p]")].filter((e) => e.dataset.h === key && e.isContentEditable);
   // boxes in between (בקיצור, cards, tables, questions) stay; only paragraphs and headings go
   const items = all.slice(all.indexOf(a), all.indexOf(b) + 1).filter((e, i, arr) => i === 0 || i === arr.length - 1 || /^(tx|st)$/.test(kindOf(e)));
-  if (!items.length || !/^(tx|st)$/.test(kindOf(a)) || !/^(tx|st)$/.test(kindOf(b))) { say("אפשר למחוק יחד רק מפסקה או כותרת עד פסקה או כותרת."); return null; }
+  if (!items.length || !/^(tx|st|tt)$/.test(kindOf(a)) || !/^(tx|st)$/.test(kindOf(b))) { say("אפשר למחוק יחד רק מפסקה או כותרת עד פסקה או כותרת."); return null; }
   say("");
   const before = partHtml(a, null, [r.startContainer, r.startOffset]) + escText(ins), after = partHtml(b, [r.endContainer, r.endOffset], null);
   const L = DATA[key].L;
@@ -1081,6 +1103,11 @@ function deleteAcross(r, a, b, ins = "") {
   setValue(L, a.dataset.p, before + after);
   // a heading left with nothing under it goes too (unless it's the one we're typing in)
   const keep = kindOf(a) === "st" ? pathNums(a)[0] : -1;
+  if (kindOf(a) === "tt") {
+    // from the lesson's name to the end: nothing stays under it but one empty paragraph
+    if (!L.screens.some((x) => x.type === "read")) L.screens.push({ type: "read", st: 0, text: [""] });
+    if (!L.stations.length) L.stations.push("");
+  }
   for (let k = L.stations.length - 1; k > 0; k--) if (k !== keep && !L.screens.some((s) => s.st === k)) removeHeading(L, k);
   return commit(key, { p: a.dataset.p, offset: textLen(before) });
 }
@@ -1091,8 +1118,15 @@ page.addEventListener("beforeinput", (e) => {
   if (t === "historyUndo" || t === "historyRedo") { e.preventDefault(); return; }  // handled on keydown
   if (/Drop|Drag/.test(t)) { e.preventDefault(); return; }
   if (!s.rangeCount) return;
-  const r = s.getRangeAt(0), a = elOf(r.startContainer), b = elOf(r.endContainer);
-  if (!a || !b) { e.preventDefault(); return; }
+  const r = s.getRangeAt(0);
+  let a = elOf(r.startContainer), b = elOf(r.endContainer);
+  if (!a || !b) {
+    // the selection starts or ends outside the text (e.g. Ctrl+A): trim it to the text inside
+    const inside = [...page.querySelectorAll("[data-p]")].filter((el) => el.isContentEditable && r.intersectsNode(el));
+    if (!inside.length) { e.preventDefault(); return; }
+    if (!a) { a = inside[0]; r.setStart(a, 0); }
+    if (!b) { b = inside[inside.length - 1]; r.setEnd(b, b.childNodes.length); }
+  }
   if (a !== b) {
     if (t.startsWith("format")) return;  // bold etc. across pieces is fine
     e.preventDefault();
