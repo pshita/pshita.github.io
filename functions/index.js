@@ -145,41 +145,6 @@ exports.notifyParentsOnQuizMilestone = onDocumentWritten(
   }
 );
 
-// Admin page: send the message (as it will look) to one phone number, to check
-// that the SMS4Free account details work.
-exports.sendTestSms = onCall(
-  { secrets: [SMS4FREE_KEY, SMS4FREE_USER, SMS4FREE_PASS] },
-  async (request) => {
-    try {
-      return await testSms(request);
-    } catch (err) {
-      if (err instanceof HttpsError) throw err;
-      // anything unexpected: show what it was on the admin page, not just "internal"
-      logger.error("sendTestSms failed", err);
-      throw new HttpsError("internal", `תקלה בשרת: ${(err && err.message) || err}`);
-    }
-  }
-);
-
-// The test message itself (see sendTestSms).
-async function testSms(request) {
-  if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
-    throw new HttpsError("permission-denied", "אין הרשאה.");
-  }
-  const phone = String((request.data && request.data.phone) || "").replace(/[^0-9]/g, "");
-  if (!/^05\d{8}$/.test(phone)) throw new HttpsError("invalid-argument", "מספר טלפון לא תקין.");
-  const settings = await smsSettings();
-  const missing = Object.entries(smsSecrets(settings.sender)).filter(([, v]) => !String(v || "").trim()).map(([k]) => k);
-  if (missing.length) throw new HttpsError("failed-precondition", `חסרים פרטי SMS4Free: ${missing.join(", ")}`);
-  const msg = smsText(settings.template, { firstName: "ישראל", lastName: "ישראלי" }, settings.step);
-  try {
-    await sendAndLog({ kind: "test", name: "הודעת בדיקה", to: [phone], msg, count: settings.step, sender: settings.sender });
-  } catch (err) {
-    throw new HttpsError("failed-precondition", err.message);
-  }
-  return { msg };
-}
-
 // Admin page: a student's first and last name. Changes the profile and the
 // account's display name (shown in the login list and in "שלום ..."); the
 // student keeps signing in the same way (from the list, with the password).

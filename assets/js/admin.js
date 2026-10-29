@@ -213,26 +213,6 @@ $("sms-template").addEventListener("input", () => { clearTimeout(SAVE_T); SAVE_T
 $("sms-template").addEventListener("change", saveSms);
 document.querySelector(".adm-chips").addEventListener("click", (e) => { if (e.target.closest("[data-ins]")) saveSms(); });
 
-// A test message, to check the SMS4Free account details.
-$("test-send").addEventListener("click", async () => {
-  const phone = $("test-phone").value.replace(/[^0-9]/g, ""), status = $("test-status"), btn = $("test-send");
-  if (!/^05\d{8}$/.test(phone)) { status.className = "adm-status err"; status.textContent = "מספר לא תקין (10 ספרות, מתחיל ב-05)"; return; }
-  status.className = "adm-status";
-  status.textContent = "שולח… (נשלח הנוסח השמור)";
-  btn.disabled = true;
-  try {
-    const f = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-functions.js");
-    await f.httpsCallable(f.getFunctions(getApp()), "sendTestSms")({ phone });
-    status.textContent = "ההודעה נשלחה ✓ החיבור ל-SMS4Free עובד.";
-  } catch (err) {
-    status.className = "adm-status err";
-    status.textContent = "השליחה לא הצליחה: " + errText(err);
-  } finally {
-    btn.disabled = false;
-    LOG_LOADED = false;
-  }
-});
-
 // ---------- archive: every message sent, newest first ----------
 async function loadLog() {
   LOG_LOADED = true;

@@ -85,4 +85,3 @@
 .adm-field { font: inherit; width: 200px; max-width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .adm-field:focus { outline: none; border-color: var(--accent); background: #fff; }
 #tab-sms > .adm-actions { margin: 0 0 18px; }
-.adm-test { margin-top: 8px; }
