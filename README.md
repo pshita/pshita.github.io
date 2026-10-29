@@ -21,6 +21,7 @@ text.html                  # כל הטקסט ברצף (הכתובת: /text, קי
 scenes.html                # ניסוי: בחירת שיעור בגלילה בין סצנות
 login.html, register.html  # התחברות והרשמה
 achievements.html          # הניקוד של התלמיד
+admin.html                 # ניהול (למנהל): תלמידים, טלפונים של ההורים, ההודעה להורים
 assets/css/style.css       # עיצוב דף הבית והעמודים הכלליים
 assets/css/lesson-player.css, assets/js/lesson-player.js   # נגן השיעור המשותף
 assets/js/content-editor.js  # עריכה למנהל: בתוך שיעור, ובדף הבית (הוספה, הזזה, מחיקה)
@@ -48,16 +49,15 @@ firestore.rules            # כללי אבטחה ל-Firestore
 
 ## ניקוד ו-SMS להורים
 
-התשובות הנכונות של תלמיד מחובר נשמרות ב-`users/{uid}/progress/quiz`. התג "ניקוד" בתפריט ועמוד ההישגים מוצגים מהנתונים האלה.
+כל שאלה שתלמיד מחובר עונה עליה נכון בשיעור נשמרת ב-`users/{uid}/progress/quiz`, פעם אחת לכל שאלה. שיעור שהגיע לסיכום נשמר ב-`users/{uid}/progress/lessons`. הנגן מדווח על זה, ו-`assets/js/student.js` כותב את הנתונים.
 
-**שימו לב:** השיעורים במבנה הנוכחי עדיין לא כותבים לשם.
+הפונקציה `notifyParentsOnQuizMilestone` שולחת SMS להורים דרך SMS4Free בכל פעם שהניקוד חוצה כפולה של מספר התשובות שהוגדר. הכול מוגדר בעמוד **ניהול** (`/admin`, רק למנהל):
+- כל כמה תשובות נכונות נשלחת הודעה, ונוסח ההודעה (`settings/sms`). בנוסח, `{שם}` מוחלף בשם הפרטי, `{שם מלא}` בשם המלא ו-`{מספר}` במספר התשובות.
+- לכל תלמיד: הטלפונים של ההורים והאם נשלחות הודעות (`users/{uid}.notify`).
+- הודעת בדיקה, כדי לוודא שהחיבור ל-SMS4Free עובד.
 
-הפונקציה `notifyParentsOnQuizMilestone` שולחת SMS להורים דרך SMS4Free בכל פעם שהניקוד חוצה כפולה של `MILESTONE_STEP`, שמוגדר ל-10.
+התלמיד רואה כמה תשובות נכונות נשארו עד ההודעה הבאה. אחרי שנשלחה הודעה, הוא מקבל על כך הודעה באתר (`users/{uid}.lastSms`).
 
 ## פריסת הפונקציות
 
-הפריסה נעשית מ-Cloud Shell. הסודות `GITHUB_TOKEN` ו-`SMS4FREE_*` כבר מוגדרים.
-
-```bash
-cd ~/pshita && git pull origin main && firebase deploy --only functions
-```
+הפריסה אוטומטית: כל שינוי ב-`functions/` או ב-`firestore.rules` שמגיע ל-main נפרס דרך GitHub Actions (`.github/workflows/deploy-firebase.yml`). הסודות `GITHUB_TOKEN` ו-`SMS4FREE_*` מוגדרים ב-Secret Manager של הפרויקט.

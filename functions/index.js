@@ -23,13 +23,41 @@ const SMS4FREE_SENDER = defineSecret("SMS4FREE_SENDER");
 // with Contents: Read and write permission.
 const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 
-// Send a parent SMS every time a student's quiz score crosses another
-// multiple of this number (10, 20, 30, ...).
-const MILESTONE_STEP = 10;
+// Parent SMS settings, edited on the admin page (admin.html) and stored in
+// settings/sms: send every `step` correct answers, with `template` as the text.
+// In the template, {שם} is the student's first name, {שם מלא} the full name and
+// {מספר} the number of correct answers.
+const SMS_DEFAULTS = {
+  step: 10,
+  template: "{שם} ענה נכון על {מספר} שאלות בשיעורי הגמרא באתר פשיטא 🎉",
+};
+
+async function smsSettings() {
+  const snap = await db.collection("settings").doc("sms").get();
+  const v = snap.exists ? snap.data() : {};
+  const step = Number.isInteger(v.step) && v.step > 0 ? v.step : SMS_DEFAULTS.step;
+  const template = typeof v.template === "string" && v.template.trim() ? v.template : SMS_DEFAULTS.template;
+  return { step, template };
+}
+
+function smsText(template, userData, count) {
+  const first = (userData.firstName || "").trim();
+  const full = `${first} ${(userData.lastName || "").trim()}`.trim();
+  return template.split("{שם מלא}").join(full).split("{שם}").join(first).split("{מספר}").join(String(count));
+}
 
 function countCorrect(sections) {
   if (!sections) return 0;
   return Object.values(sections).filter(Boolean).length;
+}
+
+function smsSecrets() {
+  return {
+    key: SMS4FREE_KEY.value(),
+    user: SMS4FREE_USER.value(),
+    pass: SMS4FREE_PASS.value(),
+    sender: SMS4FREE_SENDER.value(),
+  };
 }
 
 async function sendSms({ key, user, pass, sender, recipient, msg }) {
@@ -46,8 +74,10 @@ async function sendSms({ key, user, pass, sender, recipient, msg }) {
 }
 
 // Fires on every write to a user's quiz-progress doc (users/{uid}/progress/quiz),
-// which holds one entry per question answered correctly (see score.js). Compares the score before/after the write; if it just crossed
-// a new MILESTONE_STEP multiple, texts the parents.
+// which holds one entry per question answered correctly (see student.js). If the
+// score just crossed another multiple of the step, texts the parents, unless the
+// admin turned messages off for this student (users/{uid}.notify === false).
+// The student is told on the site: users/{uid}.lastSms.
 exports.notifyParentsOnQuizMilestone = onDocumentWritten(
   {
     document: "users/{uid}/progress/quiz",
@@ -63,32 +93,50 @@ exports.notifyParentsOnQuizMilestone = onDocumentWritten(
     const newScore = countCorrect(after.sections);
     if (newScore <= prevScore) return;
 
-    const prevMilestone = Math.floor(prevScore / MILESTONE_STEP) * MILESTONE_STEP;
-    const newMilestone = Math.floor(newScore / MILESTONE_STEP) * MILESTONE_STEP;
+    const { step, template } = await smsSettings();
+    const prevMilestone = Math.floor(prevScore / step) * step;
+    const newMilestone = Math.floor(newScore / step) * step;
     if (newMilestone <= prevMilestone || newMilestone === 0) return;
 
-    const userSnap = await db.collection("users").doc(uid).get();
+    const userRef = db.collection("users").doc(uid);
+    const userSnap = await userRef.get();
     if (!userSnap.exists) return;
     const userData = userSnap.data();
+    if (userData.notify === false) return;
     const recipients = [userData.fatherPhone, userData.motherPhone].filter(Boolean);
     if (recipients.length === 0) return;
 
-    const fullName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim();
-    const msg = `${fullName}: ${newMilestone} נקודות בשיעורי "ארבעה אבות" 🎉`;
-
     try {
-      await sendSms({
-        key: SMS4FREE_KEY.value(),
-        user: SMS4FREE_USER.value(),
-        pass: SMS4FREE_PASS.value(),
-        sender: SMS4FREE_SENDER.value(),
-        recipient: recipients.join(";"),
-        msg,
-      });
+      await sendSms({ ...smsSecrets(), recipient: recipients.join(";"), msg: smsText(template, userData, newMilestone) });
+      await userRef.update({ lastSms: { at: new Date().toISOString(), count: newMilestone, seen: false } });
       logger.info(`Notified parents of ${uid} at ${newMilestone} points`);
     } catch (err) {
       logger.error(`Failed to notify parents of ${uid} at ${newMilestone} points`, err);
     }
+  }
+);
+
+// Admin page: send the message (as it will look) to one phone number, to check
+// that the SMS4Free account details work.
+exports.sendTestSms = onCall(
+  { secrets: [SMS4FREE_KEY, SMS4FREE_USER, SMS4FREE_PASS, SMS4FREE_SENDER] },
+  async (request) => {
+    if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
+      throw new HttpsError("permission-denied", "אין הרשאה.");
+    }
+    const phone = String((request.data && request.data.phone) || "").replace(/[^0-9]/g, "");
+    if (!/^05\d{8}$/.test(phone)) throw new HttpsError("invalid-argument", "מספר טלפון לא תקין.");
+    const secrets = smsSecrets();
+    const missing = Object.entries(secrets).filter(([, v]) => !String(v || "").trim()).map(([k]) => k);
+    if (missing.length) throw new HttpsError("failed-precondition", `חסרים פרטי SMS4Free: ${missing.join(", ")}`);
+    const { step, template } = await smsSettings();
+    const msg = smsText(template, { firstName: "ישראל", lastName: "ישראלי" }, step);
+    try {
+      await sendSms({ ...secrets, recipient: phone, msg });
+    } catch (err) {
+      throw new HttpsError("failed-precondition", err.message);
+    }
+    return { msg };
   }
 );
 

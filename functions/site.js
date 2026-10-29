@@ -9,7 +9,7 @@
 //   assets/js/lesson-player.js - the one shared lesson engine
 //   assets/css/lesson-player.css
 
-const PLAYER_VERSION = 2;
+const PLAYER_VERSION = 3;
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -53,6 +53,7 @@ function lessonShellHtml({ id, title }) {
   <div id="view"></div>
 </div>
 <script src="../assets/js/lesson-player.js?v=${PLAYER_VERSION}"></script>
+<script type="module" src="../assets/js/student.js?v=${PLAYER_VERSION}"></script>
 <script type="module" src="../assets/js/content-editor.js"></script>
 </body>
 </html>
@@ -124,7 +125,7 @@ function setMenu(html, groups, hrefPrefix) {
   return html.replace(re, (m, a, b) => `${a}\n          ${groupSubmenusHtml(groups, hrefPrefix)}${b}`);
 }
 
-const MENU_PAGES = ["index.html", "login.html", "register.html", "achievements.html", "scenes.html"];
+const MENU_PAGES = ["index.html", "login.html", "register.html", "achievements.html", "scenes.html", "admin.html"];
 
 module.exports = {
   PLAYER_VERSION, MENU_PAGES, escapeHtml, formatLessonJson, formatSiteJson, lessonShellHtml,

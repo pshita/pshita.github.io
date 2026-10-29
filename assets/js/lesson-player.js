@@ -126,7 +126,11 @@ function drawList(){let h='',last=-1,n=0;
   else if(s.type==='open'){q=s.q;c=`<span class="c">${s.ans}</span>`}
   h+=`<div class="li"><div class="h">${n}. <span>${KIND[s.type]}</span></div><div>${q}</div><div>${c}</div>${s.why||s.din?`<div class="w">${s.why||s.din}</div>`:''}</div>`});
  view.innerHTML=`<div class="list">${h}</div>`}
-function draw(){drawPlay()}
+// Tell the page (student.js) about each question answered correctly and about reaching the end.
+const SENT={};let FIN=false;
+function report(){Object.keys(R).forEach(k=>{const r=R[k],s=LESSON.screens[k];if(r.done&&r.ok===true&&SCORED.includes(s.type)&&!SENT[k]){SENT[k]=1;dispatchEvent(new CustomEvent('pshita:correct',{detail:{q:+k}}))}});
+ const list=screens();if(!FIN&&list[cur]&&list[cur].type==='summary'){FIN=true;dispatchEvent(new CustomEvent('pshita:finished'))}}
+function draw(){drawPlay();report()}
 draw();
 }
 })();

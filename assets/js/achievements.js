@@ -1,6 +1,7 @@
 import { onAnswersReady, getCurrentQuizUser } from "./score.js";
+import { onStudent, remainingText } from "./student.js";
 
-const MILESTONE_STEP = 10;
+let MILESTONE_STEP = 10, COUNT = 0;
 
 const gateEl = document.getElementById("achievements-gate");
 const mainEl = document.getElementById("achievements-main");
@@ -16,7 +17,7 @@ function renderTotals(count) {
 
   totalCountEl.textContent = count;
   trackFillEl.style.width = pct + "%";
-  nextEl.textContent = `עוד ${MILESTONE_STEP - (count - currentBase)} נקודות לאבן הדרך הבאה`;
+  nextEl.textContent = remainingText(count, MILESTONE_STEP) || `עוד ${MILESTONE_STEP - (count - currentBase)} נקודות לאבן הדרך הבאה`;
 
   milestonesEl.innerHTML = "";
   for (let i = 1; i <= achieved; i++) {
@@ -40,5 +41,7 @@ onAnswersReady((answers) => {
   }
   gateEl.hidden = true;
   mainEl.hidden = false;
-  renderTotals(Object.values(answers).filter(Boolean).length);
+  COUNT = Object.values(answers).filter(Boolean).length;
+  renderTotals(COUNT);
 });
+onStudent(({ user, step }) => { MILESTONE_STEP = step; if (user) renderTotals(COUNT); });

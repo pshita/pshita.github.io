@@ -1,0 +1,80 @@
+/* Admin page (admin.html): students and the message to the parents. Built on style.css. */
+.adm { padding-top: 30px; padding-bottom: 48px; max-width: 920px; }
+.adm .lesson-title { margin-bottom: 18px; }
+.adm-note { color: var(--ink-soft); font-size: .9rem; margin: 6px 0 0; line-height: 1.6; }
+.adm-label { font-family: var(--font-head); font-size: .85rem; color: var(--ink-soft); margin: 14px 0 6px; }
+
+.adm-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+.adm-tabs button {
+  font: 600 1rem var(--font-head); color: var(--ink-soft); background: none; border: 0;
+  border-bottom: 3px solid transparent; padding: 10px 14px; cursor: pointer; margin-bottom: -1px;
+}
+.adm-tabs button[aria-selected="true"] { color: var(--accent-strong); border-bottom-color: var(--accent); }
+
+.adm-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.adm-bar input {
+  flex: 1; max-width: 320px; font: inherit; padding: 9px 14px; border: 1px solid var(--line);
+  border-radius: 999px; background: var(--bg-elevated); outline: none;
+}
+.adm-bar input:focus { border-color: var(--accent); }
+.adm-count { color: var(--ink-soft); font-size: .9rem; }
+
+.adm-list { display: flex; flex-direction: column; gap: 10px; }
+.adm-st {
+  background: var(--bg-elevated); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 18px;
+}
+.adm-st h3 { font: 700 1.1rem var(--font-head); margin: 0; }
+.adm-st .since { color: var(--ink-soft); font-size: .8rem; font-weight: 400; margin-inline-start: 6px; }
+.adm-score { text-align: center; min-width: 92px; }
+.adm-score b { display: block; font: 700 1.7rem/1.1 var(--font-head); color: var(--accent-strong); font-variant-numeric: tabular-nums; }
+.adm-score span { font-size: .78rem; color: var(--ink-soft); }
+.adm-lessons { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.adm-lessons .none { color: var(--ink-soft); font-size: .85rem; }
+.adm-pill {
+  display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; padding: 3px 10px;
+  border-radius: 999px; background: var(--accent-faint); border: 1px solid var(--line); color: var(--ink);
+}
+.adm-pill.done { background: #e6f0e0; border-color: #c4d8b6; }
+.adm-pill i { font-style: normal; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.adm-contact { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.adm-contact label { display: flex; align-items: center; gap: 6px; font-size: .88rem; color: var(--ink-soft); }
+.adm-contact input[type="tel"] {
+  font: inherit; color: var(--ink); width: 130px; padding: 6px 10px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--bg); direction: ltr; text-align: right; font-variant-numeric: tabular-nums;
+}
+.adm-contact input[type="tel"]:focus { outline: none; border-color: var(--accent); background: #fff; }
+.adm-contact input.bad { border-color: var(--esh); }
+.adm-contact .notify { color: var(--ink); font-weight: 600; cursor: pointer; }
+.adm-contact .notify input { width: 18px; height: 18px; accent-color: var(--accent); }
+.adm-next { font-size: .82rem; color: var(--ink-soft); }
+.adm-status { font-size: .82rem; color: var(--regel); min-height: 1em; }
+.adm-status.err { color: var(--esh); }
+
+.adm-card { background: var(--bg-elevated); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; }
+.adm-card h2 { font: 700 1.05rem var(--font-head); margin: 0 0 10px; }
+.adm-step { display: flex; align-items: center; gap: 8px; font-size: 1rem; }
+.adm-step input { font: 700 1rem var(--font-head); width: 74px; padding: 6px 8px; text-align: center; border: 1px solid var(--line); border-radius: 8px; }
+.adm-card textarea {
+  width: 100%; font: 1rem/1.6 var(--font-body); padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 10px; resize: vertical; background: var(--bg);
+}
+.adm-card textarea:focus, .adm-step input:focus, .adm-actions input:focus { outline: none; border-color: var(--accent); background: #fff; }
+.adm-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: .85rem; color: var(--ink-soft); }
+.adm-chips button { font: inherit; color: var(--accent-strong); background: var(--accent-soft); border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.adm-preview {
+  background: #e9f3e4; border-radius: 14px 14px 4px 14px; padding: 10px 14px; max-width: 420px;
+  white-space: pre-wrap; line-height: 1.55; font-size: .95rem;
+}
+.adm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.adm-actions input { font: inherit; width: 150px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; direction: ltr; text-align: right; }
+.adm-btn { font: 600 .95rem var(--font-head); color: #fff; background: var(--accent); border: 0; border-radius: 999px; padding: 9px 22px; cursor: pointer; }
+.adm-btn:hover { opacity: .9; }
+.adm-btn:disabled { opacity: .5; cursor: default; }
+.adm-btn.ghost { background: none; color: var(--accent-strong); border: 1px solid var(--accent); }
+
+@media (max-width: 560px) {
+  .adm-st { grid-template-columns: 1fr; }
+  .adm-score { text-align: start; display: flex; align-items: baseline; gap: 8px; }
+  .adm-score b { display: inline; }
+}

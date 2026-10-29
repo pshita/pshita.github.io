@@ -1,5 +1,6 @@
 import { watchAuthState } from "./auth.js";
 import { getLessonProgress } from "./progress.js";
+import { onStudent, remainingText } from "./student.js";
 
 export const QUIZ_LESSON_ID = "quiz";
 
@@ -7,7 +8,8 @@ let cachedAnswers = {};
 let currentUser = null;
 const listeners = [];
 
-const MILESTONE_STEP = 10;
+// every this many correct answers the parents get a message (set on the admin page)
+let MILESTONE_STEP = 10;
 const MAX_BADGE_DOTS = 6; // most recent achieved milestones shown, plus one "next" dot
 
 function render() {
@@ -29,6 +31,7 @@ function render() {
   for (let i = 0; i < shownAchieved; i++) dots += '<span class="score-badge-dot achieved"></span>';
   dots += '<span class="score-badge-dot"></span>'; // next milestone, not yet reached
 
+  badge.title = remainingText(count, MILESTONE_STEP);
   badge.innerHTML = `
     <span class="score-badge-text">ניקוד: ${count}</span>
     <span class="score-progress-track"><span class="score-progress-fill" style="width:${progressPct}%"></span></span>
@@ -62,3 +65,5 @@ watchAuthState(async (user) => {
   render();
   listeners.forEach((cb) => cb(cachedAnswers));
 });
+
+onStudent(({ step }) => { MILESTONE_STEP = step; render(); });

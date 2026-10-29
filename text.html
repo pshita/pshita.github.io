@@ -346,7 +346,7 @@ function drawMenus() {
   const account = USER
     ? `<div class="hello"><span>שלום ${esc(USER.displayName || "")}</span><button type="button" id="logout">יציאה</button></div>`
     : `<a class="login" href="login">התחברות</a>`;
-  const textLink = USER && USER.email === ADMIN_EMAIL ? `<a class="textlink" href="text">טקסט</a>` : "";
+  const textLink = USER && USER.email === ADMIN_EMAIL ? `<a class="textlink" href="text">טקסט</a><a href="admin">ניהול</a>` : "";
   const view = menus().map((g) => secHtml(g.name, g.name, g.items.map((it) =>
     `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`).join(""))).join("");
   $("panels").innerHTML = `<div class="panel" id="sitePanel" hidden>${site}<div class="acct">${account}</div>${textLink}</div>

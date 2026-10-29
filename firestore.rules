@@ -2,21 +2,41 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Each user's own profile (name, parent phone numbers).
-    match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
+    }
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
 
-      // Per-lesson progress, nested under the user.
+    // Each user's own profile (name, parent phone numbers). The admin sees and
+    // edits every student (admin.html). Only the admin turns the parent
+    // messages on or off ("notify").
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid) && !("notify" in request.resource.data);
+      allow update: if isAdmin()
+        || (isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["notify"]));
+
+      // Progress, nested under the user: "quiz" (correct answers) and "lessons" (lessons finished).
       match /progress/{lessonId} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isOwner(uid);
       }
+    }
+
+    // Site settings, such as the parent message (settings/sms). Everyone signed in
+    // reads them (to show how many answers are left until the next message).
+    match /settings/{id} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
 
     // Lessons being written that aren't on the site yet (text.html "עריכה").
     // Only the site admin.
     match /drafts/{id} {
-      allow read, write: if request.auth != null
-        && request.auth.token.email == "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
+      allow read, write: if isAdmin();
     }
   }
 }
