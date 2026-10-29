@@ -3,7 +3,7 @@
 //   lessons they did, correct answers, and their own message settings (on / off /
 //   the default, every how many answers);
 // - "הודעה להורים": the default for everyone (on / off, every how many answers),
-//   the sender and the text (settings/sms, used by notifyParentsOnQuizMilestone
+//   the sender, a copy of every message to the sender ("עותק אליי") and the text (settings/sms, used by notifyParentsOnQuizMilestone
 //   in functions/index.js);
 // - "ארכיון הודעות": every message sent (smsLog), with its date.
 import { watchAuthState, getDb, getApp, isReady } from "./auth.js";
@@ -169,6 +169,7 @@ function fillSms() {
   $("sms-enabled").checked = SMS.enabled === true;
   $("sms-step").value = SMS.step;
   $("sms-sender").value = SMS.sender || "";
+  $("sms-copy").checked = SMS.copyToMe === true;
   $("sms-template").value = SMS.template;
   countChars();
 }
@@ -200,15 +201,15 @@ async function saveSms() {
   if (sender && !/^0\d{8,9}$/.test(sender) && !/^[A-Za-z][A-Za-z0-9]{1,10}$/.test(sender)) return fail("מספר השולח לא תקין.");
   status.textContent = "";
   try {
-    const enabled = $("sms-enabled").checked;
-    await setDoc(doc(getDb(), "settings", "sms"), { enabled, step, template, sender, updatedAt: new Date().toISOString() }, { merge: true });
-    SMS = { ...SMS, enabled, step, template, sender };
+    const enabled = $("sms-enabled").checked, copyToMe = $("sms-copy").checked;
+    await setDoc(doc(getDb(), "settings", "sms"), { enabled, step, template, sender, copyToMe, updatedAt: new Date().toISOString() }, { merge: true });
+    SMS = { ...SMS, enabled, step, template, sender, copyToMe };
     drawStudents();
   } catch (err) {
     fail("השמירה לא הצליחה: " + errText(err));
   }
 }
-["sms-enabled", "sms-step", "sms-sender"].forEach((id) => $(id).addEventListener("change", saveSms));
+["sms-enabled", "sms-step", "sms-sender", "sms-copy"].forEach((id) => $(id).addEventListener("change", saveSms));
 $("sms-template").addEventListener("input", () => { clearTimeout(SAVE_T); SAVE_T = setTimeout(saveSms, 800); });
 $("sms-template").addEventListener("change", saveSms);
 document.querySelector(".adm-chips").addEventListener("click", (e) => { if (e.target.closest("[data-ins]")) saveSms(); });

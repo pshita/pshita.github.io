@@ -15,9 +15,9 @@ service cloud.firestore {
     // messages for a student (on / off, every how many answers).
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin();
-      allow create: if isOwner(uid) && !request.resource.data.keys().hasAny(["notify", "smsMode", "smsStep"]);
+      allow create: if isOwner(uid) && !request.resource.data.keys().hasAny(["notify", "smsMode", "smsStep", "smsSentFor"]);
       allow update: if isAdmin()
-        || (isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["notify", "smsMode", "smsStep"]));
+        || (isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["notify", "smsMode", "smsStep", "smsSentFor"]));
 
       // Progress, nested under the user: "quiz" (correct answers) and "lessons" (lessons finished).
       match /progress/{lessonId} {

@@ -30,6 +30,7 @@ const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 //   template - the text; {שם} is the student's first name, {שם מלא} the full
 //              name and {מספר} the number of correct answers
 //   sender   - the number (or name) the message comes from, sent with each message
+//   copyToMe - every message to parents also goes to the sender number
 // A student may have their own: users/{uid}.smsMode ("on" / "off"; none = the
 // default; the older notify === false also means off) and users/{uid}.smsStep.
 const SMS_DEFAULTS = {
@@ -43,7 +44,7 @@ async function smsSettings() {
   const step = Number.isInteger(v.step) && v.step > 0 ? v.step : SMS_DEFAULTS.step;
   const template = typeof v.template === "string" && v.template.trim() ? v.template : SMS_DEFAULTS.template;
   const sender = typeof v.sender === "string" ? v.sender.trim() : "";
-  return { step, template, enabled: v.enabled === true, sender };
+  return { step, template, enabled: v.enabled === true, sender, copyToMe: v.copyToMe === true };
 }
 
 // This student's messages: on or off, and every how many answers.
@@ -101,46 +102,86 @@ async function sendAndLog({ kind, uid = null, name = "", to, msg, count = null, 
   if (!entry.ok) throw new Error(entry.error);
 }
 
-// Fires on every write to a user's quiz-progress doc (users/{uid}/progress/quiz),
-// which holds one entry per question answered correctly (see student.js). If the
-// score just crossed another multiple of this student's step and messages are on
-// for them, texts the parents. The student is told on the site: users/{uid}.lastSms.
+// Texts a student's parents if they're due a message: messages are on for the
+// student, there's a phone number, and the student has reached a multiple of
+// their step that no message went out for yet (users/{uid}.smsSentFor; before
+// that field existed, lastSms.count). So a student who reached it while messages
+// were off gets it once they're turned on. The number is claimed in a
+// transaction first, so two triggers at once never send twice; a failed send
+// gives it back. With settings/sms.copyToMe, the sender number gets a copy.
+async function notifyIfDue(uid) {
+  const userRef = db.collection("users").doc(uid);
+  const quizRef = userRef.collection("progress").doc("quiz");
+  const settings = await smsSettings();
+  const claim = await db.runTransaction(async (tx) => {
+    const [userSnap, quizSnap] = await Promise.all([tx.get(userRef), tx.get(quizRef)]);
+    if (!userSnap.exists) return null;
+    const userData = userSnap.data();
+    const { on, step } = studentPlan(settings, userData);
+    const recipients = [userData.fatherPhone, userData.motherPhone].filter(Boolean);
+    if (!on || !recipients.length) return null;
+    const score = countCorrect(quizSnap.exists ? quizSnap.data().sections : null);
+    const milestone = Math.floor(score / step) * step;
+    const sentFor = Number.isInteger(userData.smsSentFor) ? userData.smsSentFor : (userData.lastSms && userData.lastSms.count) || 0;
+    if (milestone === 0 || milestone <= sentFor) return null;
+    tx.update(userRef, { smsSentFor: milestone });
+    return { userData, recipients, milestone, sentFor };
+  });
+  if (!claim) return;
+
+  const { userData, recipients, milestone, sentFor } = claim;
+  const to = [...recipients];
+  if (settings.copyToMe && /^0\d{8,9}$/.test(settings.sender) && !to.includes(settings.sender)) to.push(settings.sender);
+  const name = `${userData.firstName || ""} ${userData.lastName || ""}`.trim();
+  try {
+    await sendAndLog({ kind: "milestone", uid, name, to, msg: smsText(settings.template, userData, milestone), count: milestone, sender: settings.sender });
+    await userRef.update({ lastSms: { at: new Date().toISOString(), count: milestone, seen: false } });
+    logger.info(`Notified parents of ${uid} at ${milestone} points`);
+  } catch (err) {
+    await userRef.update({ smsSentFor: sentFor }).catch(() => {});
+    logger.error(`Failed to notify parents of ${uid} at ${milestone} points`, err);
+  }
+}
+
+const SMS_SECRETS = [SMS4FREE_KEY, SMS4FREE_USER, SMS4FREE_PASS];
+
+// A student answered more questions correctly (users/{uid}/progress/quiz holds
+// one entry per question answered correctly, see student.js).
 exports.notifyParentsOnQuizMilestone = onDocumentWritten(
-  {
-    document: "users/{uid}/progress/quiz",
-    secrets: [SMS4FREE_KEY, SMS4FREE_USER, SMS4FREE_PASS],
-  },
+  { document: "users/{uid}/progress/quiz", secrets: SMS_SECRETS },
   async (event) => {
-    const uid = event.params.uid;
     const before = event.data.before.exists ? event.data.before.data() : null;
     const after = event.data.after.exists ? event.data.after.data() : null;
+    if (!after || countCorrect(after.sections) <= countCorrect(before?.sections)) return;
+    await notifyIfDue(event.params.uid);
+  }
+);
+
+// The admin changed a student's messages (on / off, every how many answers) or
+// phone numbers: whatever is due now goes out.
+exports.notifyParentsOnStudentChange = onDocumentWritten(
+  { document: "users/{uid}", secrets: SMS_SECRETS },
+  async (event) => {
+    const before = event.data.before.exists ? event.data.before.data() : {};
+    const after = event.data.after.exists ? event.data.after.data() : null;
     if (!after) return;
+    const keys = ["smsMode", "notify", "smsStep", "fatherPhone", "motherPhone"];
+    if (!keys.some((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]))) return;
+    await notifyIfDue(event.params.uid);
+  }
+);
 
-    const prevScore = countCorrect(before?.sections);
-    const newScore = countCorrect(after.sections);
-    if (newScore <= prevScore) return;
-
-    const userRef = db.collection("users").doc(uid);
-    const userSnap = await userRef.get();
-    if (!userSnap.exists) return;
-    const userData = userSnap.data();
-    const settings = await smsSettings();
-    const { on, step } = studentPlan(settings, userData);
-    if (!on) return;
-    const prevMilestone = Math.floor(prevScore / step) * step;
-    const newMilestone = Math.floor(newScore / step) * step;
-    if (newMilestone <= prevMilestone || newMilestone === 0) return;
-
-    const recipients = [userData.fatherPhone, userData.motherPhone].filter(Boolean);
-    if (recipients.length === 0) return;
-
-    const name = `${userData.firstName || ""} ${userData.lastName || ""}`.trim();
-    try {
-      await sendAndLog({ kind: "milestone", uid, name, to: recipients, msg: smsText(settings.template, userData, newMilestone), count: newMilestone, sender: settings.sender });
-      await userRef.update({ lastSms: { at: new Date().toISOString(), count: newMilestone, seen: false } });
-      logger.info(`Notified parents of ${uid} at ${newMilestone} points`);
-    } catch (err) {
-      logger.error(`Failed to notify parents of ${uid} at ${newMilestone} points`, err);
+// The admin turned messages on, or changed every how many answers: everyone due
+// a message gets it.
+exports.notifyParentsOnSettingsChange = onDocumentWritten(
+  { document: "settings/sms", secrets: SMS_SECRETS, timeoutSeconds: 540 },
+  async (event) => {
+    const before = event.data.before.exists ? event.data.before.data() : {};
+    const after = event.data.after.exists ? event.data.after.data() : null;
+    if (!after || (before.enabled === after.enabled && before.step === after.step)) return;
+    const users = await db.collection("users").listDocuments();
+    for (const ref of users) {
+      await notifyIfDue(ref.id).catch((err) => logger.error(`notifyIfDue ${ref.id} failed`, err));
     }
   }
 );
