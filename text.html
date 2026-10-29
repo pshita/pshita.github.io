@@ -999,6 +999,15 @@ function backup(key) {
 }
 function dropBackup(key) { const b = readBackup(); delete b[key]; writeBackup(b); }
 // On opening the page: put back whatever wasn't saved last time, and save it.
+// The lesson on the site (its source) has the same content as `L` would once saved.
+const canon = (x) => JSON.stringify(x, (k, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map((n) => [n, v[n]])) : v));
+function sameLesson(src, L) {
+  try {
+    const copy = JSON.parse(JSON.stringify(L));
+    tidy(copy);
+    return canon(JSON.parse(src)) === canon(copy);
+  } catch (e) { return false; }
+}
 async function restoreBackups() {
   for (const [key, v] of Object.entries(readBackup())) {
     if (isDraft(key)) {
@@ -1010,6 +1019,8 @@ async function restoreBackups() {
       try { src = (await httpsCallable(fns, "getLessonData")({ path: key })).data.src; } catch (e) {}
       if (src === null) continue;
       if (src !== v.base) {
+        // already on the site (a save that went through but wasn't confirmed here): nothing to restore
+        if (sameLesson(src, v.L)) { dropBackup(key); continue; }
         say(`יש במחשב הזה שינויים שלא נשמרו ב"${plain(v.L.title)}", אבל השיעור השתנה מאז באתר, אז הם לא הוחזרו.`);
         continue;
       }
