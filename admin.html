@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Heebo:wght@300;400;600&family=Rubik:wght@400;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/css/style.css?v=48" />
-  <link rel="stylesheet" href="assets/css/admin.css?v=5" />
+  <link rel="stylesheet" href="assets/css/admin.css?v=7" />
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
@@ -94,25 +94,19 @@
       <!-- the message to the parents: the default for everyone, the sender, the text -->
       <section id="tab-sms" hidden>
         <div class="adm-card">
-          <h2>ברירת מחדל לכל התלמידים</h2>
-          <label class="adm-switch"><input type="checkbox" id="sms-enabled"> שליחת הודעות להורים פעילה</label>
-          <label class="adm-step">כל <input type="number" id="sms-step" min="1" max="500" inputmode="numeric"> תשובות נכונות</label>
-        </div>
-        <div class="adm-card">
-          <h2>מאיזה מספר ההודעה נשלחת</h2>
-          <input type="text" id="sms-sender" class="adm-field" placeholder="05XXXXXXXX" autocomplete="off" dir="ltr">
-          <label class="adm-switch adm-copy"><input type="checkbox" id="sms-copy"> עותק אליי</label>
-        </div>
-        <div class="adm-card">
-          <h2>נוסח ההודעה</h2>
+          <label class="adm-switch"><input type="checkbox" id="sms-enabled"> שליחה פעילה</label>
+          <label class="adm-step">שליחה כל <input type="number" id="sms-step" min="1" max="500" inputmode="numeric"> תשובות נכונות</label>
+          <div class="adm-row">
+            <label class="adm-step">השולח: <input type="text" id="sms-sender" class="adm-field" placeholder="05XXXXXXXX" autocomplete="off" dir="ltr"></label>
+            <label class="adm-switch"><input type="checkbox" id="sms-copy"> עותק לשולח</label>
+          </div>
+          <p class="adm-label">נוסח ההודעה: <span id="sms-length"></span></p>
           <textarea id="sms-template" rows="4"></textarea>
           <div class="adm-chips">
             <span>להוספה:</span>
-            <button type="button" data-ins="{שם}">שם פרטי</button>
-            <button type="button" data-ins="{שם מלא}">שם מלא</button>
-            <button type="button" data-ins="{מספר}">מספר התשובות</button>
+            <button type="button" data-ins="{פרטי}">{פרטי}</button>
+            <button type="button" data-ins="{תשובות}">{תשובות}</button>
           </div>
-          <p class="adm-note" id="sms-length"></p>
         </div>
         <p class="adm-status" id="sms-status"></p>
       </section>
@@ -135,6 +129,6 @@
   <script src="assets/js/main.js?v=3"></script>
   <script type="module" src="assets/js/header-auth.js?v=8"></script>
   <script type="module" src="assets/js/score.js"></script>
-  <script type="module" src="assets/js/admin.js?v=7"></script>
+  <script type="module" src="assets/js/admin.js?v=8"></script>
 </body>
 </html>

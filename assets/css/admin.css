@@ -85,4 +85,8 @@
 .adm-field { font: inherit; width: 200px; max-width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .adm-field:focus { outline: none; border-color: var(--accent); background: #fff; }
 #tab-sms > .adm-actions { margin: 0 0 18px; }
-.adm-copy { margin-top: 12px; }
+.adm-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin-top: 14px; }
+.adm-row .adm-step, .adm-row .adm-switch { margin: 0; }
+.adm-label { font-weight: 600; margin: 18px 0 8px; }
+.adm-label span { font-weight: 400; color: var(--ink-soft); }
+.adm-step input.adm-field { width: 150px; font: inherit; text-align: right; }

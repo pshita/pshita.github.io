@@ -27,15 +27,15 @@ const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 // settings/sms - the default for every student:
 //   enabled  - whether messages go out (off until the admin turns it on)
 //   step     - every how many correct answers
-//   template - the text; {שם} is the student's first name, {שם מלא} the full
-//              name and {מספר} the number of correct answers
+//   template - the text; {פרטי} is the student's first name and {תשובות} the
+//              number of correct answers (the older {שם}, {שם מלא}, {מספר} still work)
 //   sender   - the number (or name) the message comes from, sent with each message
 //   copyToMe - every message to parents also goes to the sender number
 // A student may have their own: users/{uid}.smsMode ("on" / "off"; none = the
 // default; the older notify === false also means off) and users/{uid}.smsStep.
 const SMS_DEFAULTS = {
   step: 10,
-  template: "{שם} ענה נכון על {מספר} שאלות בשיעורי הגמרא באתר פשיטא 🎉",
+  template: "{פרטי} ענה נכון על {תשובות} שאלות בשיעורי הגמרא באתר פשיטא 🎉",
 };
 
 async function smsSettings() {
@@ -59,7 +59,8 @@ function studentPlan(settings, userData) {
 function smsText(template, userData, count) {
   const first = (userData.firstName || "").trim();
   const full = `${first} ${(userData.lastName || "").trim()}`.trim();
-  return template.split("{שם מלא}").join(full).split("{שם}").join(first).split("{מספר}").join(String(count));
+  return template.split("{שם מלא}").join(full).split("{שם}").join(first).split("{פרטי}").join(first)
+    .split("{מספר}").join(String(count)).split("{תשובות}").join(String(count));
 }
 
 function countCorrect(sections) {

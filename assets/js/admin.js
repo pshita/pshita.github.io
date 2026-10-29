@@ -13,9 +13,9 @@ import {
 
 const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 // the same defaults as the server (functions/index.js)
-const SMS_DEFAULTS = { enabled: false, step: 10, sender: "", template: "{שם} ענה נכון על {מספר} שאלות בשיעורי הגמרא באתר פשיטא 🎉" };
-// every message is counted by this many characters (spaces included)
-const SMS_CHARS = 134;
+const SMS_DEFAULTS = { enabled: false, step: 10, sender: "", template: "{פרטי} ענה נכון על {תשובות} שאלות בשיעורי הגמרא באתר פשיטא 🎉" };
+// the older names of the placeholders, shown with the current ones
+const newTokens = (t) => t.split("{שם מלא}").join("{פרטי}").split("{שם}").join("{פרטי}").split("{מספר}").join("{תשובות}");
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
@@ -164,20 +164,20 @@ $("adm-list").addEventListener("change", async (e) => {
 });
 
 // ---------- the message to the parents ----------
-const fillTemplate = (t, count) => t.split("{שם מלא}").join("ישראל ישראלי").split("{שם}").join("ישראל").split("{מספר}").join(String(count));
+const fillTemplate = (t, count) => newTokens(t).split("{פרטי}").join("ישראל").split("{תשובות}").join(String(count));
 function fillSms() {
   $("sms-enabled").checked = SMS.enabled === true;
   $("sms-step").value = SMS.step;
   $("sms-sender").value = SMS.sender || "";
   $("sms-copy").checked = SMS.copyToMe === true;
-  $("sms-template").value = SMS.template;
+  $("sms-template").value = newTokens(SMS.template);
   countChars();
 }
-// Length of the message as sent (with an example name), and how many messages it counts as.
+// Length of the message as sent (with an example name).
 function countChars() {
   const text = fillTemplate($("sms-template").value, +$("sms-step").value || SMS_DEFAULTS.step);
-  const n = [...text].length, parts = Math.max(1, Math.ceil(n / SMS_CHARS));
-  $("sms-length").textContent = `${n} תווים` + (parts > 1 ? ` · ${parts} הודעות` : "");
+  const n = [...text].length;
+  $("sms-length").textContent = `(${n} תווים)`;
 }
 $("sms-step").addEventListener("input", countChars);
 $("sms-template").addEventListener("input", countChars);
