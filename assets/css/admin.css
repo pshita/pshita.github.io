@@ -48,7 +48,7 @@
 .adm-err { color: var(--esh); font-weight: 600; }
 
 /* the message to the parents: one card */
-#tab-sms { max-width: 760px; }
+.adm-logwrap { margin-top: 22px; }
 .adm-card { width: fit-content; max-width: 100%; background: var(--bg-elevated); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 14px; }
 .adm-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
 .adm-switch, .adm-step { display: flex; align-items: center; gap: 8px; }

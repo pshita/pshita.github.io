@@ -2,10 +2,9 @@
 // - "תלמידים": a table of every student: name and parents' phones (editable), the
 //   lessons they did, correct answers, and their own message settings (on / off /
 //   the default, every how many answers);
-// - "הודעה להורים": the default for everyone (on / off, every how many answers),
-//   the sender, a copy of every message to the sender ("עותק אליי") and the text (settings/sms, used by notifyParentsOnQuizMilestone
-//   in functions/index.js);
-// - "ארכיון הודעות": every message sent (smsLog), with its date;
+// - "הודעות": the default for everyone (on / off, every how many answers), the
+//   sender, a copy of every message to the sender and the text (settings/sms, used
+//   by functions/index.js), and below, every message sent (smsLog), with its date;
 // - "יעדים": the lessons students see in the menu (settings/goals; see header-auth.js).
 import { watchAuthState, getDb, getApp, isReady } from "./auth.js";
 import {
@@ -67,7 +66,7 @@ async function start(admin) {
   drawStudents();
   fillSms();
   drawGoals();
-  showTab({ "#sms": "sms", "#log": "log", "#goals": "goals" }[location.hash] || "students");
+  showTab({ "#sms": "sms", "#log": "sms", "#goals": "goals" }[location.hash] || "students");
 }
 
 // Fields are as wide as their text (CSS field-sizing); where the browser doesn't
@@ -86,10 +85,10 @@ document.addEventListener("input", (e) => { if (e.target.matches && e.target.mat
 // ---------- tabs ----------
 function showTab(name) {
   document.querySelectorAll(".adm-tabs [data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
-  ["students", "sms", "log", "goals"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
+  ["students", "sms", "goals"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
   fitAll($("tab-" + name));
   history.replaceState(null, "", name === "students" ? location.pathname : "#" + name);
-  if (name === "log" && !LOG_LOADED) loadLog();
+  if (name === "sms" && !LOG_LOADED) loadLog();
 }
 document.querySelector(".adm-tabs").addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]");
