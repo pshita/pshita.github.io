@@ -45,11 +45,12 @@ body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe U
 .hello button:hover{color:var(--s-accent-strong);border-color:currentColor}
 #msg{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:5;max-width:calc(100vw - 32px);background:#b00020;color:#fff;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 #msg:empty{display:none}
-#hist{position:fixed;bottom:16px;left:16px;z-index:5;display:flex;background:#fff;border:1px solid var(--s-line);border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,.14);padding:3px}
+/* undo / redo, in the top bar while editing */
+#hist{display:flex}
 #hist[hidden]{display:none}
-#hist button{width:40px;height:36px;border:0;background:none;border-radius:999px;font-size:20px;color:var(--s-ink);cursor:pointer}
-#hist button:hover:not(:disabled){background:var(--s-accent-soft);color:var(--s-accent-strong)}
-#hist button:disabled{opacity:.3;cursor:default}
+.bar #hist button{width:38px;height:38px;border-radius:8px;font-size:20px;line-height:1}
+.bar #hist button:hover:not(:disabled){background:var(--s-accent-soft);color:var(--s-accent-strong)}
+.bar #hist button:disabled{opacity:.3;cursor:default}
 /* bold / red on selected text */
 /* search and replace, over every page shown */
 .tools{display:flex;align-items:center;gap:6px}
@@ -117,12 +118,12 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 <div class="bar" id="bar">
   <button type="button" class="brand" id="siteBtn"><span class="mark">📖</span><span>פשיטא</span></button>
   <span class="tools">
+  <span id="hist" hidden><button type="button" id="undoBtn" title="ביטול (Ctrl+Z)" disabled>↶</button><button type="button" id="redoBtn" title="החזרה (Ctrl+Y)" disabled>↷</button></span>
   <button type="button" class="view icon" id="findBtn" title="חיפוש והחלפה"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
   <button type="button" class="view" id="viewBtn">תצוגה <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </span>
 </div>
 <div id="msg"></div>
-<div id="hist" hidden><button type="button" id="undoBtn" title="ביטול (Ctrl+Z)" disabled>↶</button><button type="button" id="redoBtn" title="החזרה (Ctrl+Y)" disabled>↷</button></div>
 <div id="find" hidden>
   <div class="frow"><input type="search" id="findQ" placeholder="חיפוש" autocomplete="off"><span id="findN"></span>
     <button type="button" id="findPrev" title="הקודם">▲</button><button type="button" id="findNext" title="הבא">▼</button><button type="button" id="findX" title="סגירה">✕</button></div>
@@ -1040,7 +1041,7 @@ function renameInMenu(key) {
 }
 
 // Undo: the lesson as it was before each change (typing counts once per burst).
-// Undo / redo, like a word processor: ↶ ↷ at the bottom of the screen, Ctrl+Z / Ctrl+Y.
+// Undo / redo, like a word processor: ↶ ↷ in the top bar, Ctrl+Z / Ctrl+Y.
 const UNDO = [], REDO = [];
 function snapshot(key) {
   UNDO.push({ key, L: JSON.stringify(DATA[key].L) });
@@ -1064,7 +1065,7 @@ function histButtons() {
   $("redoBtn").disabled = !REDO.length;
 }
 $("hist").addEventListener("mousedown", (e) => e.preventDefault());
-$("hist").addEventListener("click", (e) => e.stopPropagation());
+$("hist").addEventListener("click", (e) => e.stopPropagation());  // the bar stays open for more undos
 $("undoBtn").onclick = undo;
 $("redoBtn").onclick = redo;
 addEventListener("keydown", (e) => {
