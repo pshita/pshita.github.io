@@ -1240,12 +1240,28 @@ function pastedBlocks(html) {
 }
 
 // Double-click any text (admin only) to start editing right there.
-page.addEventListener("dblclick", async (e) => {
-  if (!isAdmin || EDIT) return;
-  const point = { x: e.clientX, y: e.clientY }, el = e.target.closest("[data-p]");
+async function startEditAt(target, x, y) {
+  if (EDIT) return;
+  if (!isAdmin) {
+    if (USER && USER.email === ADMIN_EMAIL) say("העריכה עוד נטענת. נסו שוב בעוד רגע.");
+    return;
+  }
+  const point = { x, y }, el = target.closest && target.closest("[data-p]");
   const top = el && el.getBoundingClientRect().top;
   EDIT = true;
   await render(el ? { h: el.dataset.h, p: el.dataset.p, point, top } : { point });
+}
+page.addEventListener("dblclick", (e) => startEditAt(e.target, e.clientX, e.clientY));
+// Phones and tablets often don't send a double-click: catch two quick taps ourselves.
+let LAST_TAP = null;
+page.addEventListener("touchend", (e) => {
+  if (EDIT || e.touches.length || e.changedTouches.length !== 1 || PINCH) { LAST_TAP = null; return; }
+  const t = e.changedTouches[0], now = Date.now();
+  if (LAST_TAP && now - LAST_TAP.time < 400 && Math.hypot(t.clientX - LAST_TAP.x, t.clientY - LAST_TAP.y) < 30) {
+    LAST_TAP = null;
+    e.preventDefault();
+    startEditAt(e.target, t.clientX, t.clientY);
+  } else LAST_TAP = { time: now, x: t.clientX, y: t.clientY };
 });
 
 // ---------- admin ----------
