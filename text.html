@@ -70,6 +70,8 @@ body{margin:0;background:var(--page);color:var(--ink);font-family:Arial,'Segoe U
 /* pinching changes the text size (the lines rewrap), not the page zoom */
 /* the page never gets wider than the screen and never moves sideways */
 html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
+/* the iPhone can still pan sideways with only overflow-x:hidden; clip leaves nothing to pan to */
+@supports (overflow-x:clip){html,body{overflow-x:clip}}
 /* the text moves down below the open bar (and back): keep it where it is on screen, not where it was */
 body{overflow-anchor:none;transition:padding-top .18s}
 .page{overflow-wrap:break-word}
