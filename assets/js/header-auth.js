@@ -41,8 +41,10 @@ watchAuthState((user) => {
   });
 });
 
-// Students see in the menu only the lessons the admin marked as goals on the admin
-// page ("יעדים": settings/goals). None marked: every lesson. The admin sees them all.
+// Students see in the menu, and on the home page's cards, only the lessons the admin
+// marked as goals on the admin page ("יעדים": settings/goals). None marked: every
+// lesson. The admin, and visitors who aren't signed in, see them all.
+const lessonIdOf = (a) => (a.getAttribute("href") || "").split("/").pop().replace(/\.html$/, "");
 watchAuthState(async (user) => {
   const menu = document.querySelector(".brand-menu");
   if (!menu) return;
@@ -57,11 +59,18 @@ watchAuthState(async (user) => {
   menu.querySelectorAll(".submenu").forEach((sub) => {
     let any = false;
     sub.querySelectorAll(".submenu-panel a.dropdown-item").forEach((a) => {
-      const id = (a.getAttribute("href") || "").split("/").pop().replace(/\.html$/, "");
-      a.hidden = Boolean(ids) && !ids.has(id);
+      a.hidden = Boolean(ids) && !ids.has(lessonIdOf(a));
       any = any || !a.hidden;
     });
     sub.hidden = !any;
+  });
+  document.querySelectorAll(".group-title-dropdown").forEach((group) => {
+    let any = false;
+    group.querySelectorAll("a.lesson-card").forEach((a) => {
+      a.hidden = Boolean(ids) && !ids.has(lessonIdOf(a));
+      any = any || !a.hidden;
+    });
+    group.hidden = !any;
   });
 });
 
@@ -77,8 +86,7 @@ watchAuthState(async (user) => {
     lessons = (snap.exists() && snap.data().lessons) || {};
   } catch (e) { return; }
   document.querySelectorAll(".brand-menu a.dropdown-item, a.lesson-card").forEach((a) => {
-    const id = (a.getAttribute("href") || "").split("/").pop().replace(/\.html$/, "");
-    const n = (lessons[id] && lessons[id].times) || 0;
+    const id = lessonIdOf(a), n = (lessons[id] && lessons[id].times) || 0;
     if (!n) return;
     const marks = document.createElement("span");
     marks.className = "done-marks";

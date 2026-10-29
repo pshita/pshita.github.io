@@ -49,7 +49,7 @@ async function build() {
   document.addEventListener("click", () => { menu.hidden = true; });
 
   // the account part of the menu, the score, and the student's progress (student.js)
-  await import("./header-auth.js?v=10");
+  await import("./header-auth.js?v=11");
   await import("./score.js");
 }
 build();
