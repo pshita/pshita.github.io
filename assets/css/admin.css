@@ -1,7 +1,5 @@
-/* Admin page (admin.html): students and the message to the parents. Built on style.css. */
-.adm { padding-top: 30px; padding-bottom: 48px; max-width: 1240px; }
-#tab-sms { max-width: 760px; }
-.adm .lesson-title { margin-bottom: 18px; }
+/* Admin page (admin.html): students, the message to the parents, the archive. Built on style.css. */
+.adm { padding-top: 24px; padding-bottom: 48px; max-width: 1240px; }
 .adm-note { color: var(--ink-soft); font-size: .9rem; margin: 6px 0 0; line-height: 1.6; }
 
 .adm-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
@@ -11,82 +9,51 @@
 }
 .adm-tabs button[aria-selected="true"] { color: var(--accent-strong); border-bottom-color: var(--accent); }
 
-.adm-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-.adm-bar input {
-  flex: 1; max-width: 320px; font: inherit; padding: 9px 14px; border: 1px solid var(--line);
-  border-radius: 999px; background: var(--bg-elevated); outline: none;
+/* Every field: as wide as its text, with only a dashed line under it */
+.adm input[type="text"], .adm input[type="tel"], .adm input[type="number"], .adm select, .adm textarea {
+  font: inherit; color: var(--ink); background: transparent; border: 0; border-bottom: 1px dashed var(--ink-soft);
+  border-radius: 0; padding: 1px 2px; min-width: 2ch; field-sizing: content;
 }
-.adm-bar input:focus { border-color: var(--accent); }
-.adm-count { color: var(--ink-soft); font-size: .9rem; }
+.adm input:focus, .adm select:focus, .adm textarea:focus { outline: none; border-bottom: 1px solid var(--accent); }
+.adm input.bad { border-bottom-color: var(--esh); }
+.adm input[type="tel"] { direction: ltr; text-align: right; font-variant-numeric: tabular-nums; }
+.adm input[type="number"] { text-align: center; -moz-appearance: textfield; appearance: textfield; }
+.adm input[type="number"]::-webkit-inner-spin-button, .adm input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.adm select { cursor: pointer; }
+.adm textarea { display: block; align-self: flex-start; max-width: 100%; resize: none; line-height: 1.6; overflow: hidden; }
 
-/* students and the archive: tables that scroll sideways on a narrow screen */
-.adm-scroll { overflow-x: auto; background: var(--bg-elevated); border: 1px solid var(--line); border-radius: var(--radius); }
-.adm-table { border-collapse: collapse; width: 100%; font-size: .9rem; }
-.adm-table th {
-  font: 600 .8rem var(--font-head); color: var(--ink-soft); text-align: start; white-space: nowrap;
-  padding: 10px 8px; border-bottom: 1px solid var(--line); background: var(--accent-faint);
-}
-.adm-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+/* students and the archive: columns only as wide as they must be; the rest scrolls sideways */
+.adm-scroll { width: fit-content; max-width: 100%; overflow-x: auto; background: var(--bg-elevated); border: 1px solid var(--line); border-radius: var(--radius); }
+.adm-table { border-collapse: collapse; font-size: .9rem; }
+.adm-table th, .adm-table td { padding: 5px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; vertical-align: middle; text-align: start; }
+.adm-table th { font-weight: 600; color: var(--ink-soft); background: var(--accent-faint); }
 .adm-table tbody tr:last-child td { border-bottom: 0; }
 .adm-table tbody tr:hover td { background: #fffdf8; }
-.adm-table input, .adm-table select {
-  font: inherit; color: var(--ink); padding: 5px 8px; border: 1px solid transparent;
-  border-radius: 7px; background: transparent;
-}
-.adm-table input:hover, .adm-table select:hover { border-color: var(--line); }
-.adm-table input:focus, .adm-table select:focus { outline: none; border-color: var(--accent); background: #fff; }
-.adm-table input.name { width: 100px; font-weight: 600; }
-.adm-table input[type="tel"] { width: 118px; direction: ltr; text-align: right; font-variant-numeric: tabular-nums; }
-.adm-table input.step { width: 64px; text-align: center; }
-.adm-table input.bad { border-color: var(--esh); }
-.adm-table select { border-color: var(--line); background: var(--bg); }
-.adm-table .num { font: 700 1.05rem var(--font-head); color: var(--accent-strong); text-align: center; font-variant-numeric: tabular-nums; }
-.adm-table details summary { cursor: pointer; white-space: nowrap; color: var(--accent-strong); }
-.adm-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; min-width: 220px; }
-.adm-pill {
-  display: inline-flex; align-items: center; gap: 6px; font-size: .78rem; padding: 2px 8px;
-  border-radius: 999px; background: var(--accent-faint); border: 1px solid var(--line); color: var(--ink);
-}
-.adm-pill.done { background: #e6f0e0; border-color: #c4d8b6; }
+.adm-table input.name { font-weight: 600; }
+.adm-table .num { font-weight: 700; color: var(--accent-strong); text-align: center; font-variant-numeric: tabular-nums; }
+.adm-table details summary { cursor: pointer; color: var(--accent-strong); }
+.adm-pills { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.adm-pill.done { color: var(--regel); }
 .adm-pill i { font-style: normal; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.adm-next { display: block; font-size: .8rem; color: var(--ink-soft); white-space: nowrap; }
-.adm-dim { color: var(--ink-soft); font-size: .8rem; }
-.adm-log td.when { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.adm-log td.phones { direction: ltr; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.adm-log td.msg { min-width: 220px; line-height: 1.5; }
+.adm-dim { color: var(--ink-soft); }
+.adm-status { display: block; color: var(--regel); }
+.adm-status:empty { display: none; }
+.adm-status.err { color: var(--esh); }
+.adm-log td.when, .adm-log td.phones { font-variant-numeric: tabular-nums; }
+.adm-log td.phones { direction: ltr; text-align: right; }
+.adm-log td.msg { white-space: normal; min-width: 220px; line-height: 1.5; }
 .adm-log tr.failed td { background: #fdf1ee; }
-.adm-tag { font-size: .72rem; background: var(--accent-soft); color: var(--accent-strong); border-radius: 999px; padding: 1px 8px; }
+.adm-tag { background: var(--accent-soft); color: var(--accent-strong); border-radius: 999px; padding: 0 8px; }
 .adm-err { color: var(--esh); font-weight: 600; }
 
-.adm-card { background: var(--bg-elevated); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; }
-.adm-card h2 { font: 700 1.05rem var(--font-head); margin: 0 0 10px; }
-.adm-switch { display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 4px; cursor: pointer; }
+/* the message to the parents: one card */
+#tab-sms { max-width: 760px; }
+.adm-card { width: fit-content; max-width: 100%; background: var(--bg-elevated); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+.adm-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+.adm-switch, .adm-step { display: flex; align-items: center; gap: 8px; }
+.adm-switch { font-weight: 600; cursor: pointer; }
 .adm-switch input { width: 20px; height: 20px; accent-color: var(--accent); }
-.adm-card textarea {
-  width: 100%; font: 1rem/1.6 var(--font-body); padding: 10px 12px; border: 1px solid var(--line);
-  border-radius: 10px; resize: vertical; background: var(--bg);
-}
-.adm-card textarea:focus, .adm-step input:focus, .adm-actions input:focus { outline: none; border-color: var(--accent); background: #fff; }
-.adm-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: .85rem; color: var(--ink-soft); }
-.adm-chips button { font: inherit; color: var(--accent-strong); background: var(--accent-soft); border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
-  background: #e9f3e4; border-radius: 14px 14px 4px 14px; padding: 10px 14px; max-width: 420px;
-  white-space: pre-wrap; line-height: 1.55; font-size: .95rem;
-}
-.adm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
-.adm-actions input { font: inherit; width: 150px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; direction: ltr; text-align: right; }
-.adm-btn { font: 600 .95rem var(--font-head); color: #fff; background: var(--accent); border: 0; border-radius: 999px; padding: 9px 22px; cursor: pointer; }
-.adm-btn:hover { opacity: .9; }
-.adm-btn:disabled { opacity: .5; cursor: default; }
-.adm-btn.ghost { background: none; color: var(--accent-strong); border: 1px solid var(--accent); }
-
-}
-.adm-step { display: flex; align-items: center; gap: 8px; font-size: 1rem; margin-top: 14px; }
-.adm-step input { font: 700 1rem var(--font-head); width: 74px; padding: 6px 8px; text-align: center; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-.adm-field { font: inherit; width: 200px; max-width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
-.adm-field:focus { outline: none; border-color: var(--accent); background: #fff; }
-#tab-sms > .adm-actions { margin: 0 0 18px; }
-.adm-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; margin-top: 14px; }
-.adm-row .adm-step, .adm-row .adm-switch { margin: 0; }
-.adm-label { font-weight: 600; margin: 18px 0 8px; }
+.adm-label { font-weight: 600; margin: 4px 0 0; }
 .adm-label span { font-weight: 400; color: var(--ink-soft); }
-.adm-step input.adm-field { width: 150px; font: inherit; text-align: right; }
+.adm-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .85rem; color: var(--ink-soft); }
+.adm-chips button { font: inherit; color: var(--accent-strong); background: var(--accent-soft); border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; }

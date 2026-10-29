@@ -63,10 +63,24 @@ async function start(admin) {
   showTab({ "#sms": "sms", "#log": "log" }[location.hash] || "students");
 }
 
+// Fields are as wide as their text (CSS field-sizing); where the browser doesn't
+// do that yet, here.
+const FIT = !(window.CSS && CSS.supports("field-sizing", "content"));
+function fit(el) {
+  if (!FIT) return;
+  const len = [...(el.value || el.placeholder || "")].length;
+  if (el.tagName === "TEXTAREA") { el.style.width = "100%"; el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
+  else if (el.type === "number") el.style.width = `${Math.max(2, len) + 1}ch`;
+  else el.size = Math.max(2, len + 1);
+}
+const fitAll = (root) => root.querySelectorAll("input[type=text], input[type=tel], input[type=number], textarea").forEach(fit);
+document.addEventListener("input", (e) => { if (e.target.matches && e.target.matches("input, textarea")) fit(e.target); });
+
 // ---------- tabs ----------
 function showTab(name) {
   document.querySelectorAll(".adm-tabs [data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
   ["students", "sms", "log"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
+  fitAll($("tab-" + name));
   history.replaceState(null, "", name === "students" ? location.pathname : "#" + name);
   if (name === "log" && !LOG_LOADED) loadLog();
 }
@@ -114,6 +128,7 @@ function rowHtml(s) {
 
 function drawStudents() {
   $("adm-list").innerHTML = STUDENTS.map(rowHtml).join("");
+  fitAll($("adm-list"));
 }
 
 function rowStatus(row, text, bad = false) {
@@ -172,6 +187,7 @@ function fillSms() {
   $("sms-copy").checked = SMS.copyToMe === true;
   $("sms-template").value = newTokens(SMS.template);
   countChars();
+  fitAll($("tab-sms"));
 }
 // Length of the message as sent (with an example name).
 function countChars() {
@@ -204,6 +220,7 @@ async function saveSms() {
     const enabled = $("sms-enabled").checked, copyToMe = $("sms-copy").checked;
     await setDoc(doc(getDb(), "settings", "sms"), { enabled, step, template, sender, copyToMe, updatedAt: new Date().toISOString() }, { merge: true });
     SMS = { ...SMS, enabled, step, template, sender, copyToMe };
+    $("sms-sender").value = sender;
     drawStudents();
   } catch (err) {
     fail("השמירה לא הצליחה: " + errText(err));
