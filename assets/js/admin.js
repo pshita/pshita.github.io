@@ -15,7 +15,7 @@ const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 // the same defaults as the server (functions/index.js)
 const SMS_DEFAULTS = { enabled: false, step: 10, sender: "", template: "{שם} ענה נכון על {מספר} שאלות בשיעורי הגמרא באתר פשיטא 🎉" };
 // every message is counted by this many characters (spaces included)
-const SMS_CHARS = 140;
+const SMS_CHARS = 134;
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
