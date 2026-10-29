@@ -10,8 +10,8 @@
 /* plain continuous text of the lessons, like a word-processor page */
 :root{--ink:#111;--muted:#666;--line:#ddd;--desk:#e9e9ec;--page:#fff;--accent:#1a5fb4;--edit:#fff8d6;--text:'Frank Ruhl Libre',David,'Times New Roman',serif}
 *{box-sizing:border-box}
-body{margin:0;background:var(--desk);color:var(--ink);font-family:Arial,'Segoe UI',sans-serif}
-/* the top bar hides; a click on the strip at the top of the screen brings it back */
+body{margin:0;background:var(--page);color:var(--ink);font-family:Arial,'Segoe UI',sans-serif}
+/* the top bar hides; the mouse at the top of the screen (or a tap there) brings it back */
 #hot{position:fixed;top:0;left:0;right:0;height:14px;z-index:2;cursor:pointer}
 /* bar and menus: same look as the site header and its menu (assets/css/style.css) */
 :root{--s-bg:#faf6ee;--s-ink:#2b241b;--s-soft:#5c5347;--s-line:#e4d9c4;--s-accent-soft:#f1e3d1;--s-accent-strong:#6d3a22;--s-head:"Rubik","Heebo","Arial Hebrew",sans-serif}
@@ -75,11 +75,17 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 #fmt button{width:30px;height:28px;border:0;border-radius:5px;background:none;color:#fff;font:700 15px Arial,sans-serif;cursor:pointer}
 #fmt button:hover{background:#444}
 #fmt .red{color:#ff8a7a}
+#fmt .it{font-style:italic;font-family:Georgia,serif}
 #fmt .hd{width:auto;padding:0 8px;font-size:13px;border-inline-start:1px solid #555;border-radius:0 5px 5px 0}
-.page{max-width:820px;margin:0 auto 40px;background:var(--page);box-shadow:0 1px 4px rgba(0,0,0,.15);padding:56px 64px;font-family:var(--text);font-size:var(--fs,17px);line-height:1.5}
-.page h1{font-size:1.47em;font-weight:700;margin:0 0 2px}
-.page h1:not(:first-child){margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
-.page .ref{color:var(--muted);font-size:.82em;margin:0 0 14px}
+.page{min-height:100vh;background:var(--page);padding:28px clamp(16px,3vw,40px) 48px;font-family:var(--text);font-size:var(--fs,17px);line-height:1.4}
+/* the lesson's name, and on the same line its page and amud */
+.page .lh{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:2px 16px;margin:0 0 14px}
+.page .lsn+.lsn .lh{margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
+.page h1{font-size:1.47em;font-weight:700;margin:0;flex:1 1 auto;min-width:40%}
+.page .ref{color:var(--muted);font-size:.82em;margin:0;flex:0 1 auto}
+/* the site's boxes (בקיצור, השוואה, מונחים...), marked with a line at the side */
+.page .blk{border-inline-start:3px solid var(--s-line);padding-inline-start:10px}
+.page .blk .lbl{color:var(--muted);font-weight:700}
 .page .icard .iw{color:var(--muted)}
 .page h2{font-size:1.12em;font-weight:700;margin:20px 0 4px}
 .page p{margin:0 0 6px;text-align:justify}
@@ -102,9 +108,11 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .editing span[data-p],.editing b[data-p]{display:inline-block;min-width:.6em;max-width:100%}
 #tb{position:absolute;z-index:2;font:13px Arial,sans-serif}
 #tb[hidden]{display:none}
+#tb{display:flex;flex-wrap:wrap;gap:4px;max-width:calc(100vw - 16px)}
 #tb button{font:inherit;padding:3px 10px;border:1px solid #bbb;border-radius:5px;background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
-@media (max-width:640px){.page{padding:28px 18px;font-size:var(--fs,16px)}}
-@media print{.bar,.panel,#tb,#hot,#fmt,#msg,#find,#hist{display:none}body{background:#fff}.page{box-shadow:none;margin:0;max-width:none;padding:0}}
+#tb button:hover{border-color:#8a4b2e;color:#6d3a22}
+@media (max-width:640px){.page{padding:20px 14px 40px;font-size:var(--fs,16px)}}
+@media print{.bar,.panel,#tb,#hot,#fmt,#msg,#find,#hist{display:none}body{background:#fff}.page{padding:0;min-height:0}}
 </style>
 <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png">
@@ -126,11 +134,11 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 <div id="msg"></div>
 <div id="find" hidden>
   <div class="frow"><input type="search" id="findQ" placeholder="חיפוש" autocomplete="off"><span id="findN"></span>
-    <button type="button" id="findPrev" title="הקודם">▲</button><button type="button" id="findNext" title="הבא">▼</button><button type="button" id="findX" title="סגירה">✕</button></div>
+    <button type="button" id="findPrev" title="הקודם">▲</button><button type="button" id="findNext" title="הבא">▼</button></div>
   <div class="frow" id="replRow" hidden><input type="text" id="replQ" placeholder="החלפה ב…" autocomplete="off">
     <button type="button" id="replOne">החלפה</button><button type="button" id="replAll">החלפת הכול</button></div>
 </div>
-<div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="red" class="red" title="אדום">A</button><button type="button" data-cmd="heading" class="hd" title="להפוך לכותרת">כותרת</button></div>
+<div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="italic" class="it" title="נטוי">I</button><button type="button" data-cmd="red" class="red" title="אדום">A</button><button type="button" data-cmd="heading" class="hd" title="להפוך לכותרת">כותרת</button></div>
 <div class="page" id="page"><p class="empty">טוען…</p></div>
 <div id="panels"></div>
 <div id="tb" hidden></div>
@@ -189,6 +197,8 @@ async function loadDrafts() {
     const v = doc.data();
     let L;
     try { L = JSON.parse(v.data); } catch (e) { return; }
+    // a page left completely empty goes
+    if (draftEmpty(L)) { fs.deleteDoc(doc.ref).catch(() => {}); return; }
     DRAFTS.push({ id: doc.id, createdAt: v.createdAt || 0 });
     DATA["draft:" + doc.id] = { L, draft: true, createdAt: v.createdAt || 0 };
   });
@@ -229,7 +239,7 @@ function renderLesson(key, d, q) {
   const ed = (p, v, ph = "") => ` data-h="${esc(key)}" data-p="${p}" data-ph="${esc(ph)}">` + (editable ? v : clean(v));
   // in edit mode the page is one editing area; text that isn't part of the lesson data is locked
   const ro = (html) => (EDIT ? `<span contenteditable="false">${html}</span>` : html), roA = EDIT ? ' contenteditable="false"' : "";
-  let h = `<h1${ed("tt", L.title, "שם השיעור")}</h1>` + (d.draft ? "" : `<p class="ref"${ed("rf", L.ref || "", "דף ועמוד")}</p>`);
+  let h = `<div class="lh"><h1${ed("tt", L.title, "שם השיעור")}</h1><p class="ref"${ed("rf", L.ref || "", "דף ועמוד")}</p></div>`;
   if (EDIT && !editable) h += `<p class="note"${roA}>את השיעור הזה אי אפשר לערוך כרגע${d.why ? ` (${esc(d.why)})` : ""}.</p>`;
   let last = -1;
   L.screens.forEach((s, si) => {
@@ -250,10 +260,15 @@ function renderLesson(key, d, q) {
       (s.comic || []).forEach((p) => h += `<p${roA}>${clean(p[1])}</p>`);
       (s.text || []).forEach((t, ti) => h += `<p${ed(`tx.${si}.${ti}`, t, "טקסט")}</p>`);
       if (s.quote) h += `<p${roA}>${clean(s.quote)}</p>`;
+      // the site's boxes; each box's pieces carry its place as "<si>.<side>.<bi>"
       ["before", "after"].forEach((side) => (s[side] || []).forEach((b, bi) => {
-        if (b.k === "gloss") b.items.forEach((g, gi) => h += `<p${ed(`gl.${si}.${side}.${bi}.${gi}`, g)}</p>`);
-        else if (b.k === "short") h += `<p>${ro("<b>בקיצור:</b> ")}<span${ed(`sh.${si}.${side}.${bi}`, b.text)}</span></p>`;
-        else if (b.k === "cards") h += `<p>${b.items.map((c, ci) => `<b${ed(`ct.${si}.${side}.${bi}.${ci}`, c.t)}</b>${ro(": ")}<span${ed(`cs.${si}.${side}.${bi}.${ci}`, c.s)}</span>`).join(ro(" · "))}</p>`;
+        const at = `${si}.${side}.${bi}`, lbl = (t) => ro(`<span class="lbl">${t}:</span> `);
+        if (b.k === "gloss") b.items.forEach((g, gi) => h += `<p class="blk">${gi ? "" : lbl("מונחים")}<span${ed(`gl.${at}.${gi}`, g, "מונח: הסבר")}</span></p>`);
+        else if (b.k === "short") h += `<p class="blk">${lbl("בקיצור")}<span${ed(`sh.${at}`, b.text, "המשפט המסכם")}</span></p>`;
+        else if (b.k === "cards") h += `<p class="blk">${lbl("השוואה")}${b.items.map((c, ci) => `<b${ed(`ct.${at}.${ci}`, c.t, "כותרת")}</b>${ro(": ")}<span${ed(`cs.${at}.${ci}`, c.s, "הסבר")}</span>`).join(ro(" · "))}</p>`;
+        else if (b.k === "pills") h += `<p class="blk">${lbl("מילים מסומנות")}${b.items.map((w, wi) => `<span${ed(`pl.${at}.${wi}`, w, "מילה")}</span>`).join(ro(" · "))}</p>`;
+        else if (b.k === "verses") b.items.forEach((v, vi) => h += `<p class="blk">${vi ? "" : lbl("פסוקים")}<span${ed(`vb.${at}.${vi}`, v.before, "לפני")}</span><b${ed(`vw.${at}.${vi}`, v.word, "המילה")}</b><span${ed(`va.${at}.${vi}`, v.after, "אחרי")}</span> ${ro("(")}<span${ed(`vs.${at}.${vi}`, v.src, "מקור")}</span>${ro(")")}</p>`);
+        else if (b.k === "bars") h += `<p class="blk"${roA}>${b.rows.map((r) => clean(r[0] + ": " + r[1])).join(" · ")}</p>`;
       }));
       return;
     }
@@ -291,6 +306,7 @@ async function render(focus) {
   }).join("");
   CUR = null;
   fitTables();
+  if (RESTORE && !focus) goToPos();
   if (EDIT) page.querySelectorAll("[data-p]").forEach((el) => { if (el.isContentEditable) BASE.set(el, cleanHtml(el)); });
   hideTb();
   if (!$("find").hidden) runFind(false);
@@ -387,10 +403,24 @@ $("panels").onchange = (e) => {
   render();
 };
 
-// The bar shows on a click at the top of the screen and hides again on a click anywhere else.
-$("hot").onclick = (e) => { e.stopPropagation(); $("bar").classList.add("show"); };
+// The bar shows when the mouse reaches the top of the screen (or on a tap there) and hides
+// when the mouse leaves it, unless one of its menus is open. A click anywhere else
+// closes whatever is open: the bar, its menus, the search.
+$("hot").onclick = (e) => { e.stopPropagation(); HOVER = false; $("bar").classList.add("show"); };
+let HOVER = false;
+$("hot").onmouseenter = () => { if (!$("bar").classList.contains("show")) { HOVER = true; $("bar").classList.add("show"); } };
+document.addEventListener("mousemove", (e) => {
+  if (!HOVER || e.clientY < $("bar").offsetHeight + 20 || Object.keys(BTN).some((id) => $(id) && !$(id).hidden)) return;
+  HOVER = false;
+  $("bar").classList.remove("show");
+});
 $("bar").onclick = (e) => e.stopPropagation();
-document.addEventListener("click", () => { closePanels(); $("bar").classList.remove("show"); });
+document.addEventListener("click", () => {
+  HOVER = false;
+  closePanels();
+  $("bar").classList.remove("show");
+  if (!$("find").hidden) closeFind();
+});
 
 // A table wider than the page: smaller text in it first, then columns that share the width.
 function fitTables() {
@@ -549,7 +579,6 @@ $("findQ").addEventListener("keydown", (e) => {
 $("replQ").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); if (NOW > -1) replaceHits("now"); } else if (e.key === "Escape") closeFind(); });
 $("findNext").onclick = () => step(1);
 $("findPrev").onclick = () => step(-1);
-$("findX").onclick = closeFind;
 $("replOne").onclick = () => { if (NOW > -1) replaceHits("now"); };
 $("replAll").onclick = () => { if (HITS.length) replaceHits("all"); };
 // Ctrl+F / Cmd+F opens this search, which covers every page shown.
@@ -559,6 +588,23 @@ addEventListener("keydown", (e) => {
 // typing in the page moves the text: refresh the marks
 let findT;
 $("page").addEventListener("input", () => { if (!$("find").hidden) { clearTimeout(findT); findT = setTimeout(() => runFind(false), 300); } });
+
+// The place on the page is remembered too: the piece at the top of the screen. On opening,
+// the page goes back there (again after each load, until the reader scrolls or clicks).
+const POS_KEY = "pshita.text.pos";
+let RESTORE = null, POS_T;
+try { RESTORE = JSON.parse(localStorage.getItem(POS_KEY)); } catch (e) {}
+function goToPos() {
+  const el = document.querySelector(`#page [data-h="${CSS.escape(RESTORE.h)}"][data-p="${CSS.escape(RESTORE.p)}"]`);
+  if (el) scrollBy(0, el.getBoundingClientRect().top - RESTORE.dy);
+}
+function savePos() {
+  const el = [...$("page").querySelectorAll("[data-p]")].find((x) => x.getBoundingClientRect().bottom > 0);
+  try { localStorage.setItem(POS_KEY, JSON.stringify(el ? { h: el.dataset.h, p: el.dataset.p, dy: el.getBoundingClientRect().top } : null)); } catch (e) {}
+}
+["wheel", "touchstart", "keydown", "mousedown"].forEach((t) => addEventListener(t, () => { RESTORE = null; }, { passive: true, capture: true }));
+addEventListener("scroll", () => { if (RESTORE) return; clearTimeout(POS_T); POS_T = setTimeout(savePos, 300); }, { passive: true });
+if (document.fonts) document.fonts.ready.then(() => { if (RESTORE) goToPos(); });
 
 function saveSelection() { try { localStorage.setItem(SEL_KEY, JSON.stringify(SELECTED.filter((k) => k !== NEW))); } catch (e) {} }
 function loadSelection() {
@@ -639,9 +685,9 @@ fmt.addEventListener("click", (e) => {
     if (parts) { fmt.hidden = true; runOp(el, "toHeading", parts.before, parts.name, parts.after); }
     return;
   }
-  if (b.dataset.cmd === "bold") {
+  if (b.dataset.cmd === "bold" || b.dataset.cmd === "italic") {
     document.execCommand("styleWithCSS", false, false);
-    document.execCommand("bold");
+    document.execCommand(b.dataset.cmd);
   } else {
     const red = /181,\s*67,\s*42/.test(document.queryCommandValue("foreColor"));
     document.execCommand("styleWithCSS", false, true);
@@ -684,6 +730,12 @@ function setValue(L, p, v) {
     case "kk": L.screens[n(1)].kicker = v; break;
     case "tx": L.screens[n(1)].text[n(2)] = v; break;
     case "gl": L.screens[n(1)][a[2]][n(3)].items[n(4)] = v; break;
+    case "pl": L.screens[n(1)][a[2]][n(3)].items[n(4)] = plain(v); break;
+    // a verse is shown as before + word + after, so the spaces around the word are kept in the data
+    case "vb": L.screens[n(1)][a[2]][n(3)].items[n(4)].before = v ? v + " " : ""; break;
+    case "vw": L.screens[n(1)][a[2]][n(3)].items[n(4)].word = v; break;
+    case "va": L.screens[n(1)][a[2]][n(3)].items[n(4)].after = v ? " " + v : ""; break;
+    case "vs": L.screens[n(1)][a[2]][n(3)].items[n(4)].src = plain(v); break;
     case "q": L.screens[n(1)].q = v; break;
     case "o": L.screens[n(1)].o[n(2)] = v; break;
     case "tf": L.screens[n(1)].s = v; break;
@@ -721,6 +773,29 @@ function dropStationIfEmpty(L, k) {
   L.stations.splice(k, 1);
   L.screens.forEach((s) => { if (s.st !== undefined && s.st > k) s.st--; });
 }
+
+// The site's boxes that can be added from here, as they start out, and the first / last
+// piece of each one's items.
+const NEW_ITEM = {
+  gloss: () => "",
+  pills: () => "",
+  cards: (prev) => ({ t: "", s: "", c: prev && prev.c === "red" ? "teal" : "red" }),
+  verses: (prev) => ({ src: "", before: "", word: "", after: "", c: (prev && prev.c) || "red" }),
+};
+const NEW_BLOCK = {
+  short: () => ({ k: "short", text: "" }),
+  cards: () => ({ k: "cards", items: [NEW_ITEM.cards(), NEW_ITEM.cards({ c: "red" })] }),
+  gloss: () => ({ k: "gloss", items: [""] }),
+  verses: () => ({ k: "verses", items: [NEW_ITEM.verses()] }),
+  pills: () => ({ k: "pills", items: [""] }),
+};
+const BLOCK_NAMES = { short: "בקיצור", cards: "השוואה", gloss: "מונחים", verses: "פסוקים", pills: "מילים מסומנות" };
+const FIRST_PIECE = { short: "sh", cards: "ct", gloss: "gl", verses: "vb", pills: "pl" };
+const LAST_PIECE = { short: "sh", cards: "cs", gloss: "gl", verses: "vs", pills: "pl" };
+const BLOCK_PIECE = /^(sh|ct|cs|gl|pl|vb|vw|va|vs)$/;
+// all the text in a box, an item of one, or anything else in the lesson data (colors and kinds aside)
+const itemText = (x) => plain(typeof x === "string" ? x : Array.isArray(x) ? x.map(itemText).join(" ")
+  : x && typeof x === "object" ? Object.entries(x).filter(([k]) => k !== "k" && k !== "c").map(([, v]) => itemText(v)).join(" ") : "");
 
 const emptyScreen = (S) => !S.text.length && !(S.before || []).length && !(S.after || []).length && !S.comic && !S.quote && !S.kicker;
 
@@ -796,6 +871,63 @@ const OPS = {
     L.screens.splice(si + 1, 0, N);
     if (emptyScreen(S)) L.screens.splice(si, 1);
     return { p: `tx.${L.screens.indexOf(N)}.0`, start: true };
+  },
+  // An empty paragraph becomes one of the site's boxes. The paragraphs after it move to a
+  // new screen of the same section, so the box stays right where the paragraph was.
+  insertBlock(L, si, ti, k) {
+    const S = L.screens[si];
+    const rest = S.text.splice(ti + 1);
+    S.text.splice(ti, 1);
+    if (rest.length || (S.after || []).length) {
+      const N = { type: "read", st: S.st, text: rest };
+      if (S.after) N.after = S.after;
+      L.screens.splice(si + 1, 0, N);
+      S.after = [];
+    }
+    S.after = S.after || [];
+    S.after.push(NEW_BLOCK[k]());
+    return { p: `${FIRST_PIECE[k]}.${si}.after.${S.after.length - 1}${k === "short" ? "" : ".0"}`, start: true };
+  },
+  // A box goes; if its screen is left with nothing else, it joins the screen after it.
+  delBlock(L, si, side, bi) {
+    const S = L.screens[si];
+    S[side].splice(bi, 1);
+    if (!S[side].length) delete S[side];
+    const N = L.screens[si + 1];
+    if (!S.before && !S.after && N && N.type === "read" && N.st === S.st && !N.kicker && !N.comic && !N.quote) {
+      S.text.push(...N.text);
+      if (N.before) S.before = N.before;
+      if (N.after) S.after = N.after;
+      L.screens.splice(si + 1, 1);
+    }
+    if (emptyScreen(S)) S.text = [""];
+    return S.text.length ? { p: `tx.${si}.${S.text.length - 1}` } : null;
+  },
+  // Enter in a box: a new item in a list (terms, cards, verses, words); in "בקיצור",
+  // or in an empty last item, a new paragraph after the box.
+  blockEnter(L, si, side, bi, i) {
+    const S = L.screens[si], b = S[side][bi], at = `${si}.${side}.${bi}`;
+    if (b.k !== "short" && b.k !== "bars") {
+      const last = i === b.items.length - 1, empty = !itemText(b.items[i]);
+      if (!(last && empty && b.items.length > 1)) {
+        b.items.splice(i + 1, 0, NEW_ITEM[b.k](b.items[i]));
+        return { p: `${FIRST_PIECE[b.k]}.${at}.${i + 1}`, start: true };
+      }
+      b.items.splice(i, 1);
+    }
+    const N = L.screens[si + 1];
+    if (N && N.type === "read" && N.st === S.st) { N.text.unshift(""); return { p: `tx.${si + 1}.0` }; }
+    L.screens.splice(si + 1, 0, { type: "read", st: S.st, text: [""] });
+    return { p: `tx.${si + 1}.0` };
+  },
+  // Backspace at the start of an empty piece of a box: its item goes, and with the last item the box.
+  blockBack(L, si, side, bi, i) {
+    const b = L.screens[si][side][bi], at = `${si}.${side}.${bi}`;
+    if (b.k === "short" || b.k === "bars") return OPS.delBlock(L, si, side, bi);
+    if (itemText(b.items[i])) return { p: `${FIRST_PIECE[b.k]}.${at}.${i}` };  // the rest of this item still has text
+    if (b.items.length === 1) return OPS.delBlock(L, si, side, bi);
+    b.items.splice(i, 1);
+    return { p: `${LAST_PIECE[b.k]}.${at}.${Math.max(0, i - 1)}` };
   },
   // Backspace in an empty paragraph
   delPara(L, si, ti) {
@@ -923,23 +1055,22 @@ async function doSave(key) {
     say(`השמירה לא הצליחה: ${why}. השינויים שמורים במחשב הזה, וננסה שוב בשינוי הבא.`);
   }
 }
-// A draft with no text left at all (name, headings, paragraphs).
-const draftEmpty = (L) => !plain(L.title) && L.stations.every((x) => !plain(x)) &&
-  L.screens.every((s) => !(s.text || []).some((t) => plain(t)));
+// A draft with no text left at all (name, page line, headings, paragraphs, boxes).
+const draftEmpty = (L) => !itemText([L.title, L.ref, L.stations, L.screens.map((x) => [x.text, x.before, x.after])]);
 function removeDraft(key) {
   DRAFTS = DRAFTS.filter((x) => "draft:" + x.id !== key);
   delete DATA[key];
   dropBackup(key);
   DIRTY.delete(key);
   clearTimeout(TIMERS[key]);
-  // its place on the page goes to the empty "עמוד חדש", ready for typing
-  const was = SELECTED.includes(key);
-  SELECTED = SELECTED.filter((k) => k !== key && k !== NEW);
-  if (was) SELECTED.push(NEW);
-  DATA[NEW] = { L: newDraftData(), draft: true };
+  // it disappears from the page and from the menu; if the caret is still in it, an
+  // unsaved empty page takes its place, so typing can go on
+  const typing = CUR && CUR.dataset.h === key && SELECTED.includes(key);
+  SELECTED = SELECTED.filter((k) => k !== key && (!typing || k !== NEW));
+  if (typing) { DATA[NEW] = { L: newDraftData(), draft: true }; SELECTED.push(NEW); }
   saveSelection();
   drawMenus();
-  render(was ? { h: NEW, p: "tt" } : null);
+  render(typing ? { h: NEW, p: "tt" } : null);
 }
 // The empty "עמוד חדש" became a draft once something was typed in it.
 function promoteNew() {
@@ -968,8 +1099,18 @@ addEventListener("beforeunload", (e) => {
 // Before a lesson goes to the site: drop empty paragraphs (but keep one under
 // a heading that has nothing else). Returns true if it isn't ready yet.
 function tidy(L) {
+  // boxes (and items of boxes) with no text are left out
+  L.screens.forEach((S) => ["before", "after"].forEach((side) => {
+    if (!S[side]) return;
+    S[side] = S[side].filter((b) => {
+      if (b.items) b.items = b.items.filter(itemText);
+      return itemText(b);
+    });
+    if (!S[side].length) delete S[side];
+  }));
   for (let si = L.screens.length - 1; si >= 0; si--) {
     const S = L.screens[si];
+    if (S.type === "read" && S.text && !S.text.length && emptyScreen(S)) { L.screens.splice(si, 1); dropStationIfEmpty(L, S.st); continue; }
     if (S.type !== "read" || !S.text) continue;
     for (let ti = S.text.length - 1; ti >= 0; ti--) {
       if (plain(S.text[ti])) continue;
@@ -980,24 +1121,36 @@ function tidy(L) {
   return !plain(L.title) || L.stations.some((s) => !plain(s)) || L.screens.some((s) => s.type === "read" && s.text && s.text.length === 1 && !plain(s.text[0]));
 }
 
-// "כותרת" shows only on an empty paragraph that isn't the first thing in its section.
+// Over an empty paragraph: "כותרת" (unless it's the first thing in its section) and
+// "הוספת תיבה", which opens the list of the site's boxes. In a box: "מחיקת התיבה".
 const tb = $("tb");
 function hideTb() { tb.hidden = true; }
-function showTb(el) {
+function showTb(el, boxes = false) {
   const [kind, si, ti] = el.dataset.p.split(".");
   const L = DATA[el.dataset.h] && DATA[el.dataset.h].L;
-  if (kind !== "tx" || !L || cleanHtml(el)) return hideTb();
-  const S = L.screens[+si];
-  if (+ti === 0 && !L.screens.slice(0, +si).some((s) => s.st === S.st)) return hideTb();
-  tb.innerHTML = `<button type="button">כותרת</button>`;
+  if (!L) return hideTb();
+  if (BLOCK_PIECE.test(kind)) tb.innerHTML = `<button type="button" data-act="delBlock">מחיקת התיבה</button>`;
+  else if (kind !== "tx" || cleanHtml(el)) return hideTb();
+  else if (boxes) tb.innerHTML = Object.entries(BLOCK_NAMES).map(([k, n]) => `<button type="button" data-act="insertBlock" data-k="${k}">${n}</button>`).join("");
+  else {
+    const S = L.screens[+si], first = +ti === 0 && !L.screens.slice(0, +si).some((s) => s.st === S.st);
+    tb.innerHTML = (first ? "" : `<button type="button" data-act="paraToHeading">כותרת</button>`) + `<button type="button" data-act="boxes">הוספת תיבה ▾</button>`;
+  }
   const r = el.getBoundingClientRect();
-  tb.style.top = `${r.top + scrollY - 30}px`;
-  tb.style.right = `${document.documentElement.clientWidth - r.right - scrollX}px`;
+  tb.style.right = `${Math.max(8, document.documentElement.clientWidth - r.right - scrollX)}px`;
   tb.hidden = false;
+  tb.style.top = `${r.top + scrollY - tb.offsetHeight - 4}px`;
   tb.ed = el;
 }
 tb.addEventListener("mousedown", (e) => e.preventDefault());
-tb.addEventListener("click", () => { if (tb.ed) runOp(tb.ed, "paraToHeading"); });
+tb.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const b = e.target.closest("[data-act]");
+  if (!b || !tb.ed) return;
+  if (b.dataset.act === "boxes") showTb(tb.ed, true);
+  else if (b.dataset.act === "insertBlock") runOp(tb.ed, "insertBlock", b.dataset.k);
+  else runOp(tb.ed, b.dataset.act);
+});
 
 const page = $("page");
 // A lesson's name and page line are saved when the caret leaves them, not while
@@ -1168,7 +1321,8 @@ page.addEventListener("beforeinput", (e) => {
       return;
     }
     if (kind === "st") runOp(a, "addParaInStation");
-    else if (kind === "tt") runOp(a, "fromTitle");
+    else if (kind === "tt" || kind === "rf") runOp(a, "fromTitle");
+    else if (BLOCK_PIECE.test(kind)) runOp(a, "blockEnter");
     return;
   }
   const back = /^delete(Content|Word|SoftLine|HardLine)Backward$/.test(t), fwd = /^delete(Content|Word|SoftLine|HardLine)Forward$/.test(t);
@@ -1178,6 +1332,7 @@ page.addEventListener("beforeinput", (e) => {
     if (!cleanHtml(a)) {
       if (kind === "tx") runOp(a, "delPara");
       else if (kind === "st" && pathNums(a)[0] > 0) runOp(a, "delHeading");
+      else if (BLOCK_PIECE.test(kind)) runOp(a, "blockBack");
     } else if (kind === "tx" && prev && kindOf(prev) === "tx") {
       // join this paragraph to the one before it
       const key = a.dataset.h, L = DATA[key].L, [si, ti] = pathNums(a), pv = cleanHtml(prev);
