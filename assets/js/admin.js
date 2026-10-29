@@ -1,6 +1,6 @@
 // Admin page (admin.html), for the site admin only:
-// - "תלמידים": a table of every student: name (editable), correct answers, the
-//   lessons they did, parents' phones, and their own message settings (on / off /
+// - "תלמידים": a table of every student: name and parents' phones (editable), the
+//   lessons they did, correct answers, and their own message settings (on / off /
 //   the default, every how many answers);
 // - "הודעה להורים": the default for everyone (on / off, every how many answers),
 //   the sender and the text (settings/sms, used by notifyParentsOnQuizMilestone
@@ -87,16 +87,6 @@ function planOf(s) {
   const mode = modeOf(s);
   return { on: mode === "on" || (mode === "default" && SMS.enabled), step: Number.isInteger(s.smsStep) && s.smsStep > 0 ? s.smsStep : SMS.step };
 }
-// What will happen next with this student's parents.
-function nextText(s) {
-  const { on, step } = planOf(s);
-  let t;
-  if (!on) t = "כבויות";
-  else if (!s.fatherPhone && !s.motherPhone) t = "אין טלפון";
-  else { const left = step - (countOf(s) % step); t = `עוד ${left} ${left === 1 ? "תשובה" : "תשובות"}`; }
-  return t + (s.lastSms ? ` · אחרונה: ${dateOf(s.lastSms.at)}` : "");
-}
-
 function rowHtml(s) {
   // lessons in site order: correct answers in each, and whether it was finished
   const perLesson = {};
@@ -105,31 +95,26 @@ function rowHtml(s) {
   const done = did.filter((l) => s.finished[l.id]).length;
   const pills = did.map((l) => `<span class="adm-pill${s.finished[l.id] ? " done" : ""}" title="${s.finished[l.id] ? "סיים את השיעור" : "התחיל את השיעור"}">${s.finished[l.id] ? "✓ " : ""}${esc(l.title)} <i>${perLesson[l.id] || 0}</i></span>`).join("");
   const lessons = did.length ? `<details><summary>${did.length}${done ? ` (סיים ${done})` : ""}</summary><div class="adm-pills">${pills}</div></details>` : '<span class="adm-dim">—</span>';
-  const mode = modeOf(s), def = SMS.enabled ? "פתוחה" : "סגורה";
+  const mode = modeOf(s);
   return `<tr data-id="${esc(s.id)}">
     <td><input type="text" class="name" data-f="firstName" value="${esc(s.firstName || "")}" autocomplete="off"></td>
     <td><input type="text" class="name" data-f="lastName" value="${esc(s.lastName || "")}" autocomplete="off"></td>
-    <td class="num">${countOf(s)}</td>
-    <td>${lessons}</td>
     <td><input type="tel" data-f="fatherPhone" value="${esc(s.fatherPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></td>
     <td><input type="tel" data-f="motherPhone" value="${esc(s.motherPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></td>
+    <td>${lessons}</td>
+    <td class="num">${countOf(s)}</td>
     <td><select data-f="smsMode">
-      <option value="default"${mode === "default" ? " selected" : ""}>ברירת מחדל (${def})</option>
+      <option value="default"${mode === "default" ? " selected" : ""}>ברירת מחדל</option>
       <option value="on"${mode === "on" ? " selected" : ""}>פתוחה</option>
       <option value="off"${mode === "off" ? " selected" : ""}>סגורה</option>
     </select></td>
-    <td><input type="number" class="step" data-f="smsStep" min="1" max="500" inputmode="numeric" value="${Number.isInteger(s.smsStep) ? s.smsStep : ""}" placeholder="${SMS.step}"></td>
-    <td><span class="adm-next">${esc(nextText(s))}</span><span class="adm-status"></span></td>
+    <td><input type="number" class="step" data-f="smsStep" min="1" max="500" inputmode="numeric" value="${Number.isInteger(s.smsStep) ? s.smsStep : ""}" placeholder="${SMS.step}"><span class="adm-status"></span></td>
   </tr>`;
 }
 
 function drawStudents() {
-  const q = $("adm-search").value.trim();
-  const shown = STUDENTS.filter((s) => !q || fullName(s).includes(q));
-  $("adm-list").innerHTML = shown.map(rowHtml).join("") || '<tr><td colspan="9" class="adm-dim">אין תלמידים להצגה.</td></tr>';
-  $("adm-count").textContent = q ? `${shown.length} מתוך ${STUDENTS.length}` : `${STUDENTS.length} תלמידים`;
+  $("adm-list").innerHTML = STUDENTS.map(rowHtml).join("");
 }
-$("adm-search").addEventListener("input", drawStudents);
 
 function rowStatus(row, text, bad = false) {
   const st = row.querySelector(".adm-status");
@@ -172,7 +157,6 @@ $("adm-list").addEventListener("change", async (e) => {
       await updateDoc(doc(getDb(), "users", s.id), { [f]: v });
       s[f] = v;
     }
-    row.querySelector(".adm-next").textContent = nextText(s);
     rowStatus(row, "נשמר ✓");
   } catch (err) {
     rowStatus(row, "לא נשמר: " + errText(err), true);
@@ -192,7 +176,7 @@ function fillSms() {
 function countChars() {
   const text = fillTemplate($("sms-template").value, +$("sms-step").value || SMS_DEFAULTS.step);
   const n = [...text].length, parts = Math.max(1, Math.ceil(n / SMS_CHARS));
-  $("sms-length").textContent = `${n} תווים (עם שם לדוגמה) · ${parts === 1 ? "הודעה אחת" : `${parts} הודעות`} · כל הודעה עד ${SMS_CHARS} תווים כולל רווחים`;
+  $("sms-length").textContent = `${n} תווים` + (parts > 1 ? ` · ${parts} הודעות` : "");
 }
 $("sms-step").addEventListener("input", countChars);
 $("sms-template").addEventListener("input", countChars);
@@ -204,26 +188,30 @@ document.querySelector(".adm-chips").addEventListener("click", (e) => {
   t.focus();
   countChars();
 });
-$("sms-save").addEventListener("click", async () => {
+// Saved automatically: a moment after typing in the text, right away for the rest.
+let SAVE_T;
+async function saveSms() {
+  clearTimeout(SAVE_T);
   const step = Math.round(+$("sms-step").value), template = $("sms-template").value.trim();
   const sender = $("sms-sender").value.trim().replace(/[\s-]/g, ""), status = $("sms-status");
   const fail = (t) => { status.className = "adm-status err"; status.textContent = t; };
   if (!(step >= 1 && step <= 500)) return fail("מספר התשובות צריך להיות בין 1 ל-500.");
   if (!template) return fail("נוסח ההודעה ריק.");
-  if (sender && !/^0\d{8,9}$/.test(sender) && !/^[A-Za-z][A-Za-z0-9]{1,10}$/.test(sender)) return fail("מספר השולח: מספר טלפון, או שם באנגלית עד 11 תווים.");
-  status.className = "adm-status";
-  status.textContent = "שומר…";
+  if (sender && !/^0\d{8,9}$/.test(sender) && !/^[A-Za-z][A-Za-z0-9]{1,10}$/.test(sender)) return fail("מספר השולח לא תקין.");
+  status.textContent = "";
   try {
     const enabled = $("sms-enabled").checked;
     await setDoc(doc(getDb(), "settings", "sms"), { enabled, step, template, sender, updatedAt: new Date().toISOString() }, { merge: true });
     SMS = { ...SMS, enabled, step, template, sender };
-    $("sms-sender").value = sender;
     drawStudents();
-    status.textContent = "נשמר ✓";
   } catch (err) {
     fail("השמירה לא הצליחה: " + errText(err));
   }
-});
+}
+["sms-enabled", "sms-step", "sms-sender"].forEach((id) => $(id).addEventListener("change", saveSms));
+$("sms-template").addEventListener("input", () => { clearTimeout(SAVE_T); SAVE_T = setTimeout(saveSms, 800); });
+$("sms-template").addEventListener("change", saveSms);
+document.querySelector(".adm-chips").addEventListener("click", (e) => { if (e.target.closest("[data-ins]")) saveSms(); });
 
 // A test message, to check the SMS4Free account details.
 $("test-send").addEventListener("click", async () => {

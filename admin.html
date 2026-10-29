@@ -80,20 +80,15 @@
 
       <!-- students: a table; names, phones and each one's messages are edited in place -->
       <section id="tab-students">
-        <div class="adm-bar">
-          <input type="search" id="adm-search" placeholder="חיפוש לפי שם" autocomplete="off">
-          <span class="adm-count" id="adm-count"></span>
-        </div>
         <div class="adm-scroll">
           <table class="adm-table">
             <thead><tr>
-              <th>שם פרטי</th><th>שם משפחה</th><th>תשובות נכונות</th><th>שיעורים</th>
-              <th>טלפון אבא</th><th>טלפון אמא</th><th>הודעות להורים</th><th>כל כמה תשובות</th><th>הודעה הבאה</th>
+              <th>פרטי</th><th>משפחה</th><th>אבא</th><th>אמא</th>
+              <th>שיעורים</th><th>נכונות</th><th>שליחה</th><th>תשובות</th>
             </tr></thead>
             <tbody id="adm-list"></tbody>
           </table>
         </div>
-        <p class="adm-note">כל שינוי נשמר מיד. "ברירת מחדל" ו"כל כמה תשובות" ריק: לפי ההגדרות בלשונית "הודעה להורים".</p>
       </section>
 
       <!-- the message to the parents: the default for everyone, the sender, the text -->
@@ -102,7 +97,6 @@
           <h2>ברירת מחדל לכל התלמידים</h2>
           <label class="adm-switch"><input type="checkbox" id="sms-enabled"> שליחת הודעות להורים פעילה</label>
           <label class="adm-step">כל <input type="number" id="sms-step" min="1" max="500" inputmode="numeric"> תשובות נכונות</label>
-          <p class="adm-note">חל על כל תלמיד שבטבלה מסומן אצלו "ברירת מחדל". לתלמיד מסוים אפשר לפתוח או לסגור את ההודעות ולקבוע כל כמה תשובות, בלשונית "תלמידים". הודעה נשלחת רק אם יש מספר טלפון של אבא או של אמא.</p>
         </div>
         <div class="adm-card">
           <h2>מאיזה מספר ההודעה נשלחת</h2>
@@ -119,10 +113,7 @@
           </div>
           <p class="adm-note" id="sms-length"></p>
         </div>
-        <div class="adm-actions">
-          <button type="button" class="adm-btn" id="sms-save">שמירה</button>
-          <span class="adm-status" id="sms-status"></span>
-        </div>
+        <p class="adm-status" id="sms-status"></p>
         <div class="adm-card adm-test">
           <h2>הודעת בדיקה</h2>
           <p class="adm-note">שולחת את הנוסח השמור (עם השם "ישראל") למספר אחד, כדי לבדוק שהחיבור ל-SMS4Free עובד. נשמרת גם בארכיון.</p>
@@ -152,6 +143,6 @@
   <script src="assets/js/main.js?v=3"></script>
   <script type="module" src="assets/js/header-auth.js?v=8"></script>
   <script type="module" src="assets/js/score.js"></script>
-  <script type="module" src="assets/js/admin.js?v=4"></script>
+  <script type="module" src="assets/js/admin.js?v=5"></script>
 </body>
 </html>
