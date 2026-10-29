@@ -57,3 +57,5 @@
 .adm-label span { font-weight: 400; color: var(--ink-soft); }
 .adm-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .85rem; color: var(--ink-soft); }
 .adm-chips button { font: inherit; color: var(--accent-strong); background: var(--accent-soft); border: 0; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.adm-goals { display: flex; flex-direction: column; gap: 8px; }
+.adm-goals .adm-switch { font-weight: 400; }

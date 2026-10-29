@@ -1,4 +1,5 @@
-import { watchAuthState, logoutUser } from "./auth.js";
+import { watchAuthState, logoutUser, getDb } from "./auth.js";
+import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import "./student.js";  // tells the student when a message was sent to the parents
 
 const loggedOutEl = document.getElementById("auth-area-out");
@@ -37,5 +38,29 @@ watchAuthState((user) => {
     a.href = up + href;
     a.textContent = label;
     menu.appendChild(a);
+  });
+});
+
+// Students see in the menu only the lessons the admin marked as goals on the admin
+// page ("יעדים": settings/goals). None marked: every lesson. The admin sees them all.
+watchAuthState(async (user) => {
+  const menu = document.querySelector(".brand-menu");
+  if (!menu) return;
+  let ids = null;
+  if (user && user.email !== ADMIN_EMAIL) {
+    try {
+      const snap = await getDoc(doc(getDb(), "settings", "goals"));
+      const v = snap.exists() ? snap.data().lessons : null;
+      if (Array.isArray(v) && v.length) ids = new Set(v);
+    } catch (e) {}
+  }
+  menu.querySelectorAll(".submenu").forEach((sub) => {
+    let any = false;
+    sub.querySelectorAll(".submenu-panel a.dropdown-item").forEach((a) => {
+      const id = (a.getAttribute("href") || "").split("/").pop().replace(/\.html$/, "");
+      a.hidden = Boolean(ids) && !ids.has(id);
+      any = any || !a.hidden;
+    });
+    sub.hidden = !any;
   });
 });

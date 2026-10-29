@@ -5,7 +5,8 @@
 // - "הודעה להורים": the default for everyone (on / off, every how many answers),
 //   the sender, a copy of every message to the sender ("עותק אליי") and the text (settings/sms, used by notifyParentsOnQuizMilestone
 //   in functions/index.js);
-// - "ארכיון הודעות": every message sent (smsLog), with its date.
+// - "ארכיון הודעות": every message sent (smsLog), with its date;
+// - "יעדים": the lessons students see in the menu (settings/goals; see header-auth.js).
 import { watchAuthState, getDb, getApp, isReady } from "./auth.js";
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteField,
@@ -20,7 +21,7 @@ const newTokens = (t) => t.split("{שם מלא}").join("{פרטי}").split("{ש�
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
 const errText = (err) => (err && (err.message || err.code)) || "שגיאה";
-let STUDENTS = [], LESSONS = [], SMS = { ...SMS_DEFAULTS }, LOG_LOADED = false;
+let STUDENTS = [], LESSONS = [], GROUPS = [], GOALS = [], SMS = { ...SMS_DEFAULTS }, LOG_LOADED = false;
 
 if (!isReady()) $("adm-gate").textContent = "החיבור לנתונים לא מוגדר באתר.";
 else watchAuthState((user) => {
@@ -38,12 +39,15 @@ else watchAuthState((user) => {
 
 async function start(admin) {
   const db = getDb();
-  const [site, settings, users] = await Promise.all([
+  const [site, settings, users, goals] = await Promise.all([
     fetch("lessons.json", { cache: "no-cache" }).then((r) => r.json()).catch(() => ({ groups: [] })),
     getDoc(doc(db, "settings", "sms")),
     getDocs(collection(db, "users")),
+    getDoc(doc(db, "settings", "goals")),
   ]);
-  LESSONS = site.groups.flatMap((g) => g.lessons);
+  GROUPS = site.groups.filter((g) => g.lessons.length);
+  LESSONS = GROUPS.flatMap((g) => g.lessons);
+  GOALS = (goals.exists() && Array.isArray(goals.data().lessons) && goals.data().lessons) || [];
   if (settings.exists()) SMS = { ...SMS_DEFAULTS, ...settings.data() };
   const list = [];
   users.forEach((u) => { if (u.id !== admin.uid) list.push({ id: u.id, ...u.data() }); });
@@ -60,7 +64,8 @@ async function start(admin) {
   $("adm-main").hidden = false;
   drawStudents();
   fillSms();
-  showTab({ "#sms": "sms", "#log": "log" }[location.hash] || "students");
+  drawGoals();
+  showTab({ "#sms": "sms", "#log": "log", "#goals": "goals" }[location.hash] || "students");
 }
 
 // Fields are as wide as their text (CSS field-sizing); where the browser doesn't
@@ -79,7 +84,7 @@ document.addEventListener("input", (e) => { if (e.target.matches && e.target.mat
 // ---------- tabs ----------
 function showTab(name) {
   document.querySelectorAll(".adm-tabs [data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.tab === name)));
-  ["students", "sms", "log"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
+  ["students", "sms", "log", "goals"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
   fitAll($("tab-" + name));
   history.replaceState(null, "", name === "students" ? location.pathname : "#" + name);
   if (name === "log" && !LOG_LOADED) loadLog();
@@ -253,3 +258,24 @@ async function loadLog() {
     $("log-note").textContent = "הארכיון לא נטען: " + errText(err);
   }
 }
+
+// ---------- goals: the lessons students see in the menu ----------
+function drawGoals() {
+  $("goals-list").innerHTML = GROUPS.map((g) => `<div class="adm-goals">
+    <p class="adm-label">${esc(g.title)}</p>
+    ${g.lessons.map((l) => `<label class="adm-switch"><input type="checkbox" data-goal="${esc(l.id)}"${GOALS.includes(l.id) ? " checked" : ""}> ${esc(l.title)}</label>`).join("")}
+  </div>`).join("");
+}
+$("goals-list").addEventListener("change", async () => {
+  const status = $("goals-status");
+  const lessons = [...$("goals-list").querySelectorAll("[data-goal]:checked")].map((x) => x.dataset.goal);
+  status.className = "adm-status";
+  status.textContent = "";
+  try {
+    await setDoc(doc(getDb(), "settings", "goals"), { lessons, updatedAt: new Date().toISOString() });
+    GOALS = lessons;
+  } catch (err) {
+    status.className = "adm-status err";
+    status.textContent = "השמירה לא הצליחה: " + errText(err);
+  }
+});
