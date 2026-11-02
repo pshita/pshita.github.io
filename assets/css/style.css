@@ -577,3 +577,5 @@ footer.site-footer {
 }
 
 .done-marks { color: var(--regel); font-weight: 700; }
+/* a password typed into a plain text field (so the browser doesn't offer to save it), shown as dots */
+.secret { -webkit-text-security: disc; text-security: disc; }
