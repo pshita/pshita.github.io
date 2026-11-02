@@ -58,6 +58,10 @@ body{margin:0;background:var(--page);color:var(--ink);font-family:Arial,'Segoe U
 .panel .nl-status{margin:0;font-size:.8rem;color:#b23b2e;white-space:normal}
 #msg{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:5;max-width:calc(100vw - 32px);background:#b00020;color:#fff;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 #msg:empty{display:none}
+/* whether the changes are saved: green saved, orange waiting to be saved, red not saved */
+#saveDot{position:fixed;bottom:12px;left:12px;z-index:5;width:10px;height:10px;border-radius:50%;background:#3d9a5b;box-shadow:0 0 0 2px #fff;transition:background .2s}
+#saveDot.wait{background:#e0a030}
+#saveDot.fail{background:#c0392b}
 /* undo / redo, in the top bar while editing */
 #hist{display:flex}
 #hist[hidden]{display:none}
@@ -73,8 +77,6 @@ body{margin:0;background:var(--page);color:var(--ink);font-family:Arial,'Segoe U
 html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 /* the iPhone can still pan sideways with only overflow-x:hidden; clip leaves nothing to pan to */
 @supports (overflow-x:clip){html,body{overflow-x:clip}}
-/* the text moves down below the open bar (and back): keep it where it is on screen, not where it was */
-body{overflow-anchor:none;transition:padding-top .18s}
 .page{overflow-wrap:break-word}
 .bar .icon svg{width:20px;height:20px;display:block}
 #find{position:fixed;top:10px;left:16px;z-index:6;background:#fff;border:1px solid var(--s-line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.14);padding:8px;display:flex;flex-direction:column;gap:6px;font-family:var(--s-head);font-size:14px;max-width:calc(100vw - 32px)}
@@ -85,6 +87,8 @@ body{overflow-anchor:none;transition:padding-top .18s}
 #find button{font:inherit;border:0;background:none;padding:5px 8px;border-radius:7px;cursor:pointer;color:var(--s-ink);white-space:nowrap}
 #find button:hover{background:var(--s-accent-soft);color:var(--s-accent-strong)}
 #findN{color:var(--s-soft);font-size:12px;min-width:44px;text-align:center}
+/* a light selection, so text turned red or bold shows the change while still selected */
+#page ::selection{background:#d6e6fb}
 ::highlight(hits){background:#ffe58a}
 ::highlight(hit-now){background:#f0a33c;color:#000}
 #fmt{position:absolute;z-index:4;display:flex;gap:2px;background:#222;border-radius:7px;padding:3px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
@@ -150,6 +154,7 @@ body{overflow-anchor:none;transition:padding-top .18s}
   </span>
 </div>
 <div id="msg"></div>
+<div id="saveDot" hidden></div>
 <div id="find" hidden>
   <div class="frow"><input type="search" id="findQ" placeholder="חיפוש" autocomplete="off"><span id="findN"></span>
     <button type="button" id="findPrev" title="הקודם">▲</button><button type="button" id="findNext" title="הבא">▼</button></div>
@@ -340,6 +345,11 @@ async function render(focus) {
     }
     else if (el && focus.offset !== undefined) placeCaretAtOffset(el, focus.offset);
     else if (el) placeCaret(el, focus.start);
+    // a new line at the bottom of the screen (or above the phone's keyboard): scroll it into view
+    if (el && !focus.point) {
+      const vh = window.visualViewport ? visualViewport.height : innerHeight, r = el.getBoundingClientRect();
+      if (r.bottom > vh - 30) scrollBy(0, r.bottom - vh + 60);
+    }
   }
 }
 
@@ -427,11 +437,7 @@ $("panels").onchange = (e) => {
 // The bar shows when the mouse reaches the top of the screen (or on a tap there) and hides
 // when the mouse leaves it, unless one of its menus is open. A click anywhere else
 // closes whatever is open: the bar, its menus, the search.
-// While the bar is open the text moves down below it, so the bar never covers it.
-function showBar(on) {
-  $("bar").classList.toggle("show", on);
-  document.body.style.paddingTop = on ? `${$("bar").offsetHeight}px` : "";
-}
+function showBar(on) { $("bar").classList.toggle("show", on); }
 $("hot").onclick = (e) => { e.stopPropagation(); HOVER = false; showBar(true); };
 let HOVER = false;
 $("hot").onmouseenter = () => { if (!$("bar").classList.contains("show")) { HOVER = true; showBar(true); } };
@@ -612,7 +618,7 @@ $("replOne").onclick = () => { if (NOW > -1) replaceHits("now"); };
 $("replAll").onclick = () => { if (HITS.length) replaceHits("all"); };
 // Ctrl+F / Cmd+F opens this search, which covers every page shown.
 addEventListener("keydown", (e) => {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") { e.preventDefault(); openFind(); }
+  if ((e.ctrlKey || e.metaKey) && (e.code === "KeyF" || e.key.toLowerCase() === "f")) { e.preventDefault(); openFind(); }
 });
 // typing in the page moves the text: refresh the marks
 let findT;
@@ -828,6 +834,19 @@ const itemText = (x) => plain(typeof x === "string" ? x : Array.isArray(x) ? x.m
 
 const emptyScreen = (S) => !S.text.length && !(S.before || []).length && !(S.after || []).length && !S.comic && !S.quote && !S.kicker;
 
+// The end of a paste, marked in the text: found, taken out, and returned as where the caret goes.
+const PASTE_END = "\u0002";
+function takePasteEnd(L) {
+  const take = (v) => { const i = v.indexOf(PASTE_END); return { v: v.slice(0, i) + v.slice(i + 1), offset: textLen(v.slice(0, i)) }; };
+  const k = L.stations.findIndex((x) => x.includes(PASTE_END));
+  if (k > -1) { const t = take(L.stations[k]); L.stations[k] = t.v; return { p: `st.${k}`, offset: t.offset }; }
+  for (let si = 0; si < L.screens.length; si++) {
+    const ti = (L.screens[si].text || []).findIndex((x) => x.includes(PASTE_END));
+    if (ti > -1) { const t = take(L.screens[si].text[ti]); L.screens[si].text[ti] = t.v; return { p: `tx.${si}.${ti}`, offset: t.offset }; }
+  }
+  return null;
+}
+
 const OPS = {
   // Enter in a paragraph: whatever follows the caret becomes a new paragraph after it
   splitPara(L, si, ti, rest) { L.screens[si].text.splice(ti + 1, 0, rest); return { p: `tx.${si}.${ti + 1}`, start: true }; },
@@ -873,6 +892,8 @@ const OPS = {
       if (b.type === "p") items.push(i === 0 ? before + b.html : b.html);
       else { if (i === 0 && plain(before)) items.push(before); items.push(H + b.name); }
     });
+    // a mark at the end of the pasted text, to put the caret there afterwards
+    items[items.length - 1] += PASTE_END;
     if (items[items.length - 1].startsWith(H)) { if (plain(after)) items.push(after); }
     else items[items.length - 1] += after;
     const S = L.screens[si];
@@ -882,7 +903,7 @@ const OPS = {
     for (let j = S.text.length - 1; j >= 0; j--) {
       if (L.screens[si] === S && S.text[j] && S.text[j].startsWith(H)) OPS.toHeading(L, si, j, "", S.text[j].slice(H.length), "");
     }
-    return null;
+    return takePasteEnd(L);
   },
   toHeading(L, si, ti, before, name, after) {
     const S = L.screens[si], k = S.st;
@@ -998,6 +1019,31 @@ function commit(key, next) {
 // save to GitHub after a slightly longer pause (each save is a commit).
 // Only a failure is shown.
 const DIRTY = new Set(), TIMERS = {}, CHAIN = {};
+// The dot in the corner: saved, waiting, or failed (checked twice a second).
+const SAVE_FAILED = new Set();
+function showSaveState() {
+  const dot = $("saveDot");
+  if (!isAdmin) return;
+  dot.hidden = false;
+  dot.className = SAVE_FAILED.size ? "fail" : DIRTY.size ? "wait" : "";
+}
+setInterval(showSaveState, 500);
+
+// Every saved version of a lesson or draft is also kept in this browser (the last 20), for
+// safety on top of the site's own history (each save of a lesson is a commit on GitHub).
+const HISTORY_KEY = "pshita.text.history";
+function keepVersion(key) {
+  try {
+    const h = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+    h.push({ key, at: new Date().toISOString(), L: DATA[key].L });
+    let list = h.slice(-20);
+    // if the browser is out of room, keep fewer
+    while (list.length) {
+      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); break; } catch (e) { list = list.slice(1); }
+    }
+  } catch (e) {}
+}
+
 function changed(key) {
   if (key === NEW) key = promoteNew();
   DIRTY.add(key);
@@ -1089,12 +1135,16 @@ async function doSave(key) {
       // saved, but the lesson list didn't take the new name (the next save tries again)
       titleError = Boolean(res.data.titleError);
     }
-    // saved: drop the local copy, or refresh it if more was typed meanwhile
+    // saved: keep this version in the browser too, and drop the copy that waited for the
+    // save (or refresh it if more was typed meanwhile)
+    keepVersion(key);
+    SAVE_FAILED.delete(key);
     if (DIRTY.has(key)) backup(key); else dropBackup(key);
     if (titleError) say("התוכן נשמר, אבל השם החדש לא עודכן ברשימת השיעורים. נסו לשנות אותו שוב.");
     else if (!DIRTY.size) say("");
   } catch (err) {
     DIRTY.add(key);
+    SAVE_FAILED.add(key);
     const why = ((err && err.message) || "שגיאה").replace(/[.\s]+$/, "");
     say(`השמירה לא הצליחה: ${why}. השינויים שמורים במחשב הזה, וננסה שוב בשינוי הבא.`);
   }
@@ -1268,7 +1318,8 @@ $("undoBtn").onclick = undo;
 $("redoBtn").onclick = redo;
 addEventListener("keydown", (e) => {
   if (!EDIT || !(e.ctrlKey || e.metaKey)) return;
-  const k = e.key.toLowerCase();
+  // by the key's place, so it works with a Hebrew keyboard too (where Z types "ז")
+  const k = e.code === "KeyZ" ? "z" : e.code === "KeyY" ? "y" : e.key.toLowerCase();
   if (k === "y" || (k === "z" && e.shiftKey)) { e.preventDefault(); redo(); }
   else if (k === "z") { e.preventDefault(); undo(); }
 });
@@ -1432,7 +1483,13 @@ function pasteInto(el, text, html) {
   // several paragraphs or a heading: split this paragraph at the caret and put them in between
   const r = getSelection().getRangeAt(0);
   r.deleteContents();
-  runOp(el, "pasteBlocks", partHtml(el, null, [r.startContainer, r.startOffset]), blocks, partHtml(el, [r.startContainer, r.startOffset], null));
+  // the space between the paragraph's words and the pasted text is kept
+  const side = (from, to) => { const x = document.createRange(); x.selectNodeContents(el); if (from) x.setStart(...from); if (to) x.setEnd(...to); return x.toString(); };
+  const at = [r.startContainer, r.startOffset];
+  let before = partHtml(el, null, at), after = partHtml(el, at, null);
+  if (before && /\s$/.test(side(null, at))) before += " ";
+  if (after && /^\s/.test(side(at, null))) after = " " + after;
+  runOp(el, "pasteBlocks", before, blocks, after);
 }
 
 const escText = (t) => t.replace(/\u00a0/g, " ").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
