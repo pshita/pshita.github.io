@@ -26,7 +26,7 @@ function grp(s){const a=LESSON.screens,k=a.indexOf(s);if(NONQ.includes(s.type))r
 const KIND={mc:'אמריקאית',tf:'נכון / לא נכון',fill:'השלמת מילה',build:'בניית משפט',match:'התאמת זוגות',order:'סדרו לפי הסדר',sort:'מיון לסלים',marker:'מרקר',flip:'קלפים הפוכים',judge:'אתה הדיין',open:'שאלה לחשיבה',read:'מהשיעור'};
 const SCORED=['mc','tf','fill','build','match','order','sort','marker','judge'];
 const view=document.getElementById('view');
-let showText=false,noQ=false,mode='play',cur=0,R={};
+let cur=0,R={};
 function rnd(seed){return()=>{seed=(seed*9301+49297)%233280;return seed/233280}}
 function shuf(arr,seed){const r=rnd(seed),a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}if(a.join()===arr.join()&&a.length>1)a.push(a.shift());return a}
 // paragraphs marked on the text page to stay there only (they start with this mark) aren't shown; a screen left with nothing isn't either
@@ -38,7 +38,7 @@ const gone=s=>s.type==='read'&&(s.text||[]).length>0&&!shownText(s).length&&!s.k
 let LOCK=new Set(window.PSHITA_ROUND||[]);
 const locked=s=>!NONQ.includes(s.type)&&LOCK.has(LESSON.screens.indexOf(s))&&!st(s).done;
 addEventListener('pshita:round',e=>{LOCK=new Set(e.detail||[]);draw()});
-const screens=()=>LESSON.screens.filter(s=>!gone(s)&&(showText||!s.preview)&&(!noQ||['intro','read','summary'].includes(s.type)));
+const screens=()=>LESSON.screens.filter(s=>!gone(s)&&!s.preview);
 function st(s){const k=LESSON.screens.indexOf(s);return R[k]||(R[k]={done:false,ok:null,pick:null,seq:[],sel:null,matched:{},miss:0,sorted:{},open:{}})}
 function pillify(t,s){const items=[].concat(...[...(s.before||[]),...(s.after||[])].filter(b=>b.k==='pills').map(b=>b.items));items.forEach(w=>{t=t.split(w).join('<span class="ipill">'+w+'</span>')});return t}
 const ART={'איור: רבי עקיבא דואג ומביט בכוכבים':'<rect width="160" height="120" fill="#14213D"/><g fill="#F2B33D"><circle cx="20" cy="18" r="1.6"/><circle cx="44" cy="10" r="1.2"/><circle cx="62" cy="28" r="1.8"/><circle cx="96" cy="14" r="1.3"/><circle cx="112" cy="34" r="1.6"/><circle cx="140" cy="20" r="1.2"/><circle cx="30" cy="44" r="1.1"/><circle cx="80" cy="46" r="1.2"/><path d="M128 10a12 12 0 1 0 10 18a10 10 0 1 1-10-18z"/></g><path d="M0 104q40-18 80-10t80 6v20H0z" fill="#22335A"/><g><path d="M64 118q2-34 16-38q14 4 16 38z" fill="#F5EBD3"/><path d="M70 118q2-26 10-30q8 4 10 30z" fill="#E8DCC4"/><circle cx="80" cy="72" r="9" fill="#F5EBD3"/><path d="M71 70q9-10 18 0q-1-9-9-9t-9 9z" fill="#AEB9D6"/></g>','איור: נחש בין אבני הקיר':'<rect width="160" height="120" fill="#F5EBD3"/><g fill="#E8DCC4" stroke="#D8C39A" stroke-width="1.5"><rect x="-10" y="6" width="50" height="24" rx="4"/><rect x="44" y="6" width="56" height="24" rx="4"/><rect x="104" y="6" width="66" height="24" rx="4"/><rect x="10" y="34" width="54" height="24" rx="4"/><rect x="96" y="34" width="54" height="24" rx="4"/><rect x="-10" y="62" width="44" height="24" rx="4"/><rect x="38" y="62" width="58" height="24" rx="4"/><rect x="100" y="62" width="70" height="24" rx="4"/><rect x="14" y="90" width="60" height="24" rx="4"/><rect x="78" y="90" width="66" height="24" rx="4"/></g><rect x="66" y="35" width="28" height="22" rx="3" fill="#22335A"/><path d="M70 52q6-10 12-4t10-6" stroke="#2BB3A3" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="91" cy="41" r="4.5" fill="#2BB3A3"/><circle cx="92.5" cy="40" r="1.2" fill="#14213D"/>','איור: סיכה תקועה בין אבני הקיר':'<rect width="160" height="120" fill="#F5EBD3"/><g fill="#E8DCC4" stroke="#D8C39A" stroke-width="1.5"><rect x="-10" y="6" width="50" height="24" rx="4"/><rect x="44" y="6" width="56" height="24" rx="4"/><rect x="104" y="6" width="66" height="24" rx="4"/><rect x="10" y="34" width="54" height="24" rx="4"/><rect x="96" y="34" width="54" height="24" rx="4"/><rect x="-10" y="62" width="44" height="24" rx="4"/><rect x="38" y="62" width="58" height="24" rx="4"/><rect x="100" y="62" width="70" height="24" rx="4"/><rect x="14" y="90" width="60" height="24" rx="4"/><rect x="78" y="90" width="66" height="24" rx="4"/></g><rect x="66" y="35" width="28" height="22" rx="3" fill="#22335A"/><line x1="80" y1="46" x2="120" y2="20" stroke="#B9801A" stroke-width="2.5" stroke-linecap="round"/><circle cx="121" cy="19" r="5" fill="#F2B33D" stroke="#B9801A" stroke-width="1.5"/><g stroke="#F2B33D" stroke-width="2" stroke-linecap="round"><line x1="132" y1="12" x2="138" y2="8"/><line x1="134" y1="22" x2="141" y2="23"/><line x1="124" y1="6" x2="126" y2="0"/></g>','איור: עני מקבל מנה בסעודה':'<rect width="160" height="120" fill="#FFF8EC"/><rect x="0" y="92" width="160" height="28" fill="#F5EBD3"/><rect x="14" y="70" width="96" height="8" rx="3" fill="#B9801A"/><rect x="22" y="78" width="6" height="30" fill="#8A6A1F"/><rect x="96" y="78" width="6" height="30" fill="#8A6A1F"/><path d="M44 58h36q-2 14-18 14t-18-14z" fill="#FFFFFF" stroke="#14213D" stroke-width="2"/><ellipse cx="62" cy="58" rx="18" ry="3" fill="#F2B33D"/><g stroke="#AEB9D6" stroke-width="2" fill="none" stroke-linecap="round"><path d="M54 50q-3-5 0-10"/><path d="M62 48q-3-5 0-10"/><path d="M70 50q-3-5 0-10"/></g><path d="M118 112q2-30 14-34q12 4 14 34z" fill="#22335A"/><circle cx="132" cy="68" r="8" fill="#F5EBD3" stroke="#22335A" stroke-width="2"/><line x1="150" y1="60" x2="150" y2="112" stroke="#8A6A1F" stroke-width="3" stroke-linecap="round"/><path d="M118 88q-14-4-26-2" stroke="#22335A" stroke-width="5" fill="none" stroke-linecap="round"/>'};
@@ -123,22 +123,6 @@ function drawPlay(){const list=screens();if(cur>=list.length)cur=list.length-1;c
  document.getElementById('go').onclick=()=>{if(s.type==='summary'){cur=0;R={};FIN=false;Object.keys(SENT).forEach(k=>delete SENT[k]);Object.keys(ANS).forEach(k=>delete ANS[k])}else cur++;draw();window.scrollTo(0,0)};
  wire(s);
  if(locked(s)){const b=view.querySelector('.body');b.classList.add('locked');b.querySelectorAll('button,input').forEach(x=>{x.disabled=true})}}
-function drawList(){let h='',last=-1,n=0;
- LESSON.screens.forEach(s=>{if(s.type==='read'||s.type==='summary')return;n++;
-  if(s.st!==last&&!s.final){h+=`<h3>${s.st+1}. ${LESSON.stations[s.st]}</h3>`;last=s.st}
-  if(s.final)h+=`<h3>סיכום</h3>`;
-  let q='',c='';
-  if(s.type==='mc'||s.type==='fill'||s.type==='judge'){q=s.type==='fill'?`${s.before}___${s.after}`:s.type==='judge'?s.sides.map(x=>x[0]+': '+x[1]).join(' / '):s.q;c=s.o.map((o,i)=>i===s.a?`<span class="c">${AB[i]}. ${o} ✓</span>`:`${AB[i]}. ${o}`).join(' · ')}
-  else if(s.type==='tf'){q=s.s;c=`<span class="c">${s.a?'נכון':'לא נכון'}</span>`}
-  else if(s.type==='marker'){q=s.q+': '+s.words.join(' ');c=`<span class="c">${s.words[s.a]}</span>`}
-  else if(s.type==='build'){q=s.q;c=`<span class="c">${s.ans}</span>`}
-  else if(s.type==='order'){q=s.q;c=`<span class="c">${s.items.join(' ← ')}</span>`}
-  else if(s.type==='match'){q=s.q;c=s.pairs.map(p=>`<span class="c">${p[0]} = ${p[1]}</span>`).join(' · ')}
-  else if(s.type==='sort'){q=s.q;c=s.baskets.map((b,bi)=>`<b>${b}:</b> <span class="c">${s.items.filter(it=>it[1]===bi).map(it=>it[0]).join(', ')}</span>`).join(' · ')}
-  else if(s.type==='flip'){q='קלפים';c=s.cards.map(x=>`${x[1]} <span class="c">${x[2]}</span>`).join(' · ')}
-  else if(s.type==='open'){q=s.q;c=`<span class="c">${s.ans}</span>`}
-  h+=`<div class="li"><div class="h">${n}. <span>${KIND[s.type]}</span></div><div>${q}</div><div>${c}</div>${s.why||s.din?`<div class="w">${s.why||s.din}</div>`:''}</div>`});
- view.innerHTML=`<div class="list">${h}</div>`}
 // Tell the page (student.js) about each question answered correctly, and about finishing
 // the lesson: reaching the end with every question answered (none skipped). Each round
 // from the start ("מתחילים מחדש") counts again.

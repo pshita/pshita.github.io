@@ -33,15 +33,9 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Every message sent to parents (and test messages), written by the server only.
+    // Every message sent to parents, written by the server only.
     match /smsLog/{id} {
       allow read: if isAdmin();
-    }
-
-    // Lessons being written that aren't on the site yet (text.html "עריכה").
-    // Only the site admin.
-    match /drafts/{id} {
-      allow read, write: if isAdmin();
     }
   }
 }

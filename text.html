@@ -259,37 +259,7 @@ async function loadDrafts() {
   });
   DRAFTS.sort((a, b) => a.createdAt - b.createdAt);
   DATA[NEW] = { L: newDraftData(), draft: true };
-  await moveOldDrafts();
 }
-// Drafts from before were kept in Firestore: each one is copied to GitHub (under "d" + its
-// old id), once. Once the copy is there (listDrafts found it), the Firestore one is deleted;
-// the first GitHub version of each draft is exactly what Firestore had.
-async function moveOldDrafts() {
-  let snap;
-  try { snap = await fs.getDocs(fs.collection(auth.getDb(), "drafts")); } catch (e) { return; }
-  const docs = [];
-  snap.forEach((doc) => docs.push(doc));
-  for (const doc of docs) {
-    const v = doc.data(), id = "d" + String(doc.id).toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (DATA["draft:" + id]) {  // copied to GitHub before (and maybe edited since): the old copy goes
-      await fs.deleteDoc(doc.ref).catch(() => {});
-      continue;
-    }
-    let L;
-    try { L = JSON.parse(v.data); } catch (e) { continue; }
-    if (draftEmpty(L)) continue;
-    await httpsCallable(fns, "saveDraft")({ id, lesson: L, createdAt: v.createdAt || Date.now() });
-    DRAFTS.push({ id, createdAt: v.createdAt || 0 });
-    DATA["draft:" + id] = { L, draft: true, createdAt: v.createdAt || 0 };
-    // what pointed at the old draft now points at the moved one
-    const from = "draft:" + doc.id, to = "draft:" + id, b = readBackup();
-    if (b[from]) { b[to] = b[from]; delete b[from]; writeBackup(b); }
-    const sel = loadSelection();
-    if (sel && sel.includes(from)) { SELECTED = sel.map((k) => (k === from ? to : k)); saveSelection(); }
-  }
-  DRAFTS.sort((a, b) => a.createdAt - b.createdAt);
-}
-
 // ---------- rendering ----------
 // Text keeps only bold, italic and red; every other tag or attribute (colors
 // from the lesson design, formatting pasted from elsewhere) is dropped.

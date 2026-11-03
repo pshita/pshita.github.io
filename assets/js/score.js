@@ -39,17 +39,8 @@ function render() {
   `;
 }
 
-export function getCachedAnswers() {
-  return cachedAnswers;
-}
-
 export function getCurrentQuizUser() {
   return currentUser;
-}
-
-export function markQuestionCorrect(questionId) {
-  cachedAnswers[questionId] = true;
-  render();
 }
 
 // Fires once immediately if the answer cache is already loaded, and again

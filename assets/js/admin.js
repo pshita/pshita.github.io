@@ -109,15 +109,10 @@ const fullName = (s) => `${s.firstName || ""} ${s.lastName || ""}`.trim() || "ל
 // each question counts up to 3 correct answers (true = once, from before counting began)
 const timesOf = (v) => (v === true ? 1 : Number.isFinite(v) && v > 0 ? Math.min(v, 3) : 0);
 const countOf = (s) => Object.values(s.correct).reduce((n, v) => n + timesOf(v), 0);
-const dateOf = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "2-digit" }); };
 const timeOf = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("he-IL", { day: "numeric", month: "numeric", year: "2-digit", hour: "2-digit", minute: "2-digit" }); };
 
-// This student's messages, the same rule as studentPlan in functions/index.js.
+// This student's messages: on, off, or the default (the same rule as studentPlan in functions/index.js).
 const modeOf = (s) => (s.smsMode === "on" || s.smsMode === "off" ? s.smsMode : s.notify === false ? "off" : "default");
-function planOf(s) {
-  const mode = modeOf(s);
-  return { on: mode === "on" || (mode === "default" && SMS.enabled), step: Number.isInteger(s.smsStep) && s.smsStep > 0 ? s.smsStep : SMS.step };
-}
 // Time spent learning (see student.js): the total, and opened, each day newest first.
 const hm = (secs) => { const m = Math.round((secs || 0) / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
 function timeHtml(t) {
