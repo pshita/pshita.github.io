@@ -1331,7 +1331,7 @@ const page = $("page");
 const LAZY = (el) => !isDraft(el.dataset.h) && /^(tt|rf)$/.test(el.dataset.p);
 page.addEventListener("focusout", () => { if (CUR && LAZY(CUR) && DIRTY.has(CUR.dataset.h)) saveNow(CUR.dataset.h); });
 
-// A question's ✕ deletes it (undo brings it back).
+// A question's ✕ deletes it, after asking (undo brings it back).
 page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel")) e.preventDefault(); });
 page.addEventListener("click", (e) => {
   const el = e.target.closest(".qdel");
@@ -1339,6 +1339,7 @@ page.addEventListener("click", (e) => {
   e.stopPropagation();
   const key = el.dataset.h, L = DATA[key] && DATA[key].L;
   if (!L || !L.screens[+el.dataset.si]) return;
+  if (!confirm("למחוק את השאלה?")) return;
   snapshot(key);
   L.screens.splice(+el.dataset.si, 1);
   commit(key, null);
