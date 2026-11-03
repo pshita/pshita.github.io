@@ -229,8 +229,8 @@ async function loadDrafts() {
   DATA[NEW] = { L: newDraftData(), draft: true };
   await moveOldDrafts();
 }
-// Drafts from before were kept in Firestore: each one moves to GitHub (under "d" + its
-// old id), once, and leaves Firestore.
+// Drafts from before were kept in Firestore: each one is copied to GitHub (under "d" + its
+// old id), once. The Firestore copy stays until it's checked that the move went well.
 async function moveOldDrafts() {
   let snap;
   try { snap = await fs.getDocs(fs.collection(auth.getDb(), "drafts")); } catch (e) { return; }
@@ -238,14 +238,13 @@ async function moveOldDrafts() {
   snap.forEach((doc) => docs.push(doc));
   for (const doc of docs) {
     const v = doc.data(), id = "d" + String(doc.id).toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (DATA["draft:" + id]) continue;  // copied before (and maybe edited since): leave it
     let L;
     try { L = JSON.parse(v.data); } catch (e) { continue; }
-    if (!draftEmpty(L)) {
-      await httpsCallable(fns, "saveDraft")({ id, lesson: L, createdAt: v.createdAt || Date.now() });
-      if (!DATA["draft:" + id]) DRAFTS.push({ id, createdAt: v.createdAt || 0 });
-      DATA["draft:" + id] = { L, draft: true, createdAt: v.createdAt || 0 };
-    }
-    await fs.deleteDoc(doc.ref).catch(() => {});
+    if (draftEmpty(L)) continue;
+    await httpsCallable(fns, "saveDraft")({ id, lesson: L, createdAt: v.createdAt || Date.now() });
+    DRAFTS.push({ id, createdAt: v.createdAt || 0 });
+    DATA["draft:" + id] = { L, draft: true, createdAt: v.createdAt || 0 };
     // what pointed at the old draft now points at the moved one
     const from = "draft:" + doc.id, to = "draft:" + id, b = readBackup();
     if (b[from]) { b[to] = b[from]; delete b[from]; writeBackup(b); }
