@@ -4,8 +4,11 @@
 (function () {
 const id = document.body.dataset.lesson;
 const view0 = document.getElementById("view");
+// lessons/preview.html?preview inside the text page: the lesson as it is there right now
+// (the text page puts it in window.PSHITA_PREVIEW), not the saved file
+const preview = (() => { try { return /[?&]preview/.test(location.search) && window.parent !== window && window.parent.PSHITA_PREVIEW; } catch (e) { return null; } })();
 Promise.all([
-  fetch("data/" + id + ".json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+  preview ? Promise.resolve(JSON.parse(JSON.stringify(preview))) : fetch("data/" + id + ".json", { cache: "no-cache" }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }),
   fetch("../lessons.json", { cache: "no-cache" }).then((r) => r.json()).catch(() => null),
 ]).then(([L, site]) => {
   const order = site ? [].concat(...site.groups.map((g) => g.lessons.map((l) => l.id))) : [];

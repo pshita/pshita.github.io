@@ -131,6 +131,14 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .page .refsel{font-size:.82em;color:var(--muted);white-space:nowrap}
 .page .refsel select{font:inherit;color:var(--ink,#222);background:none;border:0;border-bottom:1px dashed var(--muted);padding:0 2px;cursor:pointer}
 .page .qn{font-size:.82em;color:var(--muted);white-space:nowrap}
+/* the lesson as students see it, over the page */
+.page .pv{font:600 13px/1 Arial,sans-serif;color:var(--muted);background:none;border:1px solid #ccc;border-radius:999px;padding:5px 12px;cursor:pointer}
+.page .pv:hover{color:#222;border-color:#888}
+#pvBox{position:fixed;inset:0;z-index:60;background:rgba(20,33,61,.55);display:flex;align-items:center;justify-content:center;padding:12px}
+#pvBox[hidden]{display:none}
+#pvBox iframe{width:min(420px,100%);height:min(860px,100%);border:0;border-radius:18px;background:#FFF8EC;box-shadow:0 10px 40px rgba(0,0,0,.35)}
+#pvBox .x{position:absolute;top:12px;inset-inline-end:12px;width:38px;height:38px;border:0;border-radius:50%;background:#fff;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+@media (max-width:640px){#pvBox{padding:0}#pvBox iframe{width:100%;height:100%;border-radius:0}#pvBox .x{top:auto;bottom:16px}}
 .page .tfa{font:inherit;font-weight:700;color:inherit;background:none;border:0;border-bottom:1px dashed var(--muted);padding:0;cursor:pointer}
 .page table{border-collapse:collapse;margin:8px 0 12px;font-size:.88em;max-width:100%}
 .page table.fit{width:100%;table-layout:fixed}
@@ -326,7 +334,8 @@ function renderLesson(key, d, q) {
     ? `<span class="refsel" contenteditable="false">דף <select class="rsel" data-h="${esc(key)}" data-f="daf">${opts(DAFS, daf)}</select> עמוד <select class="rsel" data-h="${esc(key)}" data-f="amud">${opts(["א", "ב"], amud)}</select></span>`
     : `<p class="ref"${roA}>${esc(L.ref || "")}</p>`;
   const nq = L.screens.filter((x) => !["intro", "read", "summary"].includes(x.type)).length;
-  let h = `<div class="lh"><h1${ed("tt", L.title, "שם השיעור")}</h1>${refHtml}${nq ? `<span class="qn"${roA}>${nq} שאלות</span>` : ""}</div>`;
+  const pvBtn = `<span class="pvw" contenteditable="false"><button type="button" class="pv" data-h="${esc(key)}">מעוצב</button></span>`;
+  let h = `<div class="lh"><h1${ed("tt", L.title, "שם השיעור")}</h1>${refHtml}${nq ? `<span class="qn"${roA}>${nq} שאלות</span>` : ""}${pvBtn}</div>`;
   if (EDIT && !editable) h += `<p class="note"${roA}>את השיעור הזה אי אפשר לערוך כרגע${d.why ? ` (${esc(d.why)})` : ""}.</p>`;
   let last = -1;
   L.screens.forEach((s, si) => {
@@ -1401,7 +1410,26 @@ const page = $("page");
 const LAZY = (el) => !isDraft(el.dataset.h) && /^(tt|rf)$/.test(el.dataset.p);
 page.addEventListener("focusout", () => { if (CUR && LAZY(CUR) && DIRTY.has(CUR.dataset.h)) saveNow(CUR.dataset.h); });
 
-page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel, .tfa")) e.preventDefault(); });
+page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel, .tfa, .pv")) e.preventDefault(); });
+// "מעוצב": the lesson as it is on this page right now, in the site's player (lessons/preview.html)
+page.addEventListener("click", (e) => {
+  const el = e.target.closest(".pv");
+  if (!el || !DATA[el.dataset.h]) return;
+  e.stopPropagation();
+  window.PSHITA_PREVIEW = DATA[el.dataset.h].L;
+  let box = $("pvBox");
+  if (!box) {
+    box = document.createElement("div");
+    box.id = "pvBox";
+    box.innerHTML = '<button type="button" class="x">✕</button><iframe title=""></iframe>';
+    document.body.appendChild(box);
+    box.addEventListener("click", (ev) => { if (ev.target === box || ev.target.closest(".x")) closePreview(); });
+  }
+  box.querySelector("iframe").src = "lessons/preview.html?preview=" + Date.now();
+  box.hidden = false;
+});
+function closePreview() { const box = $("pvBox"); if (box) { box.hidden = true; box.querySelector("iframe").src = "about:blank"; } }
+addEventListener("keydown", (e) => { if (e.key === "Escape") closePreview(); });
 // The answer of a true / false question: a click switches it.
 page.addEventListener("click", (e) => {
   const el = e.target.closest(".tfa");

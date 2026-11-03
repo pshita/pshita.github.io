@@ -12,6 +12,8 @@ Lesson ids are numbers without hyphens: daf, amud, then the lesson's number in t
 
 A paragraph marked on the text page to stay there only (select the whole paragraph, then "רק בטקסט") starts with `<!--text-only-->`; the player skips it, and a screen with nothing else is skipped too.
 
+`lessons/preview.html` (a shell with no lesson id) shows the text page's "מעוצב": the player takes the lesson from the text page (`window.PSHITA_PREVIEW`) instead of a data file. Regenerate it with the other shells when `PLAYER_VERSION` changes.
+
 The player loads `data/<id>.json`. It takes "previous / next lesson" from the order in `lessons.json`.
 
 A lesson's JSON has `title`, `ref`, `stations` (the headings) and `screens`. Each screen has a `type`, such as intro, read, mc or summary, and `st`, the index of its station. Each screen sits on one line, so a diff shows exactly what changed.
