@@ -112,8 +112,8 @@ if (isReady()) {
 }
 
 // ---------- in a lesson: the player reports answers and the end of the lesson ----------
-// The player skips the questions answered in the current round (answered right or wrong),
-// until every other question of the lesson is answered too.
+// The player shows the questions answered in the current round (right or wrong) locked,
+// so they can't be answered until every other question of the lesson is answered too.
 function tellRound(lesson) {
   const done = (USER && ROUND[lesson]) || [];
   window.PSHITA_ROUND = done;
