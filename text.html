@@ -58,9 +58,9 @@ body{margin:0;background:var(--page);color:var(--ink);font-family:Arial,'Segoe U
 .panel .nl-status{margin:0;font-size:.8rem;color:#b23b2e;white-space:normal}
 #msg{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:5;max-width:calc(100vw - 32px);background:#b00020;color:#fff;font-weight:700;font-size:14px;padding:8px 14px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 #msg:empty{display:none}
-/* whether the changes are saved: yellow saved or being saved, black not saved */
+/* whether the changes are saved: yellow saved, black not saved, none while waiting to be saved */
 #saveDot{position:fixed;top:6px;right:6px;z-index:5;width:10px;height:10px;border-radius:50%;background:#ffd400;box-shadow:0 0 0 2px #fff;transition:background .2s}
-#saveDot.wait{background:#ffd400}
+#saveDot.wait{display:none}
 #saveDot.fail{background:#111}
 /* undo / redo, in the top bar while editing */
 #hist{display:flex}
