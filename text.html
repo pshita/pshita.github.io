@@ -118,10 +118,10 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .page .qk{color:var(--muted);font-weight:400;font-size:.85em}
 .page .qi{margin:0 0 4px;padding-inline-start:28px}
 .page .why{color:var(--muted);font-size:.9em;margin:0 0 10px}
-/* each question with a box: ticked = it stays in the lesson, not ticked = removed when published */
+/* each question with a button that deletes it */
 .page .qb{position:relative;padding-inline-start:26px}
-.page .qb .keep{position:absolute;inset-inline-start:0;top:12px;width:17px;height:17px;margin:0;accent-color:#2b241b;cursor:pointer}
-.page .qb.off>:not(.kw){opacity:.4}
+.page .qb .qdel{position:absolute;inset-inline-start:0;top:9px;width:20px;height:20px;padding:0;border:0;border-radius:4px;background:none;color:var(--muted);font-size:15px;line-height:20px;cursor:pointer}
+.page .qb .qdel:hover{background:#f3e1dc;color:#a33}
 .page table{border-collapse:collapse;margin:8px 0 12px;font-size:.88em;max-width:100%}
 .page table.fit{width:100%;table-layout:fixed}
 .page td,.page th{border:1px solid #999;padding:3px 8px}
@@ -360,8 +360,8 @@ function renderLesson(key, d, q) {
     else if (s.type === "open") h += q1("open") + `<p class="qi"${ed("an." + si, s.ans || "")}</p>`;
     else if (s.q) h += `<p class="q"${roA}>${clean(s.q)}</p>` + (s.ans ? `<p${roA}>${clean(s.ans)}</p>` : "");
     if (s.why !== undefined || s.din !== undefined) h += `<p class="why">${ro("הסבר: ")}${span("wy." + si, s.why !== undefined ? s.why : s.din)}</p>`;
-    const box = `<span class="kw" contenteditable="false"><input type="checkbox" class="keep" data-h="${esc(key)}" data-si="${si}"${s.off ? "" : " checked"}${d.draft || (!d.noEdit && d.base) ? "" : " disabled"}></span>`;
-    h = outer + `<div class="qb${s.off ? " off" : ""}">${box}${h}</div>`;
+    const del = d.draft || (!d.noEdit && d.base) ? `<span contenteditable="false"><button type="button" class="qdel" data-h="${esc(key)}" data-si="${si}">✕</button></span>` : "";
+    h = outer + `<div class="qb">${del}${h}</div>`;
   });
   return `<section class="lsn" data-key="${esc(key)}"${EDIT && !editable ? ' contenteditable="false"' : ""}>${h}</section>`;
 }
@@ -1331,15 +1331,17 @@ const page = $("page");
 const LAZY = (el) => !isDraft(el.dataset.h) && /^(tt|rf)$/.test(el.dataset.p);
 page.addEventListener("focusout", () => { if (CUR && LAZY(CUR) && DIRTY.has(CUR.dataset.h)) saveNow(CUR.dataset.h); });
 
-// A question's box: ticked, it stays; not ticked, it's marked "off" and left out when published.
-page.addEventListener("change", (e) => {
-  const el = e.target;
-  if (!el.classList || !el.classList.contains("keep")) return;
-  const key = el.dataset.h, sc = DATA[key] && DATA[key].L.screens[+el.dataset.si];
-  if (!sc) return;
-  if (el.checked) delete sc.off; else sc.off = true;
-  el.closest(".qb").classList.toggle("off", !el.checked);
-  changed(key);
+// A question's ✕ deletes it (undo brings it back).
+page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel")) e.preventDefault(); });
+page.addEventListener("click", (e) => {
+  const el = e.target.closest(".qdel");
+  if (!el) return;
+  e.stopPropagation();
+  const key = el.dataset.h, L = DATA[key] && DATA[key].L;
+  if (!L || !L.screens[+el.dataset.si]) return;
+  snapshot(key);
+  L.screens.splice(+el.dataset.si, 1);
+  commit(key, null);
 });
 
 // One edited piece -> the lesson data.
