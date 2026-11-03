@@ -114,6 +114,10 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .page ol{list-style-type:hebrew;margin:0 0 8px;padding-inline-start:28px}
 .page li.ok{font-weight:700}
 .page li.ok::after{content:" ✓"}
+.page p.ok{font-weight:700}
+.page .qk{color:var(--muted);font-weight:400;font-size:.85em}
+.page .qi{margin:0 0 4px;padding-inline-start:28px}
+.page .why{color:var(--muted);font-size:.9em;margin:0 0 10px}
 .page table{border-collapse:collapse;margin:8px 0 12px;font-size:.88em;max-width:100%}
 .page table.fit{width:100%;table-layout:fixed}
 .page td,.page th{border:1px solid #999;padding:3px 8px}
@@ -330,12 +334,26 @@ function renderLesson(key, d, q) {
       return;
     }
     if (!q) return;
+    // every kind of question, with its answers and explanation, all editable (the kind's name
+    // as in the lesson player; the right answer in bold)
     const opts = (list, a) => `<ol>${list.map((x, i) => `<li class="${i === a ? "ok" : ""}"${ed(`o.${si}.${i}`, x)}</li>`).join("")}</ol>`;
-    if (s.type === "mc") h += `<p class="q"${ed("q." + si, s.q)}</p>` + opts(s.o, s.a);
-    else if (s.type === "fill") h += `<p class="q"${roA}>${clean(s.before)} ___ ${clean(s.after)}</p>` + opts(s.o, s.a);
+    const kind = (t) => (Q_KIND[t] ? ro(`<span class="qk">${Q_KIND[t]}: </span>`) : "");
+    const q1 = (t) => `<p class="q">${kind(t)}<span${ed("q." + si, s.q || "", "השאלה")}</span></p>`;
+    const span = (p, v, ph = "") => `<span${ed(p, v ?? "", ph)}</span>`;
+    const sep = (t) => ro(t);
+    if (s.type === "mc") h += q1("mc") + opts(s.o, s.a);
+    else if (s.type === "fill") h += `<p class="q">${kind("fill")}${span("fb." + si, s.before)}${sep(" ___ ")}${span("fa." + si, s.after)}</p>` + opts(s.o, s.a);
     else if (s.type === "judge") h += `<p class="q"${roA}>${s.sides.map((x) => clean(x[0] + ": " + x[1])).join(" / ")}</p>` + opts(s.o, s.a);
-    else if (s.type === "tf") h += `<p class="q">${ro("נכון או לא נכון: ")}<span${ed("tf." + si, s.s)}</span></p><p${roA}>${s.a ? "נכון" : "לא נכון"}</p>`;
+    else if (s.type === "tf") h += `<p class="q">${kind("tf")}<span${ed("tf." + si, s.s)}</span></p><p class="ok"${roA}>${s.a ? "נכון" : "לא נכון"}</p>`;
+    else if (s.type === "order") h += q1("order") + `<ol>${s.items.map((x, i) => `<li${ed(`oi.${si}.${i}`, x)}</li>`).join("")}</ol>`;
+    else if (s.type === "match") h += q1("match") + s.pairs.map((x, i) => `<p class="qi">${span(`ma.${si}.${i}`, x[0])}${sep(" = ")}${span(`mb.${si}.${i}`, x[1])}</p>`).join("");
+    else if (s.type === "marker") h += q1("marker") + `<p class="qi">${s.words.map((w, i) => (i === s.a ? `<b${ed(`mw.${si}.${i}`, w)}</b>` : span(`mw.${si}.${i}`, w))).join(sep(" "))}</p>`;
+    else if (s.type === "build") h += q1("build") + `<p class="qi"><b${ed("ba." + si, s.ans)}</b></p>`;
+    else if (s.type === "flip") h += `<p class="q"${roA}>${kind("flip")}</p>` + s.cards.map((c, ci) => `<p class="qi">${[0, 1, 2, 3].map((j) => span(`fl.${si}.${ci}.${j}`, c[j])).join(sep(" · "))}</p>`).join("");
+    else if (s.type === "sort") h += q1("sort") + s.baskets.map((bk, bi) => `<p class="qi"><b${ed(`sb.${si}.${bi}`, bk)}</b>${sep(": ")}${s.items.map((it, i) => (it[1] === bi ? span(`sx.${si}.${i}`, it[0]) : "")).filter(Boolean).join(sep(" · "))}</p>`).join("");
+    else if (s.type === "open") h += q1("open") + `<p class="qi"${ed("an." + si, s.ans || "")}</p>`;
     else if (s.q) h += `<p class="q"${roA}>${clean(s.q)}</p>` + (s.ans ? `<p${roA}>${clean(s.ans)}</p>` : "");
+    if (s.why !== undefined || s.din !== undefined) h += `<p class="why">${ro("הסבר: ")}${span("wy." + si, s.why !== undefined ? s.why : s.din)}</p>`;
   });
   return `<section class="lsn" data-key="${esc(key)}"${EDIT && !editable ? ' contenteditable="false"' : ""}>${h}</section>`;
 }
@@ -812,6 +830,20 @@ function setValue(L, p, v) {
     case "q": L.screens[n(1)].q = v; break;
     case "o": L.screens[n(1)].o[n(2)] = v; break;
     case "tf": L.screens[n(1)].s = v; break;
+    // the rest of the questions (see renderLesson)
+    case "fb": { const S = L.screens[n(1)]; S.before = v + (/\s$/.test(S.before || "") && v ? " " : ""); break; }
+    case "fa": { const S = L.screens[n(1)]; S.after = (/^\s/.test(S.after || "") && v ? " " : "") + v; break; }
+    case "oi": L.screens[n(1)].items[n(2)] = v; break;
+    case "ma": L.screens[n(1)].pairs[n(2)][0] = v; break;
+    case "mb": L.screens[n(1)].pairs[n(2)][1] = v; break;
+    case "mw": L.screens[n(1)].words[n(2)] = plain(v); break;
+    // a sentence to build: its tiles are its words
+    case "ba": { const S = L.screens[n(1)]; S.ans = plain(v); S.tiles = S.ans.split(/\s+/).filter(Boolean); break; }
+    case "fl": L.screens[n(1)].cards[n(2)][n(3)] = v; break;
+    case "sb": L.screens[n(1)].baskets[n(2)] = v; break;
+    case "sx": L.screens[n(1)].items[n(2)][0] = v; break;
+    case "an": L.screens[n(1)].ans = v; break;
+    case "wy": { const S = L.screens[n(1)]; if (S.why === undefined && S.din !== undefined) S.din = v; else S.why = v; break; }
     case "iq": L.screens[n(1)].question = v; break;
     case "ict": L.screens[n(1)].cards[n(2)].t = v; break;
     case "ics": L.screens[n(1)].cards[n(2)].s = v; break;
@@ -866,6 +898,8 @@ const BLOCK_NAMES = { short: "בקיצור", cards: "השוואה", gloss: "מו
 const FIRST_PIECE = { short: "sh", cards: "ct", gloss: "gl", verses: "vb", pills: "pl" };
 const LAST_PIECE = { short: "sh", cards: "cs", gloss: "gl", verses: "vs", pills: "pl" };
 const BLOCK_PIECE = /^(sh|ct|cs|gl|pl|vb|vw|va|vs)$/;
+// the names of the kinds of questions, as in the lesson player
+const Q_KIND = { mc: "אמריקאית", tf: "נכון / לא נכון", fill: "השלמת מילה", build: "בניית משפט", match: "התאמת זוגות", order: "סדרו לפי הסדר", sort: "מיון לסלים", marker: "מרקר", flip: "קלפים הפוכים", open: "שאלה לחשיבה" };
 // all the text in a box, an item of one, or anything else in the lesson data (colors and kinds aside)
 const itemText = (x) => plain(typeof x === "string" ? x : Array.isArray(x) ? x.map(itemText).join(" ")
   : x && typeof x === "object" ? Object.entries(x).filter(([k]) => k !== "k" && k !== "c").map(([, v]) => itemText(v)).join(" ") : "");
