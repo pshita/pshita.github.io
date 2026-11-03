@@ -122,6 +122,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .page .qb{position:relative;padding-inline-start:26px}
 .page .qb .qdel{position:absolute;inset-inline-start:0;top:9px;width:20px;height:20px;padding:0;border:0;border-radius:4px;background:none;color:var(--muted);font-size:15px;line-height:20px;cursor:pointer}
 .page .qb .qdel:hover{background:#f3e1dc;color:#a33}
+.page .tfa{font:inherit;font-weight:700;color:inherit;background:none;border:0;border-bottom:1px dashed var(--muted);padding:0;cursor:pointer}
 .page table{border-collapse:collapse;margin:8px 0 12px;font-size:.88em;max-width:100%}
 .page table.fit{width:100%;table-layout:fixed}
 .page td,.page th{border:1px solid #999;padding:3px 8px}
@@ -350,7 +351,7 @@ function renderLesson(key, d, q) {
     if (s.type === "mc") h += q1("mc") + opts(s.o, s.a);
     else if (s.type === "fill") h += `<p class="q">${kind("fill")}${span("fb." + si, s.before)}${sep(" ___ ")}${span("fa." + si, s.after)}</p>` + opts(s.o, s.a);
     else if (s.type === "judge") h += `<p class="q"${roA}>${s.sides.map((x) => clean(x[0] + ": " + x[1])).join(" / ")}</p>` + opts(s.o, s.a);
-    else if (s.type === "tf") h += `<p class="q">${kind("tf")}<span${ed("tf." + si, s.s)}</span></p><p class="ok"${roA}>${s.a ? "נכון" : "לא נכון"}</p>`;
+    else if (s.type === "tf") h += `<p class="q">${kind("tf")}<span${ed("tf." + si, s.s)}</span></p><p class="ok"${roA}>${d.draft || (!d.noEdit && d.base) ? `<button type="button" class="tfa" data-h="${esc(key)}" data-si="${si}">${s.a ? "נכון" : "לא נכון"}</button>` : s.a ? "נכון" : "לא נכון"}</p>`;
     else if (s.type === "order") h += q1("order") + `<ol>${s.items.map((x, i) => `<li${ed(`oi.${si}.${i}`, x)}</li>`).join("")}</ol>`;
     else if (s.type === "match") h += q1("match") + s.pairs.map((x, i) => `<p class="qi">${span(`ma.${si}.${i}`, x[0])}${sep(" = ")}${span(`mb.${si}.${i}`, x[1])}</p>`).join("");
     else if (s.type === "marker") h += q1("marker") + `<p class="qi">${s.words.map((w, i) => (i === s.a ? `<b${ed(`mw.${si}.${i}`, w)}</b>` : span(`mw.${si}.${i}`, w))).join(sep(" "))}</p>`;
@@ -1332,7 +1333,18 @@ const LAZY = (el) => !isDraft(el.dataset.h) && /^(tt|rf)$/.test(el.dataset.p);
 page.addEventListener("focusout", () => { if (CUR && LAZY(CUR) && DIRTY.has(CUR.dataset.h)) saveNow(CUR.dataset.h); });
 
 // A question's ✕ deletes it, after asking (undo brings it back).
-page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel")) e.preventDefault(); });
+page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel, .tfa")) e.preventDefault(); });
+// The answer of a true / false question: a click switches it.
+page.addEventListener("click", (e) => {
+  const el = e.target.closest(".tfa");
+  if (!el) return;
+  e.stopPropagation();
+  const key = el.dataset.h, sc = DATA[key] && DATA[key].L.screens[+el.dataset.si];
+  if (!sc) return;
+  snapshot(key);
+  sc.a = !sc.a;
+  commit(key, null);
+});
 page.addEventListener("click", (e) => {
   const el = e.target.closest(".qdel");
   if (!el) return;
