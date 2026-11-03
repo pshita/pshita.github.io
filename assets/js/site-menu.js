@@ -51,6 +51,6 @@ export async function buildMenu({ up = "", lessonHref = (id) => up + "lessons/" 
 // Once the menu is on the page: the account part, the admin's links, the score,
 // the goals and the ✓ marks (header-auth.js, score.js).
 export async function activateMenu() {
-  await import("./header-auth.js?v=13");
+  await import("./header-auth.js?v=14");
   await import("./score.js");
 }
