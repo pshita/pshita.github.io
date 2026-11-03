@@ -385,6 +385,15 @@ function validLessonData(v, depth = 0) {
   return false;
 }
 
+// A lesson's content as sent from the text page: the expected shape, and not too big.
+function validLesson(lesson) {
+  return Boolean(lesson) && typeof lesson === "object" && !Array.isArray(lesson) && validLessonData(lesson) &&
+    typeof lesson.title === "string" && Array.isArray(lesson.stations) &&
+    lesson.stations.every((s) => typeof s === "string") && Array.isArray(lesson.screens) &&
+    lesson.screens.length > 0 && lesson.screens.every((s) => s && typeof s === "object" && typeof s.type === "string") &&
+    JSON.stringify(lesson).length <= 500000;
+}
+
 async function readLessonData(path, token) {
   const id = typeof path === "string" && EDITABLE_PATH_RE.test(path) ? idFromPagePath(path) : null;
   if (!id) throw new HttpsError("invalid-argument", "עמוד לא מוכר.");
@@ -408,11 +417,7 @@ exports.saveLessonData = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => 
     throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
   }
   const { path, lesson, base } = request.data || {};
-  if (!lesson || typeof lesson !== "object" || Array.isArray(lesson) || !validLessonData(lesson) ||
-      typeof lesson.title !== "string" || !Array.isArray(lesson.stations) ||
-      !lesson.stations.every((s) => typeof s === "string") || !Array.isArray(lesson.screens) ||
-      !lesson.screens.length || !lesson.screens.every((s) => s && typeof s === "object" && typeof s.type === "string") ||
-      JSON.stringify(lesson).length > 500000 || typeof base !== "string") {
+  if (!validLesson(lesson) || typeof base !== "string") {
     throw new HttpsError("invalid-argument", "תוכן השיעור לא תקין.");
   }
   const token = GITHUB_TOKEN.value();
@@ -612,6 +617,127 @@ exports.moveLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
 
 // Removes a lesson: first from the list and every page (so no link points
 // at it), then its files.
+// ---------------------------------------------------------------------
+// Drafts: lessons being written on the text page ("עריכה"). Kept just like the
+// lessons (lessons/data/<id>.json, and a page lessons/<id>.html to preview the
+// lesson as students will see it), but not in lessons.json, so they appear in no
+// list on the site; drafts.json lists them. Only the admin works with them.
+// ---------------------------------------------------------------------
+const DRAFTS_JSON = "drafts.json";
+
+function requireAdmin(request) {
+  if (!request.auth || request.auth.token.email !== ALLOWED_EMAIL) {
+    throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
+  }
+}
+
+async function readDrafts(token) {
+  let file;
+  try {
+    file = await readRepoFile(DRAFTS_JSON, token);
+  } catch (err) {
+    if (/failed: 404\b/.test(String(err && err.message))) return { sha: null, list: [] };
+    throw err;
+  }
+  return { sha: file.sha, list: JSON.parse(file.text).drafts || [] };
+}
+const formatDrafts = (list) => `{\n  "drafts": [\n${list.map((d) => "    " + JSON.stringify(d)).join(",\n")}\n  ]\n}\n`;
+
+// Change the list of drafts (read fresh each time, again if another save got there first).
+function updateDrafts(token, message, change) {
+  return withRetry(async () => {
+    const { sha, list } = await readDrafts(token);
+    const next = change(list.map((d) => ({ ...d })));
+    if (JSON.stringify(next) !== JSON.stringify(list)) await writeRepoFile(DRAFTS_JSON, formatDrafts(next), { sha, message, token });
+  });
+}
+
+const isSiteLesson = async (id, token) => (await readSite(token)).site.groups.some((g) => g.lessons.some((l) => l.id === id));
+
+exports.listDrafts = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
+  requireAdmin(request);
+  const token = GITHUB_TOKEN.value();
+  const { list } = await readDrafts(token);
+  const drafts = await Promise.all(list.map(async (d) => {
+    try {
+      return { ...d, src: (await readRepoFile(dataPath(d.id), token)).text };
+    } catch (err) {
+      return null;
+    }
+  }));
+  return { drafts: drafts.filter(Boolean) };
+});
+
+// Save a draft (a new one gets its page and its place in drafts.json).
+exports.saveDraft = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
+  requireAdmin(request);
+  const { id, lesson, createdAt } = request.data || {};
+  if (!isValidLessonId(id) || !validLesson(lesson)) throw new HttpsError("invalid-argument", "תוכן הטיוטה לא תקין.");
+  const token = GITHUB_TOKEN.value(), message = `טיוטה: ${id} (עמוד הטקסט)`;
+  let sha = null;
+  try { sha = (await readRepoFile(dataPath(id), token)).sha; } catch (err) { sha = null; }
+  if (!sha && await isSiteLesson(id, token)) throw new HttpsError("already-exists", "כבר יש שיעור עם המזהה הזה.");
+  await writeRepoFile(dataPath(id), formatLessonJson(lesson), { sha, message, token });
+  if (!sha) await writeRepoFile(`lessons/${id}.html`, lessonShellHtml({ id, title: lesson.title || id }), { message, token }).catch(() => {});
+  await updateDrafts(token, message, (list) => {
+    const title = lesson.title || "";
+    const d = list.find((x) => x.id === id);
+    if (d) d.title = title; else list.push({ id, title, createdAt: Number(createdAt) || Date.now() });
+    return list;
+  });
+  return { ok: true };
+});
+
+exports.deleteDraft = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
+  requireAdmin(request);
+  const { id } = request.data || {};
+  if (!isValidLessonId(id)) throw new HttpsError("invalid-argument", "טיוטה לא מוכרת.");
+  const token = GITHUB_TOKEN.value(), message = `מחיקת טיוטה: ${id} (עמוד הטקסט)`;
+  if (await isSiteLesson(id, token)) throw new HttpsError("failed-precondition", "זה שיעור באתר, לא טיוטה.");
+  await updateDrafts(token, message, (list) => list.filter((d) => d.id !== id));
+  for (const path of [`lessons/${id}.html`, dataPath(id)]) {
+    await deleteRepoFile(path, { message, token }).catch(() => {});
+  }
+  return { ok: true };
+});
+
+// A draft goes up to the site: under the given id, at the end of the given page/amud.
+exports.publishDraft = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
+  requireAdmin(request);
+  const { id, lessonId, group } = request.data || {};
+  if (!isValidLessonId(id) || !isValidLessonId(lessonId)) {
+    throw new HttpsError("invalid-argument", "מזהה לא תקין (אותיות אנגליות קטנות, ספרות ומקפים בלבד).");
+  }
+  if (typeof group !== "string" || !group.trim()) throw new HttpsError("invalid-argument", "צריך לבחור דף ועמוד.");
+  const token = GITHUB_TOKEN.value(), message = `העלאת טיוטה לאתר: ${lessonId} (עמוד הטקסט)`;
+  const { list } = await readDrafts(token);
+  if (!list.some((d) => d.id === id)) throw new HttpsError("not-found", "הטיוטה לא נמצאה.");
+  if (await isSiteLesson(lessonId, token)) throw new HttpsError("already-exists", "כבר יש שיעור עם המזהה הזה.");
+  const data = await readRepoFile(dataPath(id), token);
+  const lesson = JSON.parse(data.text);
+  const title = String(lesson.title || "").trim() || lessonId;
+  if (lessonId !== id) {
+    if (await fileExists(`contents/${dataPath(lessonId)}`, token)) throw new HttpsError("already-exists", "כבר יש קובץ עם המזהה הזה.");
+    await writeRepoFile(dataPath(lessonId), data.text, { message, token });
+  }
+  const shell = await readRepoFile(`lessons/${lessonId}.html`, token).catch(() => null);
+  const html = lessonShellHtml({ id: lessonId, title });
+  if (!shell || shell.text !== html) await writeRepoFile(`lessons/${lessonId}.html`, html, { sha: shell && shell.sha, message, token });
+  await withRetry(async () => {
+    const { site, sha } = await readSite(token);
+    let g = site.groups.find((x) => x.title === group.trim());
+    if (!g) { g = { title: group.trim(), lessons: [] }; site.groups.push(g); }
+    if (!g.lessons.some((l) => l.id === lessonId)) g.lessons.push({ id: lessonId, title });
+    await publishSite({ site, sha, token, message });
+  });
+  await updateDrafts(token, message, (l) => l.filter((d) => d.id !== id));
+  if (lessonId !== id) {
+    for (const path of [`lessons/${id}.html`, dataPath(id)]) await deleteRepoFile(path, { message, token }).catch(() => {});
+  }
+  const src = (await readRepoFile(dataPath(lessonId), token)).text;
+  return { ok: true, src, title };
+});
+
 async function deleteLessonFiles({ lessonId, token }) {
   const { site, sha } = await readSite(token);
   const group = site.groups.find((g) => g.lessons.some((l) => l.id === lessonId));

@@ -23,3 +23,6 @@ A lesson's JSON has `title`, `ref`, `stations` (the headings) and `screens`. Eac
 3. Write the page with `lessonShellHtml`.
 4. Add the lesson to `lessons.json`, then regenerate the pages with `setIndexPanels` and `setMenu`.
 5. If the file's engine is newer than `lesson-player.js`, merge the change into the shared player once. Then bump `PLAYER_VERSION` in `site.js` and the `?v=` in the existing shells.
+
+## Drafts
+Lessons being written on the text page ("עריכה") are kept the same way: `lessons/data/<id>.json` and a page `lessons/<id>.html` (to preview the lesson as students will see it). They are not in `lessons.json`, so no list on the site shows them; `drafts.json` lists them. `listDrafts`, `saveDraft`, `deleteDraft` and `publishDraft` (which moves a draft into `lessons.json`, under a page/amud) are in `functions/index.js`.
