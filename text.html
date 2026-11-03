@@ -27,6 +27,7 @@ body{margin:0;background:var(--page);color:var(--ink);font-family:Arial,'Segoe U
 .bar .view:hover,.bar .view.open{background:var(--s-accent-soft);color:var(--s-accent-strong)}
 .chev{width:16px;height:16px;flex:none;transition:transform .2s}
 .view.open .chev,.sec.open>.sec-h .chev{transform:rotate(180deg)}
+.panel.inmenu{position:static;min-width:0;max-width:none;max-height:none;overflow:visible;border:0;box-shadow:none;padding:0;background:none}
 .panel{position:fixed;z-index:4;min-width:220px;max-width:calc(100vw - 16px);max-height:min(430px,calc(100vh - 90px));overflow-y:auto;background:#fff;border:1px solid var(--s-line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px;display:flex;flex-direction:column;gap:6px;font-family:var(--s-head);color:var(--s-ink);line-height:1.75}
 .panel *{flex-shrink:0}
 .panel[hidden]{display:none}
@@ -98,11 +99,11 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 #fmt .red{color:#ff8a7a}
 #fmt .it{font-style:italic;font-family:Georgia,serif}
 #fmt .hd{width:auto;padding:0 8px;font-size:13px;border-inline-start:1px solid #555;border-radius:0 5px 5px 0}
-.page{min-height:100vh;background:var(--page);padding:22px clamp(16px,3vw,40px) 48px;font-family:var(--text);font-size:var(--fs,17px);line-height:1.4}
+.page{min-height:100vh;background:var(--page);padding:22px clamp(30px,3vw,40px) 48px;font-family:var(--text);font-size:var(--fs,17px);line-height:1.4}
 /* the lesson's name, and on the same line its page and amud */
-.page .lh{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:2px 16px;margin:0 0 14px}
+.page .lh{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 16px;margin:0 0 14px}
 .page .lsn+.lsn .lh{margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
-.page h1{font-size:1.47em;font-weight:700;margin:0;flex:1 1 auto;min-width:40%}
+.page h1{font-size:1.47em;font-weight:700;margin:0;flex:0 1 auto}
 .page .ref{color:var(--muted);font-size:.82em;margin:0;flex:0 1 auto}
 /* the site's boxes (בקיצור, השוואה, מונחים...), marked with a line at the side */
 .page .blk{border-inline-start:3px solid var(--s-line);padding-inline-start:10px}
@@ -122,6 +123,17 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .page .qb{position:relative;padding-inline-start:26px}
 .page .qb .qdel{position:absolute;inset-inline-start:0;top:9px;width:20px;height:20px;padding:0;border:0;border-radius:4px;background:none;color:var(--muted);font-size:15px;line-height:20px;cursor:pointer}
 .page .qb .qdel:hover{background:#f3e1dc;color:#a33}
+.page .qb .qdel.sure{width:auto;padding:0 8px;background:#a33;color:#fff;font:600 13px/20px Arial,sans-serif;white-space:nowrap;z-index:2}
+/* a paragraph can stay on this page only (not in the lesson): its ⊘ in the margin */
+.page .pw{position:relative}
+.page .pw .tog{position:absolute;inset-inline-start:-26px;top:2px;width:20px;height:20px;padding:0;border:0;border-radius:4px;background:none;color:var(--muted);font-size:14px;line-height:20px;cursor:pointer;opacity:.35}
+.page .pw .tog:hover{opacity:1;background:#eee}
+.page .pw.tonly>p{color:var(--muted);background:repeating-linear-gradient(-45deg,transparent 0 6px,rgba(0,0,0,.035) 6px 12px);outline:1px dashed #bbb;outline-offset:2px}
+.page .pw.tonly .tog{opacity:1;color:#a33}
+/* the page and amud: two lists right after the name; how many questions the lesson has */
+.page .refsel{font-size:.82em;color:var(--muted);white-space:nowrap}
+.page .refsel select{font:inherit;color:var(--ink,#222);background:none;border:0;border-bottom:1px dashed var(--muted);padding:0 2px;cursor:pointer}
+.page .qn{font-size:.82em;color:var(--muted);white-space:nowrap}
 .page .tfa{font:inherit;font-weight:700;color:inherit;background:none;border:0;border-bottom:1px dashed var(--muted);padding:0;cursor:pointer}
 .page table{border-collapse:collapse;margin:8px 0 12px;font-size:.88em;max-width:100%}
 .page table.fit{width:100%;table-layout:fixed}
@@ -141,7 +153,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 #tb{display:flex;flex-wrap:wrap;gap:4px;max-width:calc(100vw - 16px)}
 #tb button{font:inherit;padding:3px 10px;border:1px solid #bbb;border-radius:5px;background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
 #tb button:hover{border-color:#8a4b2e;color:#6d3a22}
-@media (max-width:640px){.page{padding:20px 14px 40px;font-size:var(--fs,16px)}}
+@media (max-width:640px){.page{padding:20px 14px 40px;padding-inline-start:30px;font-size:var(--fs,16px)}}
 @media print{.bar,.panel,#tb,#hot,#fmt,#msg,#find,#hist{display:none}body{background:#fff}.page{padding:0;min-height:0}}
 </style>
 <link rel="stylesheet" href="assets/css/site-header.css?v=10">
@@ -159,7 +171,6 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
   <span class="tools">
   <span id="hist" hidden><button type="button" id="undoBtn" title="ביטול (Ctrl+Z)" disabled>↶</button><button type="button" id="redoBtn" title="החזרה (Ctrl+Y)" disabled>↷</button></span>
   <button type="button" class="view icon" id="findBtn" title="חיפוש והחלפה"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M15.5 15.5L21 21" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
-  <button type="button" class="view" id="viewBtn">תצוגה <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </span>
 </div>
 <div id="msg"></div>
@@ -172,7 +183,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 </div>
 <div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="italic" class="it" title="נטוי">I</button><button type="button" data-cmd="red" class="red" title="אדום">A</button><button type="button" data-cmd="heading" class="hd" title="להפוך לכותרת">כותרת</button></div>
 <div class="page" id="page"><p class="empty">טוען…</p></div>
-<div id="panels"></div>
+<div id="panels" hidden></div>
 <div id="tb" hidden></div>
 
 <script type="module">
@@ -186,6 +197,9 @@ let auth = null, httpsCallable = null, fns = null, fs = null, isAdmin = false;
 
 const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 const SEL_KEY = "pshita.text.selected";
+// lessons renamed from English names to numbers (daf-amud-number): the saved selection follows
+const RENAMED = { "avot-vetoldot": "2-1-1", "shor-umave": "2-1-2", "lo-hari-hashor": "2-1-3", "gabei-shabbat-tanan": "2-1-4", "umai-ika": "2-1-5", "gabei-tumaot-tanan": "2-1-6", "shlosha-avot-beshor": "2-2-1", "keren-manlan": "2-2-2", "toldah-dekeren": "2-2-3", "mai-shena-negicha": "2-2-4", "mai-shena-gabei-adam": "2-2-5", "muad-livhema": "2-2-6" };
+const renamedKey = (k) => k.replace(/^lessons\/([a-z-]+)\.html$/, (m, id) => (RENAMED[id] ? `lessons/${RENAMED[id]}.html` : m));
 const NEW = "draft:new";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
@@ -292,6 +306,14 @@ const tpl = document.createElement("template");
 // for reading: the design's colored key words show as plain bold (saving keeps them)
 const clean = (s) => { tpl.innerHTML = String(s); return ser(tpl.content, false); };
 const plain = (s) => { tpl.innerHTML = String(s); return tpl.content.textContent.trim(); };
+// A paragraph marked to stay on this page only starts with this (the lesson player skips it).
+const TEXT_ONLY = "<!--text-only-->";
+const isTextOnly = (t) => String(t).startsWith(TEXT_ONLY);
+// The page and amud of a lesson: "דף ב, עמוד א"; the daf from ב to קיט (בבא קמא)
+const HEB_ONES = ["", "א", "ב", "ג", "ד", "ה", "ו", "ז", "ח", "ט"], HEB_TENS = ["", "י", "כ", "ל", "מ", "נ", "ס", "ע", "פ", "צ"];
+const hebNum = (n) => (n >= 100 ? "ק" : "") + ({ 15: "טו", 16: "טז" }[n % 100] || HEB_TENS[Math.floor((n % 100) / 10)] + HEB_ONES[n % 10]);
+const DAFS = Array.from({ length: 118 }, (_, i) => hebNum(i + 2));
+const parseRef = (ref) => { const m = /דף\s+([א-ת]+)[\s,]*עמוד\s+([א-ת]+)/.exec(ref || ""); return m ? { daf: m[1], amud: m[2] } : { daf: "", amud: "" }; };
 
 // Every editable piece carries its place in the lesson data (data-p), so a
 // double-click can find it again once edit mode is on.
@@ -300,7 +322,14 @@ function renderLesson(key, d, q) {
   const ed = (p, v, ph = "") => ` data-h="${esc(key)}" data-p="${p}" data-ph="${esc(ph)}">` + (editable ? v : clean(v));
   // in edit mode the page is one editing area; text that isn't part of the lesson data is locked
   const ro = (html) => (EDIT ? `<span contenteditable="false">${html}</span>` : html), roA = EDIT ? ' contenteditable="false"' : "";
-  let h = `<div class="lh"><h1${ed("tt", L.title, "שם השיעור")}</h1><p class="ref"${ed("rf", L.ref || "", "דף ועמוד")}</p></div>`;
+  const canEdit = d.draft || (!d.noEdit && d.base);
+  const { daf, amud } = parseRef(L.ref);
+  const opts = (list, v) => (list.includes(v) ? "" : `<option value="${esc(v)}" selected>${esc(v || "—")}</option>`) + list.map((x) => `<option${x === v ? " selected" : ""}>${x}</option>`).join("");
+  const refHtml = canEdit
+    ? `<span class="refsel" contenteditable="false">דף <select class="rsel" data-h="${esc(key)}" data-f="daf">${opts(DAFS, daf)}</select> עמוד <select class="rsel" data-h="${esc(key)}" data-f="amud">${opts(["א", "ב"], amud)}</select></span>`
+    : `<p class="ref"${roA}>${esc(L.ref || "")}</p>`;
+  const nq = L.screens.filter((x) => !["intro", "read", "summary"].includes(x.type)).length;
+  let h = `<div class="lh"><h1${ed("tt", L.title, "שם השיעור")}</h1>${refHtml}${nq ? `<span class="qn"${roA}>${nq} שאלות</span>` : ""}</div>`;
   if (EDIT && !editable) h += `<p class="note"${roA}>את השיעור הזה אי אפשר לערוך כרגע${d.why ? ` (${esc(d.why)})` : ""}.</p>`;
   let last = -1;
   L.screens.forEach((s, si) => {
@@ -319,7 +348,10 @@ function renderLesson(key, d, q) {
     if (s.type === "read") {
       if (s.kicker) h += `<p><b${ed("kk." + si, s.kicker)}</b></p>`;
       (s.comic || []).forEach((p) => h += `<p${roA}>${clean(p[1])}</p>`);
-      (s.text || []).forEach((t, ti) => h += `<p${ed(`tx.${si}.${ti}`, t, "טקסט")}</p>`);
+      (s.text || []).forEach((t, ti) => {
+        const to = isTextOnly(t), tog = canEdit ? `<span contenteditable="false"><button type="button" class="tog" data-h="${esc(key)}" data-si="${si}" data-ti="${ti}">⊘</button></span>` : "";
+        h += `<div class="pw${to ? " tonly" : ""}">${tog}<p${ed(`tx.${si}.${ti}`, to ? t.slice(TEXT_ONLY.length) : t, "טקסט")}</p></div>`;
+      });
       if (s.quote) h += `<p${roA}>${clean(s.quote)}</p>`;
       // the site's boxes; each box's pieces carry its place as "<si>.<side>.<bi>"
       ["before", "after"].forEach((side) => (s[side] || []).forEach((b, bi) => {
@@ -361,7 +393,7 @@ function renderLesson(key, d, q) {
     else if (s.type === "open") h += q1("open") + `<p class="qi"${ed("an." + si, s.ans || "")}</p>`;
     else if (s.q) h += `<p class="q"${roA}>${clean(s.q)}</p>` + (s.ans ? `<p${roA}>${clean(s.ans)}</p>` : "");
     if (s.why !== undefined || s.din !== undefined) h += `<p class="why">${ro("הסבר: ")}${span("wy." + si, s.why !== undefined ? s.why : s.din)}</p>`;
-    const del = d.draft || (!d.noEdit && d.base) ? `<span contenteditable="false"><button type="button" class="qdel" data-h="${esc(key)}" data-si="${si}">✕</button></span>` : "";
+    const del = canEdit ? `<span contenteditable="false"><button type="button" class="qdel" data-h="${esc(key)}" data-si="${si}">✕</button></span>` : "";
     h = outer + `<div class="qb">${del}${h}</div>`;
   });
   return `<section class="lsn" data-key="${esc(key)}"${EDIT && !editable ? ' contenteditable="false"' : ""}>${h}</section>`;
@@ -423,31 +455,34 @@ const CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="
 const secHtml = (key, label, body) => `<div class="sec${OPEN.has(key) ? " open" : ""}" data-name="${esc(key)}">
     <button type="button" class="sec-h"><span>${esc(label)}</span>${CHEV}</button><div class="sec-b">${body}</div></div>`;
 function drawMenus() {
-  const open = ["viewPanel"].find((id) => $(id) && !$(id).hidden), scroll = open ? $(open).scrollTop : 0;
   const item = (it) => `<label class="${it.cls || ""}" title="${esc(plain(it.title))}"><input type="checkbox" data-key="${esc(it.key)}"${SELECTED.includes(it.key) ? " checked" : ""}> ${esc(plain(it.title))}</label>`;
   // the admin moves and deletes lessons of the site here, and adds new ones to a page/amud
   const lessonRow = (it) => `<div class="lrow" data-key="${esc(it.key)}">${item(it)}<span class="lctl"><button type="button" data-mv="up" title="הזזה למעלה">↑</button><button type="button" data-mv="down" title="הזזה למטה">↓</button><button type="button" class="del" data-del title="מחיקה">✕</button></span></div>`;
   const newLesson = (g) => `<div class="newl" data-group="${esc(g.name)}"><button type="button" class="nl-toggle">+ שיעור חדש</button>
     <div class="nl-form" hidden>
-      <label>מזהה (אנגלית, מקפים) <input type="text" class="nl-id" dir="ltr"></label>
       <label>כותרת (דיבור המתחיל) <input type="text" class="nl-title"></label>
       <div class="nl-actions"><button type="button" class="nl-create">יצירה</button><button type="button" class="nl-cancel">ביטול</button></div>
       <p class="nl-status"></p>
     </div></div>`;
   // a draft goes up to the site: to a page/amud, under an id
+  // the page and amud of the site's lists, and the draft's own (from its title) first if it's new
+  const pubGroups = (key) => {
+    const ref = DATA[key] && DATA[key].L.ref && parseRef(DATA[key].L.ref).daf ? `דף ${parseRef(DATA[key].L.ref).daf}, עמוד ${parseRef(DATA[key].L.ref).amud}` : "";
+    const names = GROUPS.map((x) => x.name);
+    return (ref && !names.includes(ref) ? [ref] : []).concat(names).map((n) => `<option${n === ref ? " selected" : ""}>${esc(n)}</option>`).join("");
+  };
   const draftRow = (it) => `<div class="lrow" data-key="${esc(it.key)}">${item(it)}<span class="lctl"><button type="button" data-pub title="העלאה לאתר">⬆</button></span></div>
     <div class="nl-form pub-form" data-key="${esc(it.key)}" hidden>
-      <label>דף ועמוד <select class="pub-group">${GROUPS.map((x) => `<option>${esc(x.name)}</option>`).join("")}</select></label>
-      <label>מזהה (אנגלית, מקפים) <input type="text" class="pub-id" dir="ltr"></label>
+      <label>דף ועמוד <select class="pub-group">${pubGroups(it.key)}</select></label>
       <div class="nl-actions"><button type="button" class="pub-go">העלאה לאתר</button><button type="button" class="pub-cancel">ביטול</button></div>
       <p class="nl-status"></p>
     </div>`;
   const row = (g, it) => (g.site && isAdmin ? lessonRow(it) : !g.site && isAdmin && isDraft(it.key) && it.key !== NEW ? draftRow(it) : item(it));
   const view = menus().map((g) => secHtml(g.name, g.name, g.items.map((it) => row(g, it)).join("") + (g.site && isAdmin ? newLesson(g) : ""))).join("");
-  $("panels").innerHTML = `<div class="panel" id="viewPanel" hidden><label class="opt"><input type="checkbox" id="optQ"${SHOWQ ? " checked" : ""}> שאלות</label>${view}</div>`;
-  if (open) { openPanel(open); $(open).scrollTop = scroll; }
+  $("panels").innerHTML = `<div class="panel inmenu" id="viewPanel"><label class="opt"><input type="checkbox" id="optQ"${SHOWQ ? " checked" : ""}> שאלות</label>${view}</div>`;
 }
-const BTN = { viewPanel: "viewBtn" };
+// "תצוגה" is inside the site menu, under "טקסט" (see moveViewIntoMenu); no other panels.
+const BTN = {};
 function openPanel(id) {
   closePanels();
   closeSiteMenu();
@@ -484,7 +519,6 @@ $("panels").onclick = (e) => {
   const sec = h.parentElement, name = sec.dataset.name;
   sec.classList.toggle("open");
   if (sec.classList.contains("open")) OPEN.add(name); else OPEN.delete(name);
-  placePanel(sec.closest(".panel"));
 };
 $("panels").onchange = (e) => {
   if (!e.target.dataset.key && e.target.id !== "optQ") return;
@@ -708,7 +742,7 @@ if (document.fonts) document.fonts.ready.then(() => { if (RESTORE) goToPos(); })
 
 function saveSelection() { try { localStorage.setItem(SEL_KEY, JSON.stringify(SELECTED.filter((k) => k !== NEW))); } catch (e) {} }
 function loadSelection() {
-  try { const v = JSON.parse(localStorage.getItem(SEL_KEY)); if (Array.isArray(v)) return v; } catch (e) {}
+  try { const v = JSON.parse(localStorage.getItem(SEL_KEY)); if (Array.isArray(v)) return v.map(renamedKey); } catch (e) {}
   return null;
 }
 
@@ -828,7 +862,8 @@ function setValue(L, p, v) {
     case "tt": L.title = v; break;
     case "st": L.stations[n(1)] = v; break;
     case "kk": L.screens[n(1)].kicker = v; break;
-    case "tx": L.screens[n(1)].text[n(2)] = v; break;
+    // a paragraph marked to stay on this page only keeps its mark
+    case "tx": L.screens[n(1)].text[n(2)] = (isTextOnly(L.screens[n(1)].text[n(2)] || "") ? TEXT_ONLY : "") + v; break;
     case "gl": L.screens[n(1)][a[2]][n(3)].items[n(4)] = v; break;
     case "pl": L.screens[n(1)][a[2]][n(3)].items[n(4)] = plain(v); break;
     // a verse is shown as before + word + after, so the spaces around the word are kept in the data
@@ -1332,8 +1367,7 @@ const page = $("page");
 const LAZY = (el) => !isDraft(el.dataset.h) && /^(tt|rf)$/.test(el.dataset.p);
 page.addEventListener("focusout", () => { if (CUR && LAZY(CUR) && DIRTY.has(CUR.dataset.h)) saveNow(CUR.dataset.h); });
 
-// A question's ✕ deletes it, after asking (undo brings it back).
-page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel, .tfa")) e.preventDefault(); });
+page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel, .tfa, .tog")) e.preventDefault(); });
 // The answer of a true / false question: a click switches it.
 page.addEventListener("click", (e) => {
   const el = e.target.closest(".tfa");
@@ -1345,16 +1379,42 @@ page.addEventListener("click", (e) => {
   sc.a = !sc.a;
   commit(key, null);
 });
+// A question's ✕ turns into "אישור מחיקה"; a click on that deletes it (undo brings it back),
+// a click anywhere else leaves it.
 page.addEventListener("click", (e) => {
   const el = e.target.closest(".qdel");
+  page.querySelectorAll(".qdel.sure").forEach((b) => { if (b !== el) { b.classList.remove("sure"); b.textContent = "✕"; } });
   if (!el) return;
   e.stopPropagation();
+  if (!el.classList.contains("sure")) { el.classList.add("sure"); el.textContent = "אישור מחיקה"; return; }
   const key = el.dataset.h, L = DATA[key] && DATA[key].L;
   if (!L || !L.screens[+el.dataset.si]) return;
-  if (!confirm("למחוק את השאלה?")) return;
   snapshot(key);
   L.screens.splice(+el.dataset.si, 1);
   commit(key, null);
+});
+// A paragraph's ⊘: it stays on this page only and doesn't go into the lesson (click again to bring it back).
+page.addEventListener("click", (e) => {
+  const el = e.target.closest(".tog");
+  if (!el) return;
+  e.stopPropagation();
+  const key = el.dataset.h, sc = DATA[key] && DATA[key].L.screens[+el.dataset.si], ti = +el.dataset.ti;
+  if (!sc || !sc.text || sc.text[ti] === undefined) return;
+  snapshot(key);
+  sc.text[ti] = isTextOnly(sc.text[ti]) ? sc.text[ti].slice(TEXT_ONLY.length) : TEXT_ONLY + sc.text[ti];
+  commit(key, null);
+});
+// The page and amud, from the two lists after the lesson's name.
+page.addEventListener("change", (e) => {
+  const el = e.target.closest(".rsel");
+  if (!el) return;
+  const key = el.dataset.h, L = DATA[key] && DATA[key].L;
+  if (!L) return;
+  const [d, a] = [...el.parentElement.querySelectorAll(".rsel")].map((x) => x.value);
+  if (!d || !a) return;
+  snapshot(key);
+  setValue(L, "rf", `דף ${d}, עמוד ${a}`);
+  changed(key);
 });
 
 // One edited piece -> the lesson data.
@@ -1692,6 +1752,10 @@ async function startAdmin() {
     say("לא הצלחתי לטעון את העריכה. נסו לרענן את הדף.");
     return;
   }
+  // one time: the students' records move to the lessons' new names (numbers); also on the admin page
+  fs.getDoc(fs.doc(auth.getDb(), "settings", "migrations"))
+    .then((snap) => { if (!(snap.exists() && snap.data().lessonIds)) return httpsCallable(fns, "renameLessonIds")(); })
+    .catch(() => {});
   // Editing lessons on the site doesn't depend on the drafts loading.
   try {
     await loadDrafts();
@@ -1721,12 +1785,42 @@ import("./assets/js/auth.js").then((m) => {
 function say(t) { $("msg").textContent = t; }  // shown only when something went wrong
 
 // ---------- the site's menu, the same as on every page (site-menu.js) ----------
-import("./assets/js/site-menu.js?v=1").then(async (m) => {
+import("./assets/js/site-menu.js?v=2").then(async (m) => {
   const box = await m.buildMenu();
   $("siteMenu").appendChild(box);
   box.addEventListener("menu-toggle", () => closePanels());
+  moveViewIntoMenu();
   await m.activateMenu();
 }).catch(() => {});
+
+// In the site menu, "טקסט" opens a list with what "תצוגה" holds: the lessons and drafts to
+// show, questions on / off, and adding, moving and publishing lessons. The menu's
+// "טקסט" link (header-auth.js) is replaced once it's there.
+function moveViewIntoMenu() {
+  const swap = () => {
+    const a = document.querySelector("#siteMenu a#admin-text-link");
+    if (!a) return false;
+    const sub = document.createElement("div");
+    sub.className = "submenu";
+    sub.id = "admin-text-link";
+    sub.innerHTML = `<button type="button" class="dropdown-item submenu-trigger"><span>טקסט</span><svg class="submenu-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="dropdown-menu submenu-panel" hidden></div>`;
+    const panel = sub.querySelector(".submenu-panel");
+    const view = $("panels");
+    panel.appendChild(view);
+    view.hidden = false;
+    sub.firstChild.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = panel.hidden;
+      sub.closest(".brand-menu").querySelectorAll(".submenu-panel").forEach((p) => { p.hidden = true; });
+      panel.hidden = !open;
+    });
+    a.replaceWith(sub);
+    return true;
+  };
+  if (swap()) return;
+  const mo = new MutationObserver(() => { if (swap()) mo.disconnect(); });
+  mo.observe($("siteMenu"), { childList: true, subtree: true });
+}
 
 // ---------- adding, moving and deleting lessons on the site (admin, in "תצוגה") ----------
 // The server changes lessons.json, the menus and the home page (createLesson,
@@ -1788,15 +1882,15 @@ async function deleteSiteLesson(row) {
 }
 async function publishDraft(form) {
   const key = form.dataset.key, status = form.querySelector(".nl-status");
-  const lessonId = form.querySelector(".pub-id").value.trim(), group = form.querySelector(".pub-group").value;
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(lessonId)) { status.textContent = "מזהה לא תקין (אותיות אנגליות קטנות, ספרות ומקפים בלבד)."; return; }
+  const group = form.querySelector(".pub-group").value;
   status.textContent = "מעלה…";
   try {
     // what was typed last goes up too
     if (DIRTY.has(key)) await saveNow(key);
     if (DIRTY.has(key)) throw new Error(SAVE_FAILED.has(key) ? "השמירה לא הצליחה" : "יש שינויים שעוד לא נשמרו");
-    const res = await httpsCallable(fns, "publishDraft")({ id: key.slice(6), lessonId, group });
-    const newKey = `lessons/${lessonId}.html`;
+    // the lesson's name on the site: daf-amud-number, given by the server
+    const res = await httpsCallable(fns, "publishDraft")({ id: key.slice(6), group });
+    const newKey = `lessons/${res.data.lessonId}.html`;
     DATA[newKey] = { L: JSON.parse(res.data.src), base: res.data.src };
     delete DATA[key];
     DRAFTS = DRAFTS.filter((d) => "draft:" + d.id !== key);
@@ -1813,13 +1907,13 @@ async function publishDraft(form) {
   }
 }
 async function createSiteLesson(nl) {
-  const status = nl.querySelector(".nl-status"), id = nl.querySelector(".nl-id").value.trim(), title = nl.querySelector(".nl-title").value.trim();
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) { status.textContent = "מזהה לא תקין (אותיות אנגליות קטנות, ספרות ומקפים בלבד)."; return; }
+  const status = nl.querySelector(".nl-status"), title = nl.querySelector(".nl-title").value.trim();
   if (!title) { status.textContent = "צריך כותרת."; return; }
   const g = GROUPS.find((x) => x.name === nl.dataset.group), last = g && g.lessons[g.lessons.length - 1];
   status.textContent = "יוצר…";
   try {
-    await httpsCallable(fns, "createLesson")({ lessonId: id, titleText: title, sourceText: nl.dataset.group, afterLessonId: last ? idOfKey(last.key) : null });
+    // the lesson's name: daf-amud-number, given by the server
+    const id = (await httpsCallable(fns, "createLesson")({ titleText: title, sourceText: nl.dataset.group, afterLessonId: last ? idOfKey(last.key) : null })).data.lessonId;
     // the new lesson, straight from the repository (the site takes a minute or two to show it)
     const key = `lessons/${id}.html`, src = (await httpsCallable(fns, "getLessonData")({ path: key })).data.src;
     DATA[key] = { L: JSON.parse(src), base: src };

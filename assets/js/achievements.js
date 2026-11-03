@@ -41,7 +41,7 @@ onAnswersReady((answers) => {
   }
   gateEl.hidden = true;
   mainEl.hidden = false;
-  COUNT = Object.values(answers).filter(Boolean).length;
+  COUNT = Object.values(answers).reduce((n, v) => n + (v === true ? 1 : Number.isFinite(v) && v > 0 ? Math.min(v, 3) : 0), 0);  // up to 3 per question
   renderTotals(COUNT);
 });
 onStudent(({ user, step }) => { MILESTONE_STEP = step; if (user) renderTotals(COUNT); });

@@ -1,5 +1,6 @@
 // A signed-in student's progress and the messages to the parents:
 // - in a lesson, records each question answered correctly (users/{uid}/progress/quiz)
+//   up to 3 times each, and again only after finishing the whole lesson's questions;
 //   and each time a lesson is finished with all its questions (users/{uid}/progress/lessons:
 //   times), from the player's events;
 // - says how many correct answers are left until the next message to the parents
@@ -8,11 +9,17 @@
 // - once a message was sent (the server sets users/{uid}.lastSms), tells the student.
 import { watchAuthState, getDb, isReady } from "./auth.js";
 import {
-  doc, getDoc, setDoc, updateDoc, onSnapshot, increment,
+  doc, getDoc, setDoc, updateDoc, onSnapshot, increment, arrayUnion, deleteField,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const STEP_DEFAULT = 10;
-let USER = null, INFO = null, SECTIONS = null, STEP = STEP_DEFAULT, ENABLED = false;
+let USER = null, INFO = null, SECTIONS = null, ROUND = {}, STEP = STEP_DEFAULT, ENABLED = false;
+// A question answered correctly counts up to 3 times, and again only after the student
+// answered all the lesson's questions (a "round"; ROUND[lesson] = the questions counted
+// in the current one). true = counted once (from before rounds began).
+const MAX_PER_QUESTION = 3;
+const timesOf = (v) => (v === true ? 1 : Number.isFinite(v) && v > 0 ? Math.min(v, MAX_PER_QUESTION) : 0);
+const total = () => Object.values(SECTIONS || {}).reduce((n, v) => n + timesOf(v), 0);
 let unwatch = null;
 const ready = [];
 
@@ -83,6 +90,7 @@ if (isReady()) {
         smsSettings(),
       ]);
       SECTIONS = (quiz && quiz.exists() && quiz.data().sections) || {};
+      ROUND = (quiz && quiz.exists() && quiz.data().round) || {};
       STEP = sms.step;
       ENABLED = sms.enabled;
       await new Promise((resolve) => {
@@ -111,18 +119,27 @@ if (lessonId) {
       return;
     }
     if (!SECTIONS) return;
-    const q = `${lessonId}:${e.detail.q}`;
-    if (SECTIONS[q]) return;  // answered correctly before: counted once
-    SECTIONS[q] = true;
-    setDoc(doc(getDb(), "users", USER.uid, "progress", "quiz"),
-      { sections: { [q]: true }, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
-    const count = Object.values(SECTIONS).filter(Boolean).length;
+    const k = e.detail.q, q = `${lessonId}:${k}`, round = ROUND[lessonId] || (ROUND[lessonId] = []);
+    if (round.includes(k)) return;  // counted already in this round of the lesson
+    round.push(k);
+    const n = timesOf(SECTIONS[q]);
+    const ref = doc(getDb(), "users", USER.uid, "progress", "quiz");
+    if (n >= MAX_PER_QUESTION) {  // counted 3 times already: not again
+      setDoc(ref, { round: { [lessonId]: arrayUnion(k) } }, { merge: true }).catch(() => {});
+      return;
+    }
+    SECTIONS[q] = n + 1;
+    setDoc(ref, { sections: { [q]: n + 1 }, round: { [lessonId]: arrayUnion(k) }, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+    const count = total();
     const left = remainingText(count);
     if (left && count % plan().step === 0) toast(`כל הכבוד! ענית נכון על ${count} שאלות. שולחים הודעה להורים 🎉`, 6000);
     else if (left) toast(`נכון! ${left}`);
   });
   addEventListener("pshita:finished", () => {
     if (!USER) return;
+    // all the lesson's questions answered: the next time through, they count again
+    delete ROUND[lessonId];
+    setDoc(doc(getDb(), "users", USER.uid, "progress", "quiz"), { round: { [lessonId]: deleteField() } }, { merge: true }).catch(() => {});
     setDoc(doc(getDb(), "users", USER.uid, "progress", "lessons"),
       { lessons: { [lessonId]: { finishedAt: new Date().toISOString(), times: increment(1) } } }, { merge: true }).catch(() => {});
   });

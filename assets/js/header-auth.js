@@ -62,6 +62,7 @@ watchAuthState(async (user) => {
     } catch (e) {}
   }
   menu.querySelectorAll(".submenu").forEach((sub) => {
+    if (sub.id === "admin-text-link") return;  // the admin's "טקסט" list (text page), not lessons
     let any = false;
     sub.querySelectorAll(".submenu-panel a.dropdown-item").forEach((a) => {
       a.hidden = Boolean(ids) && !ids.has(lessonIdOf(a));

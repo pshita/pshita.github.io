@@ -15,7 +15,7 @@ const MAX_BADGE_DOTS = 6; // most recent achieved milestones shown, plus one "ne
 function render() {
   const badge = document.getElementById("score-badge");
   if (!badge) return;
-  const count = Object.values(cachedAnswers).filter(Boolean).length;
+  const count = Object.values(cachedAnswers).reduce((n, v) => n + (v === true ? 1 : Number.isFinite(v) && v > 0 ? Math.min(v, 3) : 0), 0);  // up to 3 per question
   if (!currentUser || count === 0) {
     badge.hidden = true;
     return;

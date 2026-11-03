@@ -6,7 +6,7 @@ const { getFirestore } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
 const logger = require("firebase-functions/logger");
 const {
-  MENU_PAGES, formatLessonJson, formatSiteJson, lessonShellHtml, newLessonData, setIndexPanels, setMenu,
+  MENU_PAGES, formatLessonJson, formatSiteJson, lessonShellHtml, newLessonData, setIndexPanels, setMenu, nextLessonId,
 } = require("./site");
 
 initializeApp();
@@ -64,9 +64,12 @@ function smsText(template, userData, count) {
     .split("{מספר}").join(String(count)).split("{תשובות}").join(String(count));
 }
 
+// A question answered correctly counts up to 3 times (once per round of the whole lesson:
+// see student.js). Older records hold true for one time.
+const MAX_PER_QUESTION = 3;
 function countCorrect(sections) {
   if (!sections) return 0;
-  return Object.values(sections).filter(Boolean).length;
+  return Object.values(sections).reduce((n, v) => n + (v === true ? 1 : Number.isFinite(v) && v > 0 ? Math.min(v, MAX_PER_QUESTION) : 0), 0);
 }
 
 function smsSecrets(sender) {
@@ -554,7 +557,10 @@ exports.createLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
     throw new HttpsError("permission-denied", "אין הרשאה לערוך תוכן באתר.");
   }
 
-  const { lessonId, titleText, sourceText, afterLessonId } = request.data || {};
+  let { lessonId, titleText, sourceText, afterLessonId } = request.data || {};
+  const token = GITHUB_TOKEN.value();
+  // no id given: the next number in that daf and amud
+  if (!lessonId && typeof sourceText === "string") lessonId = nextLessonId((await readSite(token)).site, sourceText);
   if (!isValidLessonId(lessonId)) {
     throw new HttpsError("invalid-argument", "מזהה שיעור לא תקין (אותיות אנגליות קטנות, ספרות ומקפים בלבד).");
   }
@@ -568,7 +574,6 @@ exports.createLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
     throw new HttpsError("invalid-argument", "מיקום הוספה לא תקין.");
   }
 
-  const token = GITHUB_TOKEN.value();
   if (await fileExists(`contents/lessons/${lessonId}.html`, token) || await fileExists(`contents/${dataPath(lessonId)}`, token)) {
     throw new HttpsError("already-exists", "כבר קיים שיעור עם המזהה הזה.");
   }
@@ -704,12 +709,16 @@ exports.deleteDraft = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
 // A draft goes up to the site: under the given id, at the end of the given page/amud.
 exports.publishDraft = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   requireAdmin(request);
-  const { id, lessonId, group } = request.data || {};
+  const { id, group } = request.data || {};
+  let { lessonId } = request.data || {};
+  const token = GITHUB_TOKEN.value();
+  // no id given: the next number in that daf and amud
+  if (!lessonId && typeof group === "string") lessonId = nextLessonId((await readSite(token)).site, group);
   if (!isValidLessonId(id) || !isValidLessonId(lessonId)) {
     throw new HttpsError("invalid-argument", "מזהה לא תקין (אותיות אנגליות קטנות, ספרות ומקפים בלבד).");
   }
   if (typeof group !== "string" || !group.trim()) throw new HttpsError("invalid-argument", "צריך לבחור דף ועמוד.");
-  const token = GITHUB_TOKEN.value(), message = `העלאת טיוטה לאתר: ${lessonId} (עמוד הטקסט)`;
+  const message = `העלאת טיוטה לאתר: ${lessonId} (עמוד הטקסט)`;
   const { list } = await readDrafts(token);
   if (!list.some((d) => d.id === id)) throw new HttpsError("not-found", "הטיוטה לא נמצאה.");
   if (await isSiteLesson(lessonId, token)) throw new HttpsError("already-exists", "כבר יש שיעור עם המזהה הזה.");
@@ -735,7 +744,7 @@ exports.publishDraft = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
     for (const path of [`lessons/${id}.html`, dataPath(id)]) await deleteRepoFile(path, { message, token }).catch(() => {});
   }
   const src = (await readRepoFile(dataPath(lessonId), token)).text;
-  return { ok: true, src, title };
+  return { ok: true, src, title, lessonId };
 });
 
 async function deleteLessonFiles({ lessonId, token }) {
@@ -771,4 +780,54 @@ exports.deleteLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
     logger.error(`deleteLesson failed for ${lessonId}`, err);
     throw new HttpsError("internal", err.message || "המחיקה נכשלה. נסו שוב.");
   }
+});
+
+// ---------- one time: lessons renamed from English names to numbers ----------
+// The students' records (correct answers, lessons finished) and the goals list keep the
+// lesson id, so they move to the new ids too. Safe to run again: done once, then a flag.
+const RENAMED_LESSONS = {
+  "avot-vetoldot": "2-1-1", "shor-umave": "2-1-2", "lo-hari-hashor": "2-1-3", "gabei-shabbat-tanan": "2-1-4",
+  "umai-ika": "2-1-5", "gabei-tumaot-tanan": "2-1-6",
+  "shlosha-avot-beshor": "2-2-1", "keren-manlan": "2-2-2", "toldah-dekeren": "2-2-3", "mai-shena-negicha": "2-2-4",
+  "mai-shena-gabei-adam": "2-2-5", "muad-livhema": "2-2-6",
+};
+const renamedId = (id) => RENAMED_LESSONS[id] || id;
+// "avot-vetoldot:7" -> "2-1-1:7"
+const renamedKey = (k) => { const i = k.lastIndexOf(":"); return i > 0 ? renamedId(k.slice(0, i)) + k.slice(i) : renamedId(k); };
+function renameKeys(obj, rename, merge) {
+  let changed = false;
+  const out = {};
+  for (const [k, v] of Object.entries(obj || {})) {
+    const nk = rename(k);
+    if (nk !== k) changed = true;
+    out[nk] = nk in out ? merge(out[nk], v) : v;
+  }
+  return { out, changed };
+}
+const asCount = (v) => (v === true ? 1 : Number.isFinite(v) ? v : 0);
+
+exports.renameLessonIds = onCall(async (request) => {
+  requireAdmin(request);
+  const flag = db.doc("settings/migrations");
+  if ((await flag.get()).get("lessonIds")) return { ok: true, already: true };
+  const users = await db.collection("users").get();
+  let moved = 0;
+  for (const u of users.docs) {
+    const quizRef = u.ref.collection("progress").doc("quiz"), lessonsRef = u.ref.collection("progress").doc("lessons");
+    const [quiz, lessons] = await Promise.all([quizRef.get(), lessonsRef.get()]);
+    if (quiz.exists) {
+      const { out, changed } = renameKeys(quiz.get("sections"), renamedKey, (a, b) => Math.max(asCount(a), asCount(b)));
+      if (changed) { await quizRef.update({ sections: out }); moved++; }
+    }
+    if (lessons.exists) {
+      const { out, changed } = renameKeys(lessons.get("lessons"), renamedId, (a, b) => ({ ...a, ...b, times: (a.times || 0) + (b.times || 0) }));
+      if (changed) { await lessonsRef.update({ lessons: out }); moved++; }
+    }
+  }
+  const goals = await db.doc("settings/goals").get();
+  if (goals.exists && Array.isArray(goals.get("lessons"))) {
+    await goals.ref.update({ lessons: [...new Set(goals.get("lessons").map(renamedId))] });
+  }
+  await flag.set({ lessonIds: new Date().toISOString() }, { merge: true });
+  return { ok: true, moved };
 });

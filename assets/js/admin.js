@@ -38,6 +38,12 @@ else watchAuthState((user) => {
 
 async function start(admin) {
   const db = getDb();
+  // one time: the students' records move to the lessons' new names (numbers)
+  const moved = await getDoc(doc(db, "settings", "migrations")).catch(() => null);
+  if (!(moved && moved.exists() && moved.data().lessonIds)) {
+    const fns = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-functions.js");
+    await fns.httpsCallable(fns.getFunctions(getApp()), "renameLessonIds")().catch(() => {});
+  }
   const [site, settings, users, goals] = await Promise.all([
     fetch("lessons.json", { cache: "no-cache" }).then((r) => r.json()).catch(() => ({ groups: [] })),
     getDoc(doc(db, "settings", "sms")),
@@ -97,7 +103,9 @@ document.querySelector(".adm-tabs").addEventListener("click", (e) => {
 
 // ---------- students ----------
 const fullName = (s) => `${s.firstName || ""} ${s.lastName || ""}`.trim() || "ללא שם";
-const countOf = (s) => Object.values(s.correct).filter(Boolean).length;
+// each question counts up to 3 correct answers (true = once, from before counting began)
+const timesOf = (v) => (v === true ? 1 : Number.isFinite(v) && v > 0 ? Math.min(v, 3) : 0);
+const countOf = (s) => Object.values(s.correct).reduce((n, v) => n + timesOf(v), 0);
 const dateOf = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric", year: "2-digit" }); };
 const timeOf = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("he-IL", { day: "numeric", month: "numeric", year: "2-digit", hour: "2-digit", minute: "2-digit" }); };
 
@@ -120,7 +128,7 @@ function rowHtml(s) {
   // lessons in site order: correct answers in each, and how many times it was finished
   const times = (id) => (s.finished[id] && s.finished[id].times) || 0;
   const perLesson = {};
-  Object.keys(s.correct).forEach((q) => { if (s.correct[q] && q.includes(":")) { const id = q.split(":")[0]; perLesson[id] = (perLesson[id] || 0) + 1; } });
+  Object.keys(s.correct).forEach((q) => { if (timesOf(s.correct[q]) && q.includes(":")) { const id = q.slice(0, q.lastIndexOf(":")); perLesson[id] = (perLesson[id] || 0) + timesOf(s.correct[q]); } });
   const did = LESSONS.filter((l) => perLesson[l.id] || times(l.id));
   const done = did.filter((l) => times(l.id)).length;
   const pills = did.map((l) => `<span class="adm-pill${times(l.id) ? " done" : ""}">${"✓".repeat(Math.min(times(l.id), 10))}${times(l.id) ? " " : ""}${esc(l.title)} <i>${perLesson[l.id] || 0}</i></span>`).join("");
