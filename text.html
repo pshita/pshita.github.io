@@ -138,6 +138,8 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .page .note{color:var(--muted);font-size:14px;font-family:Arial,sans-serif}
 .empty{color:var(--muted)}
 .page [data-ph]:empty::before{content:attr(data-ph);color:#aaa}
+/* an empty piece inside a line (an explanation, an answer) keeps some room, so a click can get into it */
+.page span[data-p]:empty{display:inline-block;min-width:4em;min-height:1.2em;vertical-align:bottom;border-bottom:1px dashed #bbb}
 /* edit mode (double-click any text, admin only) */
 /* the whole page is one editing area: select and delete across paragraphs like in a document */
 .page.editing{outline:none}
@@ -1565,6 +1567,13 @@ function deleteAcross(r, a, b, ins = "") {
   return commit(key, { p: a.dataset.p, offset: textLen(before) });
 }
 
+// A caret next to the one character left in a piece, on the side the key deletes.
+function partText(a, r, t) {
+  const x = document.createRange();
+  x.selectNodeContents(a);
+  if (t === "deleteContentBackward") x.setEnd(r.startContainer, r.startOffset); else x.setStart(r.startContainer, r.startOffset);
+  return x.toString().length === 1;
+}
 page.addEventListener("beforeinput", (e) => {
   if (!EDIT) return;
   const t = e.inputType, s = getSelection();
@@ -1584,6 +1593,19 @@ page.addEventListener("beforeinput", (e) => {
     if (t.startsWith("format")) return;  // bold etc. across pieces is fine
     e.preventDefault();
     deleteAcross(r, a, b, t === "insertText" || t === "insertReplacementText" ? (e.data || (e.dataTransfer && e.dataTransfer.getData("text/plain")) || "") : "");
+    return;
+  }
+  // Deleting everything in a piece: done here, so the browser doesn't remove the piece
+  // itself (then there would be nowhere left to type).
+  if (t.startsWith("delete") && a.textContent.length && (r.collapsed ? a.textContent.length === 1 && (t === "deleteContentBackward" ? r.toString() === "" : true) && partText(a, r, t) : r.toString() === a.textContent)) {
+    e.preventDefault();
+    a.innerHTML = "";
+    const c = document.createRange();
+    c.setStart(a, 0);
+    c.collapse(true);
+    s.removeAllRanges();
+    s.addRange(c);
+    syncEdits();
     return;
   }
   const kind = kindOf(a);
