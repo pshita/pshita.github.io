@@ -3,7 +3,6 @@
   "short_name": "פשיטא",
   "lang": "he",
   "dir": "rtl",
-  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#faf6ee",
