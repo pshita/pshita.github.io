@@ -212,3 +212,5 @@ body{margin:0}@media (min-width:700px){.screen .qhead{padding:6px 28px 0;font-si
 .allpv{display:grid;gap:16px}
 .allpv .screen{min-height:0}
 .allpv .screen .go,.allpv .screen button{cursor:default}
+/* text written in italics on the text page (background) shows upright in the lesson */
+.tx i,.tx em{font-style:normal}
