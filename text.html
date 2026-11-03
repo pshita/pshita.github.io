@@ -1416,7 +1416,9 @@ page.addEventListener("click", (e) => {
     publishDraft(el.dataset.h, el);
     return;
   }
-  window.PSHITA_PREVIEW = DATA[el.dataset.h].L;
+  // the questions only when "שאלות" is ticked, as on this page
+  const L = DATA[el.dataset.h].L;
+  window.PSHITA_PREVIEW = SHOWQ ? L : { ...L, screens: L.screens.filter((x) => ["intro", "read", "summary", "gate"].includes(x.type)) };
   let box = $("pvBox");
   if (!box) {
     box = document.createElement("div");
