@@ -118,6 +118,10 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .page .qk{color:var(--muted);font-weight:400;font-size:.85em}
 .page .qi{margin:0 0 4px;padding-inline-start:28px}
 .page .why{color:var(--muted);font-size:.9em;margin:0 0 10px}
+/* each question with a box: ticked = it stays in the lesson, not ticked = removed when published */
+.page .qb{position:relative;padding-inline-start:26px}
+.page .qb .keep{position:absolute;inset-inline-start:0;top:12px;width:17px;height:17px;margin:0;accent-color:#2b241b;cursor:pointer}
+.page .qb.off>:not(.kw){opacity:.4}
 .page table{border-collapse:collapse;margin:8px 0 12px;font-size:.88em;max-width:100%}
 .page table.fit{width:100%;table-layout:fixed}
 .page td,.page th{border:1px solid #999;padding:3px 8px}
@@ -341,6 +345,8 @@ function renderLesson(key, d, q) {
     const q1 = (t) => `<p class="q">${kind(t)}<span${ed("q." + si, s.q || "", "השאלה")}</span></p>`;
     const span = (p, v, ph = "") => `<span${ed(p, v ?? "", ph)}</span>`;
     const sep = (t) => ro(t);
+    const outer = h;
+    h = "";
     if (s.type === "mc") h += q1("mc") + opts(s.o, s.a);
     else if (s.type === "fill") h += `<p class="q">${kind("fill")}${span("fb." + si, s.before)}${sep(" ___ ")}${span("fa." + si, s.after)}</p>` + opts(s.o, s.a);
     else if (s.type === "judge") h += `<p class="q"${roA}>${s.sides.map((x) => clean(x[0] + ": " + x[1])).join(" / ")}</p>` + opts(s.o, s.a);
@@ -354,6 +360,8 @@ function renderLesson(key, d, q) {
     else if (s.type === "open") h += q1("open") + `<p class="qi"${ed("an." + si, s.ans || "")}</p>`;
     else if (s.q) h += `<p class="q"${roA}>${clean(s.q)}</p>` + (s.ans ? `<p${roA}>${clean(s.ans)}</p>` : "");
     if (s.why !== undefined || s.din !== undefined) h += `<p class="why">${ro("הסבר: ")}${span("wy." + si, s.why !== undefined ? s.why : s.din)}</p>`;
+    const box = `<span class="kw" contenteditable="false"><input type="checkbox" class="keep" data-h="${esc(key)}" data-si="${si}"${s.off ? "" : " checked"}${d.draft || (!d.noEdit && d.base) ? "" : " disabled"}></span>`;
+    h = outer + `<div class="qb${s.off ? " off" : ""}">${box}${h}</div>`;
   });
   return `<section class="lsn" data-key="${esc(key)}"${EDIT && !editable ? ' contenteditable="false"' : ""}>${h}</section>`;
 }
@@ -1322,6 +1330,17 @@ const page = $("page");
 // typing: a new name also updates the lesson list, which is a bigger save.
 const LAZY = (el) => !isDraft(el.dataset.h) && /^(tt|rf)$/.test(el.dataset.p);
 page.addEventListener("focusout", () => { if (CUR && LAZY(CUR) && DIRTY.has(CUR.dataset.h)) saveNow(CUR.dataset.h); });
+
+// A question's box: ticked, it stays; not ticked, it's marked "off" and left out when published.
+page.addEventListener("change", (e) => {
+  const el = e.target;
+  if (!el.classList || !el.classList.contains("keep")) return;
+  const key = el.dataset.h, sc = DATA[key] && DATA[key].L.screens[+el.dataset.si];
+  if (!sc) return;
+  if (el.checked) delete sc.off; else sc.off = true;
+  el.closest(".qb").classList.toggle("off", !el.checked);
+  changed(key);
+});
 
 // One edited piece -> the lesson data.
 function applyEdit(el, v, now = false) {

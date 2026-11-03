@@ -716,10 +716,14 @@ exports.publishDraft = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   const data = await readRepoFile(dataPath(id), token);
   const lesson = JSON.parse(data.text);
   const title = String(lesson.title || "").trim() || lessonId;
+  // questions whose box was left unticked on the text page don't go to the site
+  const off = Array.isArray(lesson.screens) && lesson.screens.some((s) => s && s.off);
+  if (off) lesson.screens = lesson.screens.filter((s) => !(s && s.off));
+  const text = off ? formatLessonJson(lesson) : data.text;
   if (lessonId !== id) {
     if (await fileExists(`contents/${dataPath(lessonId)}`, token)) throw new HttpsError("already-exists", "כבר יש קובץ עם המזהה הזה.");
-    await writeRepoFile(dataPath(lessonId), data.text, { message, token });
-  }
+    await writeRepoFile(dataPath(lessonId), text, { message, token });
+  } else if (off) await writeRepoFile(dataPath(lessonId), text, { sha: data.sha, message, token });
   const shell = await readRepoFile(`lessons/${lessonId}.html`, token).catch(() => null);
   const html = lessonShellHtml({ id: lessonId, title });
   if (!shell || shell.text !== html) await writeRepoFile(`lessons/${lessonId}.html`, html, { sha: shell && shell.sha, message, token });
