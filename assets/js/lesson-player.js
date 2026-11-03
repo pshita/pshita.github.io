@@ -146,7 +146,14 @@ const SENT={},ANS={};let FIN=false;
 let LASTCUR=-1;
 function report(){if(cur!==LASTCUR){LASTCUR=cur;dispatchEvent(new CustomEvent('pshita:screen'))}Object.keys(R).forEach(k=>{const r=R[k],s=LESSON.screens[k];if(r.done&&r.ok===true&&SCORED.includes(s.type)&&!SENT[k]){SENT[k]=1;dispatchEvent(new CustomEvent('pshita:correct',{detail:{q:+k}}))}if(r.done&&!NONQ.includes(s.type)&&!ANS[k]){ANS[k]=1;dispatchEvent(new CustomEvent('pshita:answered',{detail:{q:+k}}))}});
  const list=screens();if(!FIN&&list[cur]&&list[cur].type==='summary'){FIN=true;if(list.filter(x=>SCORED.includes(x.type)).every(x=>st(x).done||locked(x)))dispatchEvent(new CustomEvent('pshita:finished'))}}
-function draw(){drawPlay();report()}
+// the text page's "מעוצב": every screen of the lesson one under the other, to look over
+// (nothing to answer, nothing counted)
+function drawAll(){const list=screens();
+ view.innerHTML=`<div class="allpv">${list.map(s=>{if(s.type==='intro')return introScreen(s);
+  const label=(s.type==='summary'||s.type==='read'||s.type==='gate')?'':`<div class="chiprow"><span class="chip">${s.final?'סיכום':LESSON.stations[s.st]}</span><span class="kind">${KIND[s.type]||''}</span></div>`;
+  return `<div class="screen">${label}<div class="body">${body(s)}</div></div>`}).join('')}</div>`;
+ view.querySelectorAll('button,input').forEach(x=>{x.disabled=true})}
+function draw(){if(preview){drawAll();return}drawPlay();report()}
 draw();
 }
 })();

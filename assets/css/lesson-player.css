@@ -208,3 +208,7 @@ body{margin:0}@media (min-width:700px){.screen .qhead{padding:6px 28px 0;font-si
 #view,.screen,.body,.tbl{min-width:0;max-width:100%}
 .gloss>div{background:var(--paper);border:2px solid var(--line);border-radius:14px;padding:10px 12px;font-size:18px;min-width:0}
 .body.locked{opacity:.55;pointer-events:none;user-select:none}
+/* the text page's "מעוצב": all the screens one under the other */
+.allpv{display:grid;gap:16px}
+.allpv .screen{min-height:0}
+.allpv .screen .go,.allpv .screen button{cursor:default}
