@@ -134,6 +134,8 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 /* the lesson as students see it, over the page */
 .page .pv{font:600 13px/1 Arial,sans-serif;color:var(--muted);background:none;border:1px solid #ccc;border-radius:999px;padding:5px 12px;cursor:pointer}
 .page .pv:hover{color:#222;border-color:#888}
+.page .pvw{display:inline-flex;gap:6px}
+.page .pv.up.sure{background:#1A7D72;border-color:#1A7D72;color:#fff}
 #pvBox{position:fixed;inset:0;z-index:60;background:rgba(20,33,61,.55);display:flex;align-items:center;justify-content:center;padding:12px}
 #pvBox[hidden]{display:none}
 #pvBox iframe{width:min(420px,100%);height:min(860px,100%);border:0;border-radius:18px;background:#FFF8EC;box-shadow:0 10px 40px rgba(0,0,0,.35)}
@@ -334,7 +336,10 @@ function renderLesson(key, d, q) {
     ? `<span class="refsel" contenteditable="false">דף <select class="rsel" data-h="${esc(key)}" data-f="daf">${opts(DAFS, daf)}</select> עמוד <select class="rsel" data-h="${esc(key)}" data-f="amud">${opts(["א", "ב"], amud)}</select></span>`
     : `<p class="ref"${roA}>${esc(L.ref || "")}</p>`;
   const nq = L.screens.filter((x) => !["intro", "read", "summary"].includes(x.type)).length;
-  const pvBtn = `<span class="pvw" contenteditable="false"><button type="button" class="pv" data-h="${esc(key)}">מעוצב</button></span>`;
+  // a designed lesson (it has its opening screen) can be seen as students will; a designed
+  // draft can go up to the site from here. Without a design: neither.
+  const designed = L.screens.some((x) => x.type === "intro");
+  const pvBtn = designed ? `<span class="pvw" contenteditable="false"><button type="button" class="pv" data-h="${esc(key)}">מעוצב</button>${isDraft(key) && key !== NEW && canEdit ? `<button type="button" class="pv up" data-h="${esc(key)}">העלאה</button>` : ""}</span>` : "";
   let h = `<div class="lh"><h1${ed("tt", L.title, "שם השיעור")}</h1>${refHtml}${nq ? `<span class="qn"${roA}>${nq} שאלות</span>` : ""}${pvBtn}</div>`;
   if (EDIT && !editable) h += `<p class="note"${roA}>את השיעור הזה אי אפשר לערוך כרגע${d.why ? ` (${esc(d.why)})` : ""}.</p>`;
   let last = -1;
@@ -471,19 +476,7 @@ function drawMenus() {
       <p class="nl-status"></p>
     </div></div>`;
   // a draft goes up to the site: to a page/amud, under an id
-  // the page and amud of the site's lists, and the draft's own (from its title) first if it's new
-  const pubGroups = (key) => {
-    const ref = DATA[key] && DATA[key].L.ref && parseRef(DATA[key].L.ref).daf ? `דף ${parseRef(DATA[key].L.ref).daf}, עמוד ${parseRef(DATA[key].L.ref).amud}` : "";
-    const names = GROUPS.map((x) => x.name);
-    return (ref && !names.includes(ref) ? [ref] : []).concat(names).map((n) => `<option${n === ref ? " selected" : ""}>${esc(n)}</option>`).join("");
-  };
-  const draftRow = (it) => `<div class="lrow" data-key="${esc(it.key)}">${item(it)}<span class="lctl"><button type="button" data-pub title="העלאה לאתר">⬆</button></span></div>
-    <div class="nl-form pub-form" data-key="${esc(it.key)}" hidden>
-      <label>דף ועמוד <select class="pub-group">${pubGroups(it.key)}</select></label>
-      <div class="nl-actions"><button type="button" class="pub-go">העלאה לאתר</button><button type="button" class="pub-cancel">ביטול</button></div>
-      <p class="nl-status"></p>
-    </div>`;
-  const row = (g, it) => (g.site && isAdmin ? lessonRow(it) : !g.site && isAdmin && isDraft(it.key) && it.key !== NEW ? draftRow(it) : item(it));
+  const row = (g, it) => (g.site && isAdmin ? lessonRow(it) : item(it));
   const view = menus().map((g) => secHtml(g.name, g.name, g.items.map((it) => row(g, it)).join("") + (g.site && isAdmin ? newLesson(g) : ""))).join("");
   $("panels").innerHTML = `<div class="panel inmenu" id="viewPanel"><label class="opt"><input type="checkbox" id="optQ"${SHOWQ ? " checked" : ""}> שאלות</label>${view}</div>`;
 }
@@ -1414,8 +1407,15 @@ page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel, .tfa, .
 // "מעוצב": the lesson as it is on this page right now, in the site's player (lessons/preview.html)
 page.addEventListener("click", (e) => {
   const el = e.target.closest(".pv");
+  page.querySelectorAll(".pv.up.sure").forEach((b) => { if (b !== el) { b.classList.remove("sure"); b.textContent = "העלאה"; } });
   if (!el || !DATA[el.dataset.h]) return;
   e.stopPropagation();
+  // "העלאה" turns into "אישור העלאה"; a click on that puts the draft on the site
+  if (el.classList.contains("up")) {
+    if (!el.classList.contains("sure")) { el.classList.add("sure"); el.textContent = "אישור העלאה"; return; }
+    publishDraft(el.dataset.h, el);
+    return;
+  }
   window.PSHITA_PREVIEW = DATA[el.dataset.h].L;
   let box = $("pvBox");
   if (!box) {
@@ -1899,15 +1899,9 @@ function moveViewIntoMenu() {
 // moveLesson, deleteLesson in functions/index.js).
 const idOfKey = (key) => key.replace(/^lessons\/|\.html$/g, "");
 function lessonAction(t) {
-  const row = t.closest(".lrow"), nl = t.closest(".newl"), b = t.closest("button"), pub = t.closest(".pub-form");
+  const row = t.closest(".lrow"), nl = t.closest(".newl"), b = t.closest("button");
   if (row && b && b.dataset.mv) { moveSiteLesson(row, b.dataset.mv); return true; }
   if (row && b && b.hasAttribute("data-del")) { deleteSiteLesson(row); return true; }
-  if (row && b && b.hasAttribute("data-pub")) { const f = row.nextElementSibling; f.hidden = !f.hidden; return true; }
-  if (pub) {
-    if (b && b.classList.contains("pub-cancel")) pub.hidden = true;
-    else if (b && b.classList.contains("pub-go")) publishDraft(pub);
-    return true;
-  }
   if (!nl) return false;
   const form = nl.querySelector(".nl-form");
   if (b && b.classList.contains("nl-toggle")) form.hidden = !form.hidden;
@@ -1952,10 +1946,12 @@ async function deleteSiteLesson(row) {
     say((err && err.message) || "המחיקה נכשלה.");
   }
 }
-async function publishDraft(form) {
-  const key = form.dataset.key, status = form.querySelector(".nl-status");
-  const group = form.querySelector(".pub-group").value;
-  status.textContent = "מעלה…";
+async function publishDraft(key, btn) {
+  const { daf, amud } = parseRef(DATA[key] && DATA[key].L.ref);
+  if (!daf || !amud) { say("צריך לבחור דף ועמוד בכותרת לפני ההעלאה."); return; }
+  const group = `דף ${daf}, עמוד ${amud}`;
+  btn.disabled = true;
+  btn.textContent = "מעלה…";
   try {
     // what was typed last goes up too
     if (DIRTY.has(key)) await saveNow(key);
@@ -1975,7 +1971,10 @@ async function publishDraft(form) {
     drawMenus();
     render();
   } catch (err) {
-    status.textContent = (err && err.message) || "ההעלאה לא הצליחה.";
+    btn.disabled = false;
+    btn.classList.remove("sure");
+    btn.textContent = "העלאה";
+    say((err && err.message) || "ההעלאה לא הצליחה.");
   }
 }
 async function createSiteLesson(nl) {

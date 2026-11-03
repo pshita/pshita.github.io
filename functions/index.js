@@ -685,7 +685,7 @@ exports.saveDraft = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
   try { sha = (await readRepoFile(dataPath(id), token)).sha; } catch (err) { sha = null; }
   if (!sha && await isSiteLesson(id, token)) throw new HttpsError("already-exists", "כבר יש שיעור עם המזהה הזה.");
   await writeRepoFile(dataPath(id), formatLessonJson(lesson), { sha, message, token });
-  if (!sha) await writeRepoFile(`lessons/${id}.html`, lessonShellHtml({ id, title: lesson.title || id }), { message, token }).catch(() => {});
+  // a draft has no page of its own (no link): it's seen only on the text page ("מעוצב")
   await updateDrafts(token, message, (list) => {
     const title = lesson.title || "";
     const d = list.find((x) => x.id === id);
