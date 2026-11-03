@@ -1797,8 +1797,9 @@ import("./assets/js/auth.js").then((m) => {
   auth = m;
   m.watchAuthState((user) => {
     USER = user;
-    // this page is for the admin only: anyone else goes to the home page
-    if (!user || user.email !== ADMIN_EMAIL) { location.replace("./"); return; }
+    // this page is for the admin only: the admin signs in here (admin-login.js)
+    if (!user || user.email !== ADMIN_EMAIL) { import("./assets/js/admin-login.js").then((x) => x.showAdminLogin()); return; }
+    import("./assets/js/admin-login.js").then((x) => x.hideAdminLogin());
     if (!isAdmin) startAdmin();
   });
 }).catch(() => { location.replace("./"); });

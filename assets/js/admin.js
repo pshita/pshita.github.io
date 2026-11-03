@@ -7,6 +7,7 @@
 //   by functions/index.js), and below, every message sent (smsLog), with its date;
 // - "יעדים": the lessons students see in the menu (settings/goals; see header-auth.js).
 import { watchAuthState, getDb, getApp, isReady } from "./auth.js";
+import { showAdminLogin, hideAdminLogin } from "./admin-login.js";
 import {
   collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteField,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
@@ -24,12 +25,14 @@ let STUDENTS = [], LESSONS = [], GROUPS = [], GOALS = [], SMS = { ...SMS_DEFAULT
 
 if (!isReady()) $("adm-gate").textContent = "החיבור לנתונים לא מוגדר באתר.";
 else watchAuthState((user) => {
+  // the admin signs in here (admin-login.js), not from the site's sign-in list
   if (!user || user.email !== ADMIN_EMAIL) {
-    $("adm-gate").hidden = false;
+    $("adm-gate").hidden = true;
     $("adm-main").hidden = true;
-    $("adm-gate").textContent = "העמוד הזה רק למנהל האתר.";
+    showAdminLogin();
     return;
   }
+  hideAdminLogin();
   start(user).catch((err) => {
     $("adm-gate").hidden = false;
     $("adm-gate").textContent = "לא הצלחתי לטעון את הנתונים: " + errText(err);

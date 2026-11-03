@@ -231,8 +231,10 @@ exports.listUsers = onCall(async () => {
       missing[i].name = `${v.firstName || ""} ${v.lastName || ""}`.trim();
     });
   }
+  // the admin isn't in the list: the admin signs in on the text page or the admin page
   const list = people
-    .map((p) => ({ name: p.email === ALLOWED_EMAIL ? "ניהול" : p.name, email: p.email }))
+    .filter((p) => p.email !== ALLOWED_EMAIL)
+    .map((p) => ({ name: p.name, email: p.email }))
     .filter((p) => p.name)
     .sort((a, b) => a.name.localeCompare(b.name, "he"));
   return { users: list };

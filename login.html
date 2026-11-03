@@ -101,20 +101,13 @@
     const form = document.getElementById("login-form");
     const select = document.getElementById("login-user");
     const errorEl = document.getElementById("form-error");
-    const LAST_KEY = "pshita.login.last";  // the admin's name, picked last time on this device
     const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
     // Students' sign-in details aren't saved by the browser: their password goes in a
-    // plain text field shown as dots, which browsers don't offer to save. The admin
-    // gets a real password field.
-    function passwordField() {
-      const pw = document.getElementById("login-password"), admin = select.value === ADMIN_EMAIL;
-      pw.type = admin ? "password" : "text";
-      pw.classList.toggle("secret", !admin);
-      pw.autocomplete = admin ? "current-password" : "off";
-    }
+    // plain text field shown as dots, which browsers don't offer to save. (The admin
+    // signs in on the text page or the admin page, not here.)
     const showError = (text) => { errorEl.textContent = text; errorEl.hidden = !text; };
 
-    // Everyone registered, by name (from the server; the admin shows as "ניהול").
+    // Everyone registered, by name (from the server; not the admin).
     async function loadUsers() {
       if (!isReady()) { showError("ההתחברות עדיין לא מוגדרת באתר. נסו שוב מאוחר יותר."); return; }
       try {
@@ -123,20 +116,15 @@
         const users = res.data.users || [];
         const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
         select.innerHTML = '<option value="">בחרו את השם שלכם</option>' +
-          users.map((u) => `<option value="${esc(u.email)}">${esc(u.name)}</option>`).join("");
-        let last = "";
-        try { last = localStorage.getItem(LAST_KEY) || ""; } catch (e) {}
-        if (users.some((u) => u.email === last)) select.value = last;
+          users.filter((u) => u.email !== ADMIN_EMAIL).map((u) => `<option value="${esc(u.email)}">${esc(u.name)}</option>`).join("");
         select.disabled = false;
-        passwordField();
-        if (select.value) document.getElementById("login-password").focus();
       } catch (err) {
         select.innerHTML = '<option value="">הרשימה לא נטענה</option>';
         showError("לא הצלחתי לטעון את רשימת המשתמשים. נסו לרענן את הדף.");
       }
     }
     loadUsers();
-    select.addEventListener("change", () => { passwordField(); if (select.value) document.getElementById("login-password").focus(); });
+    select.addEventListener("change", () => { if (select.value) document.getElementById("login-password").focus(); });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -147,7 +135,7 @@
       submitBtn.disabled = true;
       try {
         await loginWithEmail(data.email, data.password);
-        try { if (data.email === ADMIN_EMAIL) localStorage.setItem(LAST_KEY, data.email); else localStorage.removeItem(LAST_KEY); } catch (e) {}
+        try { localStorage.removeItem("pshita.login.last"); } catch (e) {}
         window.location.href = "./";
       } catch (err) {
         showError(err.message);
