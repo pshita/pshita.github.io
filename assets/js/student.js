@@ -1,6 +1,7 @@
 // A signed-in student's progress and the messages to the parents:
 // - in a lesson, records each question answered correctly (users/{uid}/progress/quiz)
-//   up to 3 times each, and again only after finishing the whole lesson's questions;
+//   up to 3 times each; a question answered (right or wrong) is asked again only after
+//   all the lesson's other questions were answered (a "round", progress/quiz.round);
 //   and each time a lesson is finished with all its questions (users/{uid}/progress/lessons:
 //   times), from the player's events;
 // - says how many correct answers are left until the next message to the parents
@@ -106,10 +107,18 @@ if (isReady()) {
       });
     } else SECTIONS = {};
     ready.forEach((cb) => cb({ user: USER, info: INFO, step: plan().step }));
+    if (document.body.dataset.lesson) tellRound(document.body.dataset.lesson);
   });
 }
 
 // ---------- in a lesson: the player reports answers and the end of the lesson ----------
+// The player skips the questions answered in the current round (answered right or wrong),
+// until every other question of the lesson is answered too.
+function tellRound(lesson) {
+  const done = (USER && ROUND[lesson]) || [];
+  window.PSHITA_ROUND = done;
+  dispatchEvent(new CustomEvent("pshita:round", { detail: done.slice() }));
+}
 const lessonId = document.body.dataset.lesson;
 let toldToLogin = false;
 if (lessonId) {
@@ -135,10 +144,19 @@ if (lessonId) {
     if (left && count % plan().step === 0) toast(`כל הכבוד! ענית נכון על ${count} שאלות. שולחים הודעה להורים 🎉`, 6000);
     else if (left) toast(`נכון! ${left}`);
   });
+  // answered wrong: still in this round (it comes back once the rest are answered)
+  addEventListener("pshita:answered", (e) => {
+    if (!USER || !SECTIONS) return;
+    const k = e.detail.q, round = ROUND[lessonId] || (ROUND[lessonId] = []);
+    if (round.includes(k)) return;
+    round.push(k);
+    setDoc(doc(getDb(), "users", USER.uid, "progress", "quiz"), { round: { [lessonId]: arrayUnion(k) } }, { merge: true }).catch(() => {});
+  });
   addEventListener("pshita:finished", () => {
     if (!USER) return;
-    // all the lesson's questions answered: the next time through, they count again
+    // all the lesson's questions answered: the next time through, they're asked and count again
     delete ROUND[lessonId];
+    tellRound(lessonId);
     setDoc(doc(getDb(), "users", USER.uid, "progress", "quiz"), { round: { [lessonId]: deleteField() } }, { merge: true }).catch(() => {});
     setDoc(doc(getDb(), "users", USER.uid, "progress", "lessons"),
       { lessons: { [lessonId]: { finishedAt: new Date().toISOString(), times: increment(1) } } }, { merge: true }).catch(() => {});

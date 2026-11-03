@@ -40,7 +40,7 @@ async function start(admin) {
   const db = getDb();
   // one time: the students' records move to the lessons' new names (numbers)
   const moved = await getDoc(doc(db, "settings", "migrations")).catch(() => null);
-  if (!(moved && moved.exists() && moved.data().lessonIds)) {
+  if (!(moved && moved.exists() && moved.data().lessonIds2)) {
     const fns = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-functions.js");
     await fns.httpsCallable(fns.getFunctions(getApp()), "renameLessonIds")().catch(() => {});
   }

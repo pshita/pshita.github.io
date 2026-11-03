@@ -8,9 +8,9 @@
 | Lesson engine (screens, questions, design) | `assets/js/lesson-player.js` and `assets/css/lesson-player.css`, shared by all lessons |
 | Markup that lists lessons (home page panels, header menus) | generated from `lessons.json` by `functions/site.js` |
 
-Lesson ids are numbers: daf - amud - the lesson's number in that amud, from 1 (`2-1-3` is the third lesson of דף ב, עמוד א). The server gives the next number when a lesson is created or a draft is published (`nextLessonId` in `functions/site.js`). The lessons' old English names (`lessons/avot-vetoldot.html` and so on) are small pages that redirect to the new ones.
+Lesson ids are numbers without hyphens: daf, amud, then the lesson's number in that amud, from 1 (`213` is the third lesson of דף ב, עמוד א). The server gives the next number when a lesson is created or a draft is published (`nextLessonId` in `functions/site.js`).
 
-A paragraph marked on the text page (⊘) to stay there only starts with `<!--text-only-->`; the player skips it, and a screen with nothing else is skipped too.
+A paragraph marked on the text page to stay there only (select the whole paragraph, then "רק בטקסט") starts with `<!--text-only-->`; the player skips it, and a screen with nothing else is skipped too.
 
 The player loads `data/<id>.json`. It takes "previous / next lesson" from the order in `lessons.json`.
 

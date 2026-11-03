@@ -126,9 +126,9 @@ function setMenu(html, groups, hrefPrefix) {
   return html.replace(re, (m, a, b) => `${a}\n          ${groupSubmenusHtml(groups, hrefPrefix)}${b}`);
 }
 
-// Lesson ids are numbers: daf - amud - the lesson's number in that amud (from 1), e.g. "2-1-3"
-// for the third lesson of daf ב, amud א. The daf and amud come from the group's title
-// ("דף ב, עמוד א").
+// Lesson ids are numbers, no hyphens: daf, amud, then the lesson's number in that amud
+// (from 1), e.g. "213" for the third lesson of daf ב, amud א. The daf and amud come from
+// the group's title ("דף ב, עמוד א").
 const HEB = { א: 1, ב: 2, ג: 3, ד: 4, ה: 5, ו: 6, ז: 7, ח: 8, ט: 9, י: 10, כ: 20, ך: 20, ל: 30, מ: 40, ם: 40, נ: 50, ן: 50, ס: 60, ע: 70, פ: 80, ף: 80, צ: 90, ץ: 90, ק: 100, ר: 200, ש: 300, ת: 400 };
 function hebNum(word) {
   return [...String(word).replace(/[^א-ת]/g, "")].reduce((n, c) => n + (HEB[c] || 0), 0);
@@ -136,16 +136,18 @@ function hebNum(word) {
 function lessonPrefix(ref) {
   const m = /דף\s+([א-ת"׳״']+)[\s,]*עמוד\s+([א-ת"׳״']+)/.exec(String(ref || ""));
   if (!m || !hebNum(m[1]) || !hebNum(m[2])) return null;
-  return `${hebNum(m[1])}-${hebNum(m[2])}`;
+  return `${hebNum(m[1])}${hebNum(m[2])}`;
 }
-// The next free number in that amud (after the highest one used).
+// The next number in that amud: one more than the lessons already in its group, or the
+// first one after that which isn't taken.
 function nextLessonId(site, ref, taken = []) {
   const prefix = lessonPrefix(ref);
   if (!prefix) return null;
-  const ids = site.groups.flatMap((g) => g.lessons.map((l) => l.id)).concat(taken);
-  const re = new RegExp(`^${prefix}-(\\d+)$`);
-  const n = ids.reduce((max, id) => { const m = re.exec(id); return m ? Math.max(max, +m[1]) : max; }, 0);
-  return `${prefix}-${n + 1}`;
+  const ids = new Set(site.groups.flatMap((g) => g.lessons.map((l) => l.id)).concat(taken));
+  const group = site.groups.find((g) => g.title === String(ref).trim());
+  let n = (group ? group.lessons.length : 0) + 1;
+  while (ids.has(`${prefix}${n}`)) n++;
+  return `${prefix}${n}`;
 }
 
 const MENU_PAGES = ["index.html", "login.html", "register.html", "achievements.html", "scenes.html", "admin.html"];

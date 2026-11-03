@@ -786,11 +786,13 @@ exports.deleteLesson = onCall({ secrets: [GITHUB_TOKEN] }, async (request) => {
 // The students' records (correct answers, lessons finished) and the goals list keep the
 // lesson id, so they move to the new ids too. Safe to run again: done once, then a flag.
 const RENAMED_LESSONS = {
-  "avot-vetoldot": "2-1-1", "shor-umave": "2-1-2", "lo-hari-hashor": "2-1-3", "gabei-shabbat-tanan": "2-1-4",
-  "umai-ika": "2-1-5", "gabei-tumaot-tanan": "2-1-6",
-  "shlosha-avot-beshor": "2-2-1", "keren-manlan": "2-2-2", "toldah-dekeren": "2-2-3", "mai-shena-negicha": "2-2-4",
-  "mai-shena-gabei-adam": "2-2-5", "muad-livhema": "2-2-6",
+  "avot-vetoldot": "211", "shor-umave": "212", "lo-hari-hashor": "213", "gabei-shabbat-tanan": "214",
+  "umai-ika": "215", "gabei-tumaot-tanan": "216",
+  "shlosha-avot-beshor": "221", "keren-manlan": "222", "toldah-dekeren": "223", "mai-shena-negicha": "224",
+  "mai-shena-gabei-adam": "225", "muad-livhema": "226",
 };
+// for a short while they were "2-1-1" and so on
+for (const id of Object.values(RENAMED_LESSONS)) RENAMED_LESSONS[id.split("").join("-")] = id;
 const renamedId = (id) => RENAMED_LESSONS[id] || id;
 // "avot-vetoldot:7" -> "2-1-1:7"
 const renamedKey = (k) => { const i = k.lastIndexOf(":"); return i > 0 ? renamedId(k.slice(0, i)) + k.slice(i) : renamedId(k); };
@@ -809,7 +811,7 @@ const asCount = (v) => (v === true ? 1 : Number.isFinite(v) ? v : 0);
 exports.renameLessonIds = onCall(async (request) => {
   requireAdmin(request);
   const flag = db.doc("settings/migrations");
-  if ((await flag.get()).get("lessonIds")) return { ok: true, already: true };
+  if ((await flag.get()).get("lessonIds2")) return { ok: true, already: true };
   const users = await db.collection("users").get();
   let moved = 0;
   for (const u of users.docs) {
@@ -828,6 +830,6 @@ exports.renameLessonIds = onCall(async (request) => {
   if (goals.exists && Array.isArray(goals.get("lessons"))) {
     await goals.ref.update({ lessons: [...new Set(goals.get("lessons").map(renamedId))] });
   }
-  await flag.set({ lessonIds: new Date().toISOString() }, { merge: true });
+  await flag.set({ lessonIds2: new Date().toISOString() }, { merge: true });
   return { ok: true, moved };
 });

@@ -99,7 +99,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 #fmt .red{color:#ff8a7a}
 #fmt .it{font-style:italic;font-family:Georgia,serif}
 #fmt .hd{width:auto;padding:0 8px;font-size:13px;border-inline-start:1px solid #555;border-radius:0 5px 5px 0}
-.page{min-height:100vh;background:var(--page);padding:22px clamp(30px,3vw,40px) 48px;font-family:var(--text);font-size:var(--fs,17px);line-height:1.4}
+.page{min-height:100vh;background:var(--page);padding:22px clamp(16px,3vw,40px) 48px;font-family:var(--text);font-size:var(--fs,17px);line-height:1.4}
 /* the lesson's name, and on the same line its page and amud */
 .page .lh{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 16px;margin:0 0 14px}
 .page .lsn+.lsn .lh{margin-top:40px;padding-top:26px;border-top:1px solid var(--line)}
@@ -124,12 +124,9 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .page .qb .qdel{position:absolute;inset-inline-start:0;top:9px;width:20px;height:20px;padding:0;border:0;border-radius:4px;background:none;color:var(--muted);font-size:15px;line-height:20px;cursor:pointer}
 .page .qb .qdel:hover{background:#f3e1dc;color:#a33}
 .page .qb .qdel.sure{width:auto;padding:0 8px;background:#a33;color:#fff;font:600 13px/20px Arial,sans-serif;white-space:nowrap;z-index:2}
-/* a paragraph can stay on this page only (not in the lesson): its ⊘ in the margin */
-.page .pw{position:relative}
-.page .pw .tog{position:absolute;inset-inline-start:-26px;top:2px;width:20px;height:20px;padding:0;border:0;border-radius:4px;background:none;color:var(--muted);font-size:14px;line-height:20px;cursor:pointer;opacity:.35}
-.page .pw .tog:hover{opacity:1;background:#eee}
-.page .pw.tonly>p{color:var(--muted);background:repeating-linear-gradient(-45deg,transparent 0 6px,rgba(0,0,0,.035) 6px 12px);outline:1px dashed #bbb;outline-offset:2px}
-.page .pw.tonly .tog{opacity:1;color:#a33}
+/* a paragraph that stays on this page only (not in the lesson) */
+.page p.tonly{color:var(--muted);background:repeating-linear-gradient(-45deg,transparent 0 6px,rgba(0,0,0,.035) 6px 12px);outline:1px dashed #bbb;outline-offset:2px}
+#fmt .to.on{background:#555}
 /* the page and amud: two lists right after the name; how many questions the lesson has */
 .page .refsel{font-size:.82em;color:var(--muted);white-space:nowrap}
 .page .refsel select{font:inherit;color:var(--ink,#222);background:none;border:0;border-bottom:1px dashed var(--muted);padding:0 2px;cursor:pointer}
@@ -153,7 +150,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 #tb{display:flex;flex-wrap:wrap;gap:4px;max-width:calc(100vw - 16px)}
 #tb button{font:inherit;padding:3px 10px;border:1px solid #bbb;border-radius:5px;background:#fff;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
 #tb button:hover{border-color:#8a4b2e;color:#6d3a22}
-@media (max-width:640px){.page{padding:20px 14px 40px;padding-inline-start:30px;font-size:var(--fs,16px)}}
+@media (max-width:640px){.page{padding:20px 14px 40px;font-size:var(--fs,16px)}}
 @media print{.bar,.panel,#tb,#hot,#fmt,#msg,#find,#hist{display:none}body{background:#fff}.page{padding:0;min-height:0}}
 </style>
 <link rel="stylesheet" href="assets/css/site-header.css?v=10">
@@ -181,7 +178,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
   <div class="frow" id="replRow" hidden><input type="text" id="replQ" placeholder="החלפה ב…" autocomplete="off">
     <button type="button" id="replOne">החלפה</button><button type="button" id="replAll">החלפת הכול</button></div>
 </div>
-<div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="italic" class="it" title="נטוי">I</button><button type="button" data-cmd="red" class="red" title="אדום">A</button><button type="button" data-cmd="heading" class="hd" title="להפוך לכותרת">כותרת</button></div>
+<div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="italic" class="it" title="נטוי">I</button><button type="button" data-cmd="red" class="red" title="אדום">A</button><button type="button" data-cmd="heading" class="hd" title="להפוך לכותרת">כותרת</button><button type="button" data-cmd="textonly" class="hd to">רק בטקסט</button></div>
 <div class="page" id="page"><p class="empty">טוען…</p></div>
 <div id="panels" hidden></div>
 <div id="tb" hidden></div>
@@ -197,9 +194,9 @@ let auth = null, httpsCallable = null, fns = null, fs = null, isAdmin = false;
 
 const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 const SEL_KEY = "pshita.text.selected";
-// lessons renamed from English names to numbers (daf-amud-number): the saved selection follows
-const RENAMED = { "avot-vetoldot": "2-1-1", "shor-umave": "2-1-2", "lo-hari-hashor": "2-1-3", "gabei-shabbat-tanan": "2-1-4", "umai-ika": "2-1-5", "gabei-tumaot-tanan": "2-1-6", "shlosha-avot-beshor": "2-2-1", "keren-manlan": "2-2-2", "toldah-dekeren": "2-2-3", "mai-shena-negicha": "2-2-4", "mai-shena-gabei-adam": "2-2-5", "muad-livhema": "2-2-6" };
-const renamedKey = (k) => k.replace(/^lessons\/([a-z-]+)\.html$/, (m, id) => (RENAMED[id] ? `lessons/${RENAMED[id]}.html` : m));
+// lessons renamed from English names to numbers (daf, amud, number: 213): the saved selection follows
+const RENAMED = { "avot-vetoldot": "211", "shor-umave": "212", "lo-hari-hashor": "213", "gabei-shabbat-tanan": "214", "umai-ika": "215", "gabei-tumaot-tanan": "216", "shlosha-avot-beshor": "221", "keren-manlan": "222", "toldah-dekeren": "223", "mai-shena-negicha": "224", "mai-shena-gabei-adam": "225", "muad-livhema": "226" };
+const renamedKey = (k) => k.replace(/^lessons\/([a-z0-9-]+)\.html$/, (m, id) => (RENAMED[id] ? `lessons/${RENAMED[id]}.html` : /^\d(-\d)+$/.test(id) ? `lessons/${id.replace(/-/g, "")}.html` : m));
 const NEW = "draft:new";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
@@ -309,10 +306,8 @@ const plain = (s) => { tpl.innerHTML = String(s); return tpl.content.textContent
 // A paragraph marked to stay on this page only starts with this (the lesson player skips it).
 const TEXT_ONLY = "<!--text-only-->";
 const isTextOnly = (t) => String(t).startsWith(TEXT_ONLY);
-// The page and amud of a lesson: "דף ב, עמוד א"; the daf from ב to קיט (בבא קמא)
-const HEB_ONES = ["", "א", "ב", "ג", "ד", "ה", "ו", "ז", "ח", "ט"], HEB_TENS = ["", "י", "כ", "ל", "מ", "נ", "ס", "ע", "פ", "צ"];
-const hebNum = (n) => (n >= 100 ? "ק" : "") + ({ 15: "טו", 16: "טז" }[n % 100] || HEB_TENS[Math.floor((n % 100) / 10)] + HEB_ONES[n % 10]);
-const DAFS = Array.from({ length: 118 }, (_, i) => hebNum(i + 2));
+// The page and amud of a lesson: "דף ב, עמוד א"; for now dafs ב and ג
+const DAFS = ["ב", "ג"];
 const parseRef = (ref) => { const m = /דף\s+([א-ת]+)[\s,]*עמוד\s+([א-ת]+)/.exec(ref || ""); return m ? { daf: m[1], amud: m[2] } : { daf: "", amud: "" }; };
 
 // Every editable piece carries its place in the lesson data (data-p), so a
@@ -349,8 +344,8 @@ function renderLesson(key, d, q) {
       if (s.kicker) h += `<p><b${ed("kk." + si, s.kicker)}</b></p>`;
       (s.comic || []).forEach((p) => h += `<p${roA}>${clean(p[1])}</p>`);
       (s.text || []).forEach((t, ti) => {
-        const to = isTextOnly(t), tog = canEdit ? `<span contenteditable="false"><button type="button" class="tog" data-h="${esc(key)}" data-si="${si}" data-ti="${ti}">⊘</button></span>` : "";
-        h += `<div class="pw${to ? " tonly" : ""}">${tog}<p${ed(`tx.${si}.${ti}`, to ? t.slice(TEXT_ONLY.length) : t, "טקסט")}</p></div>`;
+        const to = isTextOnly(t);
+        h += `<p${to ? ' class="tonly"' : ""}${ed(`tx.${si}.${ti}`, to ? t.slice(TEXT_ONLY.length) : t, "טקסט")}</p>`;
       });
       if (s.quote) h += `<p${roA}>${clean(s.quote)}</p>`;
       // the site's boxes; each box's pieces carry its place as "<si>.<side>.<bi>"
@@ -770,6 +765,9 @@ document.addEventListener("selectionchange", () => {
   if (!el || s.isCollapsed) { fmt.hidden = true; return; }
   const r = s.getRangeAt(0).getBoundingClientRect();
   fmt.querySelector(".hd").hidden = !selectionParts(el);
+  const whole = wholeParas(), to = fmt.querySelector(".to");
+  to.hidden = !whole.length;
+  to.classList.toggle("on", whole.length > 0 && whole.every((p) => p.classList.contains("tonly")));
   fmt.hidden = false;
   fmt.style.top = `${r.top + scrollY - fmt.offsetHeight - 6}px`;
   fmt.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - fmt.offsetWidth / 2, innerWidth - fmt.offsetWidth - 8)) + scrollX}px`;
@@ -810,10 +808,44 @@ function selectionParts(el) {
   if (!plain(before) && ti === 0 && !L.screens.slice(0, si).some((x) => x.st === S.st)) return null;
   return { before, name, after };
 }
+// The paragraphs the selection covers whole (none if it covers any paragraph only in part):
+// only then "רק בטקסט" shows.
+function wholeParas() {
+  const s = getSelection();
+  if (!s.rangeCount || s.isCollapsed) return [];
+  const r = s.getRangeAt(0), out = [];
+  for (const p of page.querySelectorAll('p[data-p^="tx."]')) {
+    if (!p.isContentEditable || !r.intersectsNode(p)) continue;
+    const x = document.createRange();
+    x.selectNodeContents(p);
+    if (r.compareBoundaryPoints(Range.START_TO_START, x) > 0) x.setStart(r.startContainer, r.startOffset);
+    if (r.compareBoundaryPoints(Range.END_TO_END, x) < 0) x.setEnd(r.endContainer, r.endOffset);
+    const got = x.toString().trim();
+    if (!got) continue;  // only touched at its edge (a triple click reaches the next one)
+    if (got !== p.textContent.trim()) return [];
+    out.push(p);
+  }
+  return out;
+}
 fmt.addEventListener("mousedown", (e) => e.preventDefault());
 fmt.addEventListener("click", (e) => {
   const b = e.target.closest("[data-cmd]");
   if (!b) return;
+  // the selected paragraphs stay on this page only (not in the lesson), or go back in
+  if (b.dataset.cmd === "textonly") {
+    const ps = wholeParas();
+    if (!ps.length) return;
+    const off = ps.every((p) => p.classList.contains("tonly")), keys = new Set(ps.map((p) => p.dataset.h));
+    keys.forEach((k) => snapshot(k));
+    ps.forEach((p) => {
+      const [, si, ti] = p.dataset.p.split(".").map(Number), T = DATA[p.dataset.h].L.screens[si].text;
+      T[ti] = off ? T[ti].slice(TEXT_ONLY.length) : isTextOnly(T[ti]) ? T[ti] : TEXT_ONLY + T[ti];
+    });
+    fmt.hidden = true;
+    getSelection().removeAllRanges();
+    keys.forEach((k) => commit(k, null));
+    return;
+  }
   if (b.dataset.cmd === "heading") {
     const el = elOf(getSelection().anchorNode), parts = el && selectionParts(el);
     if (parts) { fmt.hidden = true; runOp(el, "toHeading", parts.before, parts.name, parts.after); }
@@ -1367,7 +1399,7 @@ const page = $("page");
 const LAZY = (el) => !isDraft(el.dataset.h) && /^(tt|rf)$/.test(el.dataset.p);
 page.addEventListener("focusout", () => { if (CUR && LAZY(CUR) && DIRTY.has(CUR.dataset.h)) saveNow(CUR.dataset.h); });
 
-page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel, .tfa, .tog")) e.preventDefault(); });
+page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel, .tfa")) e.preventDefault(); });
 // The answer of a true / false question: a click switches it.
 page.addEventListener("click", (e) => {
   const el = e.target.closest(".tfa");
@@ -1391,17 +1423,6 @@ page.addEventListener("click", (e) => {
   if (!L || !L.screens[+el.dataset.si]) return;
   snapshot(key);
   L.screens.splice(+el.dataset.si, 1);
-  commit(key, null);
-});
-// A paragraph's ⊘: it stays on this page only and doesn't go into the lesson (click again to bring it back).
-page.addEventListener("click", (e) => {
-  const el = e.target.closest(".tog");
-  if (!el) return;
-  e.stopPropagation();
-  const key = el.dataset.h, sc = DATA[key] && DATA[key].L.screens[+el.dataset.si], ti = +el.dataset.ti;
-  if (!sc || !sc.text || sc.text[ti] === undefined) return;
-  snapshot(key);
-  sc.text[ti] = isTextOnly(sc.text[ti]) ? sc.text[ti].slice(TEXT_ONLY.length) : TEXT_ONLY + sc.text[ti];
   commit(key, null);
 });
 // The page and amud, from the two lists after the lesson's name.
@@ -1754,7 +1775,7 @@ async function startAdmin() {
   }
   // one time: the students' records move to the lessons' new names (numbers); also on the admin page
   fs.getDoc(fs.doc(auth.getDb(), "settings", "migrations"))
-    .then((snap) => { if (!(snap.exists() && snap.data().lessonIds)) return httpsCallable(fns, "renameLessonIds")(); })
+    .then((snap) => { if (!(snap.exists() && snap.data().lessonIds2)) return httpsCallable(fns, "renameLessonIds")(); })
     .catch(() => {});
   // Editing lessons on the site doesn't depend on the drafts loading.
   try {
