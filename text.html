@@ -230,7 +230,8 @@ async function loadDrafts() {
   await moveOldDrafts();
 }
 // Drafts from before were kept in Firestore: each one is copied to GitHub (under "d" + its
-// old id), once. The Firestore copy stays until it's checked that the move went well.
+// old id), once. Once the copy is there (listDrafts found it), the Firestore one is deleted;
+// the first GitHub version of each draft is exactly what Firestore had.
 async function moveOldDrafts() {
   let snap;
   try { snap = await fs.getDocs(fs.collection(auth.getDb(), "drafts")); } catch (e) { return; }
@@ -238,7 +239,10 @@ async function moveOldDrafts() {
   snap.forEach((doc) => docs.push(doc));
   for (const doc of docs) {
     const v = doc.data(), id = "d" + String(doc.id).toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (DATA["draft:" + id]) continue;  // copied before (and maybe edited since): leave it
+    if (DATA["draft:" + id]) {  // copied to GitHub before (and maybe edited since): the old copy goes
+      await fs.deleteDoc(doc.ref).catch(() => {});
+      continue;
+    }
     let L;
     try { L = JSON.parse(v.data); } catch (e) { continue; }
     if (draftEmpty(L)) continue;
