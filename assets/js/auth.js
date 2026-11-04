@@ -102,7 +102,7 @@ export function getAuthInstance() {
   return auth;
 }
 
-export async function registerUser({ firstName, lastName, fatherPhone, motherPhone, password }) {
+export async function registerUser({ firstName, lastName, fatherPhone, motherPhone, childPhone = "", password }) {
   if (!isFirebaseConfigured) {
     throw new Error("ההרשמה עדיין לא מוגדרת באתר. נסו שוב מאוחר יותר.");
   }
@@ -125,6 +125,7 @@ export async function registerUser({ firstName, lastName, fatherPhone, motherPho
     lastName,
     fatherPhone,
     motherPhone,
+    ...(childPhone ? { childPhone } : {}),
     createdAt: new Date().toISOString(),
   });
 

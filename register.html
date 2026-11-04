@@ -111,6 +111,12 @@
       </div>
       <div class="auth-row">
         <label>
+          הפלאפון שלך (לא חובה)
+          <input type="tel" name="childPhone" placeholder="05XXXXXXXX" />
+        </label>
+      </div>
+      <div class="auth-row">
+        <label>
           סיסמה (לפחות 4 תווים)
           <input type="text" name="password" class="secret" minlength="4" autocomplete="off" autocapitalize="off" spellcheck="false" required />
         </label>
@@ -130,7 +136,7 @@
   <footer class="site-footer"></footer>
 
   <script src="assets/js/main.js?v=3"></script>
-  <script type="module" src="assets/js/header-auth.js?v=15"></script>
+  <script type="module" src="assets/js/header-auth.js?v=16"></script>
   <script type="module" src="assets/js/score.js"></script>
   <script type="module">
     import { registerUser, isReady } from "./assets/js/auth.js";
@@ -151,7 +157,7 @@
 
       const data = Object.fromEntries(new FormData(form).entries());
 
-      if (!phonePattern.test(data.fatherPhone) || !phonePattern.test(data.motherPhone)) {
+      if (!phonePattern.test(data.fatherPhone) || !phonePattern.test(data.motherPhone) || (data.childPhone && !phonePattern.test(data.childPhone))) {
         errorEl.textContent = "מספר טלפון לא תקין (לדוגמה: 0501234567).";
         errorEl.hidden = false;
         return;

@@ -35,6 +35,8 @@ const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 // A student may have their own: users/{uid}.smsMode ("on" / "off"; none = the
 // default; the older notify === false also means off).
 const SMS_DEFAULTS = {
+  // the first message, once, to a student who registered from WELCOME_FROM on: what these messages are
+  welcome: "שלום, {כינוי} נרשם לאתר ארבעה אבות ללימוד גמרא. מעכשיו תקבלו בכל ערב הודעה קצרה: על כמה שאלות ענה נכון באותו יום, ובסך הכול.",
   template: "{כינוי} ענה היום נכון על {היום} שאלות בשיעורי הגמרא באתר ארבעה אבות, ובסך הכול על {סהכ} 🎉",
 };
 
@@ -43,7 +45,8 @@ async function smsSettings() {
   const v = snap.exists ? snap.data() : {};
   const template = typeof v.template === "string" && v.template.trim() ? v.template : SMS_DEFAULTS.template;
   const sender = typeof v.sender === "string" ? v.sender.trim() : "";
-  return { template, enabled: v.enabled === true, sender, copyToMe: v.copyToMe === true };
+  const welcome = typeof v.welcome === "string" && v.welcome.trim() ? v.welcome : SMS_DEFAULTS.welcome;
+  return { template, welcome, enabled: v.enabled === true, sender, copyToMe: v.copyToMe === true };
 }
 
 // Whether this student's parents get messages.
@@ -108,6 +111,10 @@ async function sendAndLog({ kind, uid = null, name = "", to, msg, count = null, 
   if (!entry.ok) throw new Error(entry.error);
 }
 
+// Students registered before this get no first message (they knew already).
+const WELCOME_FROM = "2026-11-04T16:50:00Z";
+const needsWelcome = (userData) => userData.smsWelcomed !== true && typeof userData.createdAt === "string" && userData.createdAt >= WELCOME_FROM;
+
 // Once a day the parents get a message: how many questions their child answered correctly
 // since the last message ("today"; answers after the hour wait for the next one) and in all.
 // users/{uid}.smsBase is the total at the last message (set when the student first answers,
@@ -122,15 +129,21 @@ async function sendDaily() {
       const total = countCorrect(quiz.exists ? quiz.data().sections : null);
       const base = Number.isInteger(userData.smsBase) ? userData.smsBase : total;
       const today = total - base;
-      if (!Number.isInteger(userData.smsBase) || today <= 0) {
-        if (!Number.isInteger(userData.smsBase)) await u.ref.update({ smsBase: total });
-        continue;
-      }
-      const recipients = [userData.fatherPhone, userData.motherPhone].filter(Boolean);
+      if (!Number.isInteger(userData.smsBase)) await u.ref.update({ smsBase: total });
+      if ((!Number.isInteger(userData.smsBase) || today <= 0) && !needsWelcome(userData)) continue;
+      // the parents, and the student's own phone if given
+      const recipients = [userData.fatherPhone, userData.motherPhone, userData.childPhone].filter(Boolean);
       if (!studentPlan(settings, userData).on || !recipients.length) { await u.ref.update({ smsBase: total }); continue; }
       const to = [...recipients];
       if (settings.copyToMe && /^0\d{8,9}$/.test(settings.sender) && !to.includes(settings.sender)) to.push(settings.sender);
       const name = `${userData.firstName || ""} ${userData.lastName || ""}`.trim();
+      // a new student: the first message explains what these are; today's answers go in the next one
+      if (needsWelcome(userData)) {
+        await sendAndLog({ kind: "welcome", uid: u.id, name, to, msg: smsText(settings.welcome, userData, today, total), count: total, sender: settings.sender });
+        if (!SMS_PAUSED) await u.ref.update({ smsWelcomed: true });  // while paused it waits to really go out
+        continue;
+      }
+      if (!Number.isInteger(userData.smsBase) || today <= 0) continue;
       await sendAndLog({ kind: "daily", uid: u.id, name, to, msg: smsText(settings.template, userData, today, total), count: total, sender: settings.sender });
       await u.ref.update({ smsBase: total, lastSms: { at: new Date().toISOString(), count: total, today, seen: false } });
     } catch (err) {

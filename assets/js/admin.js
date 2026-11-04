@@ -14,7 +14,7 @@ import {
 
 const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 // the same defaults as the server (functions/index.js)
-const SMS_DEFAULTS = { enabled: false, sender: "", template: "{כינוי} ענה היום נכון על {היום} שאלות בשיעורי הגמרא באתר ארבעה אבות, ובסך הכול על {סהכ} 🎉" };
+const SMS_DEFAULTS = { enabled: false, sender: "", welcome: "שלום, {כינוי} נרשם לאתר ארבעה אבות ללימוד גמרא. מעכשיו תקבלו בכל ערב הודעה קצרה: על כמה שאלות ענה נכון באותו יום, ובסך הכול.", template: "{כינוי} ענה היום נכון על {היום} שאלות בשיעורי הגמרא באתר ארבעה אבות, ובסך הכול על {סהכ} 🎉" };
 // the older names of the placeholders, shown with the current ones ({תשובות} = {סהכ})
 const newTokens = (t) => t.split("{שם מלא}").join("{כינוי}").split("{שם}").join("{כינוי}").split("{פרטי}").join("{כינוי}").split("{מספר}").join("{סהכ}").split("{תשובות}").join("{סהכ}");
 
@@ -137,6 +137,7 @@ function rowHtml(s) {
     <td><input type="text" class="name" data-f="lastName" value="${esc(s.lastName || "")}" autocomplete="off"></td>
     <td><input type="tel" data-f="fatherPhone" value="${esc(s.fatherPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></td>
     <td><input type="tel" data-f="motherPhone" value="${esc(s.motherPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></td>
+    <td><input type="tel" data-f="childPhone" value="${esc(s.childPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></td>
     <td>${lessons}</td>
     <td class="num">${countOf(s)}</td>
     <td>${timeHtml(s.time)}</td>
@@ -203,20 +204,24 @@ function fillSms() {
   $("sms-sender").value = SMS.sender || "";
   $("sms-copy").checked = SMS.copyToMe === true;
   $("sms-template").value = newTokens(SMS.template);
+  $("sms-welcome").value = newTokens(SMS.welcome);
   countChars();
   fitAll($("tab-sms"));
 }
 // Length of the message as sent (with an example name).
 function countChars() {
-  const text = fillTemplate($("sms-template").value);
-  const n = [...text].length;
-  $("sms-length").textContent = `(${n} תווים)`;
+  $("sms-length").textContent = `(${[...fillTemplate($("sms-template").value)].length} תווים)`;
+  $("sms-welcome-length").textContent = `(${[...fillTemplate($("sms-welcome").value)].length} תווים)`;
 }
 $("sms-template").addEventListener("input", countChars);
+$("sms-welcome").addEventListener("input", countChars);
+// the chips go into the text last typed in
+let LAST_TA = "sms-template";
+["sms-template", "sms-welcome"].forEach((id) => $(id).addEventListener("focus", () => { LAST_TA = id; }));
 document.querySelector(".adm-chips").addEventListener("click", (e) => {
   const b = e.target.closest("[data-ins]");
   if (!b) return;
-  const t = $("sms-template");
+  const t = $(LAST_TA);
   t.setRangeText(b.dataset.ins, t.selectionStart, t.selectionEnd, "end");
   t.focus();
   countChars();
@@ -225,16 +230,16 @@ document.querySelector(".adm-chips").addEventListener("click", (e) => {
 let SAVE_T;
 async function saveSms() {
   clearTimeout(SAVE_T);
-  const template = $("sms-template").value.trim();
+  const template = $("sms-template").value.trim(), welcome = $("sms-welcome").value.trim();
   const sender = $("sms-sender").value.trim().replace(/[\s-]/g, ""), status = $("sms-status");
   const fail = (t) => { status.className = "adm-status err"; status.textContent = t; };
-  if (!template) return fail("נוסח ההודעה ריק.");
+  if (!template || !welcome) return fail("נוסח ההודעה ריק.");
   if (sender && !/^0\d{8,9}$/.test(sender) && !/^[A-Za-z][A-Za-z0-9]{1,10}$/.test(sender)) return fail("מספר השולח לא תקין.");
   status.textContent = "";
   try {
     const enabled = $("sms-enabled").checked, copyToMe = $("sms-copy").checked;
-    await setDoc(doc(getDb(), "settings", "sms"), { enabled, template, sender, copyToMe, updatedAt: new Date().toISOString() }, { merge: true });
-    SMS = { ...SMS, enabled, template, sender, copyToMe };
+    await setDoc(doc(getDb(), "settings", "sms"), { enabled, template, welcome, sender, copyToMe, updatedAt: new Date().toISOString() }, { merge: true });
+    SMS = { ...SMS, enabled, template, welcome, sender, copyToMe };
     $("sms-sender").value = sender;
     drawStudents();
   } catch (err) {
@@ -242,8 +247,10 @@ async function saveSms() {
   }
 }
 ["sms-enabled", "sms-sender", "sms-copy"].forEach((id) => $(id).addEventListener("change", saveSms));
-$("sms-template").addEventListener("input", () => { clearTimeout(SAVE_T); SAVE_T = setTimeout(saveSms, 800); });
-$("sms-template").addEventListener("change", saveSms);
+["sms-template", "sms-welcome"].forEach((id) => {
+  $(id).addEventListener("input", () => { clearTimeout(SAVE_T); SAVE_T = setTimeout(saveSms, 800); });
+  $(id).addEventListener("change", saveSms);
+});
 document.querySelector(".adm-chips").addEventListener("click", (e) => { if (e.target.closest("[data-ins]")) saveSms(); });
 
 // ---------- archive: every message sent, newest first ----------

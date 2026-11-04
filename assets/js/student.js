@@ -39,7 +39,7 @@ async function smsSettings() {
 function plan(info = INFO) {
   const v = info || {};
   const mode = v.smsMode === "on" || v.smsMode === "off" ? v.smsMode : v.notify === false ? "off" : "default";
-  return { on: (mode === "on" || (mode === "default" && ENABLED)) && Boolean(v.fatherPhone || v.motherPhone), step: STEP_DEFAULT };
+  return { on: (mode === "on" || (mode === "default" && ENABLED)) && Boolean(v.fatherPhone || v.motherPhone || v.childPhone), step: STEP_DEFAULT };
 }
 
 // "ההורים כבר יקבלו הודעה על 4 תשובות נכונות": the correct answers since the last message
