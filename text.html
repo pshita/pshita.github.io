@@ -125,6 +125,10 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .page .qb .qdel:hover{background:#f3e1dc;color:#a33}
 .page .qb .qdel.sure{width:auto;padding:0 8px;background:#a33;color:#fff;font:600 13px/20px Arial,sans-serif;white-space:nowrap;z-index:2}
 /* a paragraph that stays on this page only (not in the lesson) */
+.page .parth{display:flex;align-items:center;gap:8px;margin:28px 0 0;padding:8px 12px;background:#14213D;color:#FFF8EC;border-radius:10px;font-size:1.15em;font-weight:700}
+.page .parth [data-ph]:empty::before{color:#AEB9D6}
+.page .parth .pdel{border:0;border-radius:4px;background:none;color:#AEB9D6;font-size:14px;cursor:pointer;padding:2px 6px}
+.page .parth .pdel.sure{background:#a33;color:#fff;font:600 13px Arial,sans-serif}
 .page p.tonly,.page h2.tonly{color:var(--muted);background:repeating-linear-gradient(-45deg,transparent 0 6px,rgba(0,0,0,.035) 6px 12px);outline:1px dashed #bbb;outline-offset:2px}
 #fmt .to.on{background:#555}
 /* the page and amud: two lists right after the name; how many questions the lesson has */
@@ -190,7 +194,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
   <div class="frow" id="replRow" hidden><input type="text" id="replQ" placeholder="החלפה ב…" autocomplete="off">
     <button type="button" id="replOne">החלפה</button><button type="button" id="replAll">החלפת הכול</button></div>
 </div>
-<div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="italic" class="it" title="נטוי">I</button><button type="button" data-cmd="red" class="red" title="אדום">A</button><button type="button" data-cmd="heading" class="hd" title="להפוך לכותרת">כותרת</button><button type="button" data-cmd="textonly" class="hd to">רק בטקסט</button></div>
+<div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="italic" class="it" title="נטוי">I</button><button type="button" data-cmd="red" class="red" title="אדום">A</button><button type="button" data-cmd="heading" class="hd" title="להפוך לכותרת">כותרת</button><button type="button" data-cmd="textonly" class="hd to">רק בטקסט</button><button type="button" data-cmd="part" class="hd pt">חלק חדש</button></div>
 <div class="page" id="page"><p class="empty">טוען…</p></div>
 <div id="panels" hidden></div>
 <div id="tb" hidden></div>
@@ -288,6 +292,15 @@ const plain = (s) => { tpl.innerHTML = String(s); return tpl.content.textContent
 // A paragraph marked to stay on this page only starts with this (the lesson player skips it).
 const TEXT_ONLY = "<!--text-only-->";
 const isTextOnly = (t) => String(t).startsWith(TEXT_ONLY);
+// A heading can start a part of the lesson, with its own title: kept in the heading as
+// "<!--part:the title-->" (after the "רק בטקסט" mark, if there is one), so it moves with it.
+const PART_RE = /<!--part:([\s\S]*?)-->/;
+const stParse = (raw) => {
+  let t = String(raw || ""); const to = isTextOnly(t); if (to) t = t.slice(TEXT_ONLY.length);
+  const m = PART_RE.exec(t); if (m) t = t.replace(m[0], "");
+  return { to, part: m ? m[1] : null, name: t };
+};
+const stJoin = ({ to, part, name }) => (to ? TEXT_ONLY : "") + (part !== null && part !== undefined ? `<!--part:${String(part).replace(/--/g, "- -")}-->` : "") + name;
 // The page and amud of a lesson: "דף ב, עמוד א"; for now dafs ב and ג
 const DAFS = ["ב", "ג"];
 const parseRef = (ref) => { const m = /דף\s+([א-ת]+)[\s,]*עמוד\s+([א-ת]+)/.exec(ref || ""); return m ? { daf: m[1], amud: m[2] } : { daf: "", amud: "" }; };
@@ -316,8 +329,10 @@ function renderLesson(key, d, q) {
   L.screens.forEach((s, si) => {
     const shown = s.type === "read" || (q && !["intro", "summary"].includes(s.type));
     if (shown && s.st !== undefined && s.st !== last && L.stations[s.st] !== undefined) {
-      const sn = L.stations[s.st], snTo = isTextOnly(sn);
-      h += `<h2${snTo ? ' class="tonly"' : ""}${ed("st." + s.st, snTo ? sn.slice(TEXT_ONLY.length) : sn, "כותרת")}</h2>`; last = s.st;
+      const sn = stParse(L.stations[s.st]);
+      // a part of the lesson starts here: its title, and ✕ to end it (the headings stay)
+      if (sn.part !== null) h += `<div class="parth"><span${ed("pt." + s.st, sn.part, "כותרת החלק")}</span>${canEdit ? `<span contenteditable="false"><button type="button" class="pdel" data-h="${esc(key)}" data-st="${s.st}">✕</button></span>` : ""}</div>`;
+      h += `<h2${sn.to ? ' class="tonly"' : ""}${ed("st." + s.st, sn.name, "כותרת")}</h2>`; last = s.st;
     }
     if (s.type === "intro") {
       if (s.question) h += `<p${ed("iq." + si, s.question)}</p>`;
@@ -743,6 +758,9 @@ document.addEventListener("selectionchange", () => {
   const whole = wholeParas(), to = fmt.querySelector(".to");
   to.hidden = !whole.length;
   to.classList.toggle("on", whole.length > 0 && whole.every((p) => p.classList.contains("tonly")));
+  // one whole heading selected, not a part yet: it can start a new part
+  const ph = whole.length === 1 && whole[0].tagName === "H2" ? whole[0] : null;
+  fmt.querySelector(".pt").hidden = !ph || stParse(DATA[ph.dataset.h].L.stations[+ph.dataset.p.split(".")[1]]).part !== null;
   fmt.hidden = false;
   fmt.style.top = `${r.top + scrollY - fmt.offsetHeight - 6}px`;
   fmt.style.left = `${Math.max(8, Math.min(r.left + r.width / 2 - fmt.offsetWidth / 2, innerWidth - fmt.offsetWidth - 8)) + scrollX}px`;
@@ -823,6 +841,18 @@ fmt.addEventListener("click", (e) => {
     keys.forEach((k) => commit(k, null));
     return;
   }
+  // the selected heading starts a new part; its title is written above it
+  if (b.dataset.cmd === "part") {
+    const ps = wholeParas(), h2 = ps.length === 1 && ps[0].tagName === "H2" ? ps[0] : null;
+    if (!h2) return;
+    const key = h2.dataset.h, k = +h2.dataset.p.split(".")[1], L = DATA[key].L;
+    snapshot(key);
+    L.stations[k] = stJoin({ ...stParse(L.stations[k]), part: "" });
+    fmt.hidden = true;
+    getSelection().removeAllRanges();
+    commit(key, { p: "pt." + k });
+    return;
+  }
   if (b.dataset.cmd === "heading") {
     const el = elOf(getSelection().anchorNode), parts = el && selectionParts(el);
     if (parts) { fmt.hidden = true; runOp(el, "toHeading", parts.before, parts.name, parts.after); }
@@ -869,7 +899,8 @@ function setValue(L, p, v) {
   const n = (i) => +a[i];
   switch (a[0]) {
     case "tt": L.title = v; break;
-    case "st": L.stations[n(1)] = (isTextOnly(L.stations[n(1)] || "") ? TEXT_ONLY : "") + v; break;  // a heading marked "רק בטקסט" keeps its mark
+    case "st": L.stations[n(1)] = stJoin({ ...stParse(L.stations[n(1)]), name: v }); break;  // keeps its marks ("רק בטקסט", a part)
+    case "pt": L.stations[n(1)] = stJoin({ ...stParse(L.stations[n(1)]), part: plain(v) }); break;
     case "kk": L.screens[n(1)].kicker = v; break;
     // a paragraph marked to stay on this page only keeps its mark
     case "tx": L.screens[n(1)].text[n(2)] = (isTextOnly(L.screens[n(1)].text[n(2)] || "") ? TEXT_ONLY : "") + v; break;
@@ -1376,7 +1407,21 @@ const page = $("page");
 const LAZY = (el) => !isDraft(el.dataset.h) && /^(tt|rf)$/.test(el.dataset.p);
 page.addEventListener("focusout", () => { if (CUR && LAZY(CUR) && DIRTY.has(CUR.dataset.h)) saveNow(CUR.dataset.h); });
 
-page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel, .tfa, .pv")) e.preventDefault(); });
+page.addEventListener("mousedown", (e) => { if (e.target.closest(".qdel, .tfa, .pv, .pdel")) e.preventDefault(); });
+// A part's ✕ turns into "אישור מחיקה"; a click on that ends the part (its title goes, the
+// headings and everything under them stay).
+page.addEventListener("click", (e) => {
+  const el = e.target.closest(".pdel");
+  page.querySelectorAll(".pdel.sure").forEach((x) => { if (x !== el) { x.classList.remove("sure"); x.textContent = "✕"; } });
+  if (!el) return;
+  e.stopPropagation();
+  if (!el.classList.contains("sure")) { el.classList.add("sure"); el.textContent = "אישור מחיקה"; return; }
+  const key = el.dataset.h, L = DATA[key] && DATA[key].L, k = +el.dataset.st;
+  if (!L || L.stations[k] === undefined) return;
+  snapshot(key);
+  L.stations[k] = stJoin({ ...stParse(L.stations[k]), part: null });
+  commit(key, null);
+});
 // "מעוצב": the lesson as it is on this page right now, in the site's player (lessons/preview.html)
 page.addEventListener("click", (e) => {
   const el = e.target.closest(".pv");

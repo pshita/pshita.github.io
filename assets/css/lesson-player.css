@@ -209,3 +209,11 @@ body{margin:0}@media (min-width:700px){.screen .qhead{padding:6px 28px 0;font-si
 .tx i,.tx em{font-style:normal}
 .lockn{padding:0 14px 6px;font-size:12px;color:var(--muted);text-align:center}
 .intro .qcount{padding:0 0 10px;text-align:center}
+/* a part of the lesson: its title screen, and a gap before it in the station tabs */
+.tabs b.ps{margin-inline-start:10px}
+.partscr{display:grid;gap:16px;padding:18px 4px;text-align:center}
+.partscr h2{margin:0;font-family:var(--text);font-weight:900;font-size:28px;color:var(--navy);text-wrap:balance}
+.pstations{display:grid;gap:8px;text-align:start}
+.pstations div{display:flex;align-items:center;gap:12px;background:var(--paper);border-radius:14px;padding:10px 12px;font-weight:800}
+.pstations span{width:34px;height:34px;border-radius:10px;background:var(--sand);display:grid;place-items:center;flex:none}
+.pstations div:first-child span{background:var(--gold)}

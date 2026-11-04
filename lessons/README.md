@@ -14,6 +14,8 @@ A paragraph marked on the text page to stay there only (select the whole paragra
 
 `lessons/preview.html` (a shell with no lesson id) shows the text page's "מעוצב": the player takes the lesson from the text page (`window.PSHITA_PREVIEW`) instead of a data file. Regenerate it with the other shells when `PLAYER_VERSION` changes.
 
+A heading can start a part of the lesson (text page: select the whole heading, "חלק חדש"): the heading's string holds `<!--part:title-->` (after `<!--text-only-->` if both). The player shows a title screen with the part's stations before its first station.
+
 The player loads `data/<id>.json`. It takes "previous / next lesson" from the order in `lessons.json`.
 
 A lesson's JSON has `title`, `ref`, `stations` (the headings) and `screens`. Each screen has a `type`, such as intro, read, mc or summary, and `st`, the index of its station. Each screen sits on one line, so a diff shows exactly what changed.
