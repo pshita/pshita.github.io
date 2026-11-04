@@ -1,4 +1,4 @@
-// The site's menu: the "📖 פשיטא" button and its dropdown (lessons by page/amud, the
+// The site's menu: the "📖 ארבעה אבות" button and its dropdown (lessons by page/amud, the
 // account, and for the admin "טקסט" and "ניהול"). The site's own pages have it in
 // their markup (written by functions/site.js); pages built in the browser (lessons,
 // the text page) get the same markup from here, built from lessons.json, and the
@@ -18,7 +18,7 @@ export async function buildMenu({ up = "", lessonHref = (id) => up + "lessons/" 
       </div>`).join("");
   const box = document.createElement("div");
   box.className = "dropdown brand-dropdown";
-  box.innerHTML = `<button type="button" class="brand dropdown-trigger"><span class="mark">📖</span><span>פשיטא</span></button>
+  box.innerHTML = `<button type="button" class="brand dropdown-trigger"><span class="mark">📖</span><span>ארבעה אבות</span></button>
     <div class="dropdown-menu brand-menu" hidden>
       ${groups}
       <div class="auth-area" id="auth-area-out">

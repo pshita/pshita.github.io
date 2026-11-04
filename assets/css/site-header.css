@@ -1,4 +1,4 @@
-/* The site's header (the פשיטא button and its menu) on lesson pages, which don't load
+/* The site's header (the ארבעה אבות button and its menu) on lesson pages, which don't load
    style.css. Generated from style.css's header rules, everything scoped under
    .site-header so nothing touches the lesson player. */
 .site-header {--bg: #faf6ee; --bg-elevated: #ffffff; --ink: #2b241b; --ink-soft: #5c5347; --line: #e4d9c4; --accent: #8a4b2e; --accent-soft: #f1e3d1; --accent-faint: color-mix(in srgb, var(--accent-soft) 45%, var(--bg-elevated) 55%); --accent-strong: #6d3a22; --shen: #a0522d; --regel: #6b7f3f; --bor: #3f6f7f; --esh: #b23b2e; --sun: #d99a2b; --sky: #4a8fbd; --shadow: 0 4px 16px rgba(43, 36, 27, 0.08); --radius: 14px; --font-head: "Rubik", "Heebo", "Arial Hebrew", sans-serif; --font-body: "Heebo", "Arial Hebrew", sans-serif; font-family: var(--font-body); color: var(--ink); direction: rtl; line-height: 1.75; }

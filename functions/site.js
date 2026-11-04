@@ -9,7 +9,7 @@
 //   assets/js/lesson-player.js - the one shared lesson engine
 //   assets/css/lesson-player.css
 
-const PLAYER_VERSION = 17;
+const PLAYER_VERSION = 18;
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -46,7 +46,7 @@ function lessonShellHtml({ id, title }) {
 <link rel="icon" type="image/png" sizes="64x64" href="../assets/icons/favicon-64.png">
 <link rel="apple-touch-icon" href="../assets/icons/apple-touch-icon.png">
 <link rel="manifest" href="../manifest.webmanifest">
-<meta name="apple-mobile-web-app-title" content="פשיטא">
+<meta name="apple-mobile-web-app-title" content="ארבעה אבות">
 <meta name="theme-color" content="#ffffff">
 </head>
 <body data-lesson="${escapeHtml(id)}">

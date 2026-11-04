@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <!-- maximum-scale: the iPhone zooms in on text being edited when it is smaller than 16px; this stops that (the text size changes with two fingers instead) -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>טקסט | פשיטא</title>
+<title>טקסט | ארבעה אבות</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;600&family=Rubik:wght@400;600;700&display=swap">
 <style>
@@ -170,7 +170,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 <link rel="icon" type="image/png" sizes="64x64" href="assets/icons/favicon-64.png">
 <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="apple-mobile-web-app-title" content="פשיטא">
+<meta name="apple-mobile-web-app-title" content="ארבעה אבות">
 <meta name="theme-color" content="#ffffff">
 </head>
 <body>
@@ -1832,7 +1832,7 @@ import("./assets/js/auth.js").then((m) => {
 function say(t) { $("msg").textContent = t; }  // shown only when something went wrong
 
 // ---------- the site's menu, the same as on every page (site-menu.js) ----------
-import("./assets/js/site-menu.js?v=3").then(async (m) => {
+import("./assets/js/site-menu.js?v=4").then(async (m) => {
   const box = await m.buildMenu();
   $("siteMenu").appendChild(box);
   box.addEventListener("menu-toggle", () => closePanels());

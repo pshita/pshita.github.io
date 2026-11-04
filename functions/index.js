@@ -36,7 +36,7 @@ const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 // default; the older notify === false also means off) and users/{uid}.smsStep.
 const SMS_DEFAULTS = {
   step: 10,
-  template: "{כינוי} ענה נכון על {תשובות} שאלות בשיעורי הגמרא באתר פשיטא 🎉",
+  template: "{כינוי} ענה נכון על {תשובות} שאלות בשיעורי הגמרא באתר ארבעה אבות 🎉",
 };
 
 async function smsSettings() {

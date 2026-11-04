@@ -14,7 +14,7 @@ import {
 
 const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 // the same defaults as the server (functions/index.js)
-const SMS_DEFAULTS = { enabled: false, step: 10, sender: "", template: "{כינוי} ענה נכון על {תשובות} שאלות בשיעורי הגמרא באתר פשיטא 🎉" };
+const SMS_DEFAULTS = { enabled: false, step: 10, sender: "", template: "{כינוי} ענה נכון על {תשובות} שאלות בשיעורי הגמרא באתר ארבעה אבות 🎉" };
 // the older names of the placeholders, shown with the current ones
 const newTokens = (t) => t.split("{שם מלא}").join("{כינוי}").split("{שם}").join("{כינוי}").split("{פרטי}").join("{כינוי}").split("{מספר}").join("{תשובות}");
 
