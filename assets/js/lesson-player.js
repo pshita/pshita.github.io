@@ -19,6 +19,11 @@ Promise.all([
 }).catch(() => { view0.innerHTML = '<p style="padding:24px;text-align:center">לא הצלחתי לטעון את השיעור. נסו לרענן את הדף.</p>'; });
 
 function run(LESSON) {
+// headings marked on the text page to stay there only aren't stations of the lesson; anything
+// left under one goes with the station before it
+{const TO='<!--text-only-->',map=[],keep=[];
+ if(LESSON.stations.some(n=>String(n).startsWith(TO))){LESSON.stations.forEach((n,i)=>{if(String(n).startsWith(TO))map[i]=Math.max(keep.length-1,0);else{map[i]=keep.length;keep.push(n)}});
+  LESSON.stations=keep;LESSON.screens.forEach(s=>{if(s.st!==undefined&&map[s.st]!==undefined)s.st=map[s.st]})}}
 /* ===== ENGINE ===== */
 const GATE_TITLE='תרגול מכפיל את הזיכרון',GATE_TEXT='להכפיל?';
 const NONQ=['intro','read','summary','gate'];

@@ -10,7 +10,7 @@
 
 Lesson ids are numbers without hyphens: daf, amud, then the lesson's number in that amud, from 1 (`213` is the third lesson of דף ב, עמוד א). The server gives the next number when a lesson is created or a draft is published (`nextLessonId` in `functions/site.js`).
 
-A paragraph marked on the text page to stay there only (select the whole paragraph, then "רק בטקסט") starts with `<!--text-only-->`; the player skips it, and a screen with nothing else is skipped too.
+A paragraph marked on the text page to stay there only (select the whole paragraph, then "רק בטקסט") starts with `<!--text-only-->`; the player skips it, and a screen with nothing else is skipped too. A heading (station name) can be marked the same way: it isn't a station of the lesson, and anything under it goes with the station before it.
 
 `lessons/preview.html` (a shell with no lesson id) shows the text page's "מעוצב": the player takes the lesson from the text page (`window.PSHITA_PREVIEW`) instead of a data file. Regenerate it with the other shells when `PLAYER_VERSION` changes.
 

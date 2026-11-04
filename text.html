@@ -125,7 +125,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .page .qb .qdel:hover{background:#f3e1dc;color:#a33}
 .page .qb .qdel.sure{width:auto;padding:0 8px;background:#a33;color:#fff;font:600 13px/20px Arial,sans-serif;white-space:nowrap;z-index:2}
 /* a paragraph that stays on this page only (not in the lesson) */
-.page p.tonly{color:var(--muted);background:repeating-linear-gradient(-45deg,transparent 0 6px,rgba(0,0,0,.035) 6px 12px);outline:1px dashed #bbb;outline-offset:2px}
+.page p.tonly,.page h2.tonly{color:var(--muted);background:repeating-linear-gradient(-45deg,transparent 0 6px,rgba(0,0,0,.035) 6px 12px);outline:1px dashed #bbb;outline-offset:2px}
 #fmt .to.on{background:#555}
 /* the page and amud: two lists right after the name; how many questions the lesson has */
 .page .refsel{font-size:.82em;color:var(--muted);white-space:nowrap}
@@ -316,7 +316,8 @@ function renderLesson(key, d, q) {
   L.screens.forEach((s, si) => {
     const shown = s.type === "read" || (q && !["intro", "summary"].includes(s.type));
     if (shown && s.st !== undefined && s.st !== last && L.stations[s.st] !== undefined) {
-      h += `<h2${ed("st." + s.st, L.stations[s.st], "כותרת")}</h2>`; last = s.st;
+      const sn = L.stations[s.st], snTo = isTextOnly(sn);
+      h += `<h2${snTo ? ' class="tonly"' : ""}${ed("st." + s.st, snTo ? sn.slice(TEXT_ONLY.length) : sn, "כותרת")}</h2>`; last = s.st;
     }
     if (s.type === "intro") {
       if (s.question) h += `<p${ed("iq." + si, s.question)}</p>`;
@@ -788,7 +789,7 @@ function wholeParas() {
   const s = getSelection();
   if (!s.rangeCount || s.isCollapsed) return [];
   const r = s.getRangeAt(0), out = [];
-  for (const p of page.querySelectorAll('p[data-p^="tx."]')) {
+  for (const p of page.querySelectorAll('p[data-p^="tx."], h2[data-p^="st."]')) {
     if (!p.isContentEditable || !r.intersectsNode(p)) continue;
     const x = document.createRange();
     x.selectNodeContents(p);
@@ -812,8 +813,10 @@ fmt.addEventListener("click", (e) => {
     const off = ps.every((p) => p.classList.contains("tonly")), keys = new Set(ps.map((p) => p.dataset.h));
     keys.forEach((k) => snapshot(k));
     ps.forEach((p) => {
-      const [, si, ti] = p.dataset.p.split(".").map(Number), T = DATA[p.dataset.h].L.screens[si].text;
-      T[ti] = off ? T[ti].slice(TEXT_ONLY.length) : isTextOnly(T[ti]) ? T[ti] : TEXT_ONLY + T[ti];
+      // a paragraph (tx.<screen>.<i>) or a heading (st.<station>)
+      const [kind, a, b] = p.dataset.p.split("."), L = DATA[p.dataset.h].L;
+      const T = kind === "st" ? L.stations : L.screens[+a].text, i = kind === "st" ? +a : +b;
+      T[i] = off ? T[i].slice(TEXT_ONLY.length) : isTextOnly(T[i]) ? T[i] : TEXT_ONLY + T[i];
     });
     fmt.hidden = true;
     getSelection().removeAllRanges();
@@ -866,7 +869,7 @@ function setValue(L, p, v) {
   const n = (i) => +a[i];
   switch (a[0]) {
     case "tt": L.title = v; break;
-    case "st": L.stations[n(1)] = v; break;
+    case "st": L.stations[n(1)] = (isTextOnly(L.stations[n(1)] || "") ? TEXT_ONLY : "") + v; break;  // a heading marked "רק בטקסט" keeps its mark
     case "kk": L.screens[n(1)].kicker = v; break;
     // a paragraph marked to stay on this page only keeps its mark
     case "tx": L.screens[n(1)].text[n(2)] = (isTextOnly(L.screens[n(1)].text[n(2)] || "") ? TEXT_ONLY : "") + v; break;
