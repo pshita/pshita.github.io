@@ -16,6 +16,8 @@ A paragraph marked on the text page to stay there only (select the whole paragra
 
 A heading can start a part of the lesson (text page: select the whole heading, "חלק חדש"): the heading's string holds `<!--part:title-->` (after `<!--text-only-->` if both). The player shows a title screen with the part's stations before its first station.
 
+A paragraph can be a shared passage, the same in several lessons (text page: select whole paragraphs, "קטע כפול"; every paragraph with the same text in any lesson or draft joins it): `<!--shared:id-->` at its start (after `<!--text-only-->`). The text page shows where else it is, and a change in one copy is copied to the others and saved with them.
+
 The player loads `data/<id>.json`. It takes "previous / next lesson" from the order in `lessons.json`.
 
 A lesson's JSON has `title`, `ref`, `stations` (the headings) and `screens`. Each screen has a `type`, such as intro, read, mc or summary, and `st`, the index of its station. Each screen sits on one line, so a diff shows exactly what changed.

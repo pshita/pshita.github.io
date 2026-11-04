@@ -129,6 +129,8 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
 .page .parth [data-ph]:empty::before{color:#AEB9D6}
 .page .parth .pdel{border:0;border-radius:4px;background:none;color:#AEB9D6;font-size:14px;cursor:pointer;padding:2px 6px}
 .page .parth .pdel.sure{background:#a33;color:#fff;font:600 13px Arial,sans-serif}
+.page p.shared{border-inline-start:3px solid #1A7D72;padding-inline-start:8px}
+.page .shlbl{margin:10px 0 2px;font:600 12px/1.4 Arial,sans-serif;color:#1A7D72}
 .page p.tonly,.page h2.tonly{color:var(--muted);background:repeating-linear-gradient(-45deg,transparent 0 6px,rgba(0,0,0,.035) 6px 12px);outline:1px dashed #bbb;outline-offset:2px}
 #fmt .to.on{background:#555}
 /* the page and amud: two lists right after the name; how many questions the lesson has */
@@ -194,7 +196,7 @@ html,body{touch-action:pan-y;overflow-x:hidden;max-width:100%}
   <div class="frow" id="replRow" hidden><input type="text" id="replQ" placeholder="החלפה ב…" autocomplete="off">
     <button type="button" id="replOne">החלפה</button><button type="button" id="replAll">החלפת הכול</button></div>
 </div>
-<div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="italic" class="it" title="נטוי">I</button><button type="button" data-cmd="red" class="red" title="אדום">A</button><button type="button" data-cmd="heading" class="hd" title="להפוך לכותרת">כותרת</button><button type="button" data-cmd="textonly" class="hd to">רק בטקסט</button><button type="button" data-cmd="part" class="hd pt">חלק חדש</button></div>
+<div id="fmt" hidden><button type="button" data-cmd="bold" title="מודגש">B</button><button type="button" data-cmd="italic" class="it" title="נטוי">I</button><button type="button" data-cmd="red" class="red" title="אדום">A</button><button type="button" data-cmd="heading" class="hd" title="להפוך לכותרת">כותרת</button><button type="button" data-cmd="textonly" class="hd to">רק בטקסט</button><button type="button" data-cmd="part" class="hd pt">חלק חדש</button><button type="button" data-cmd="shared" class="hd sh">קטע כפול</button></div>
 <div class="page" id="page"><p class="empty">טוען…</p></div>
 <div id="panels" hidden></div>
 <div id="tb" hidden></div>
@@ -238,7 +240,12 @@ async function loadLesson(href) {
 // For editing, read the lesson straight from the repository (the site
 // itself can lag a few minutes behind a save) and remember that exact
 // source, so the server can refuse to overwrite a newer version.
-async function loadForEdit(href) {
+const LOADING = {};
+function loadForEdit(href) {
+  if (!LOADING[href]) LOADING[href] = loadForEditOnce(href).finally(() => { delete LOADING[href]; });
+  return LOADING[href];
+}
+async function loadForEditOnce(href) {
   const d = DATA[href];
   if (d && d.base) return;
   try {
@@ -300,6 +307,15 @@ const stParse = (raw) => {
   const m = PART_RE.exec(t); if (m) t = t.replace(m[0], "");
   return { to, part: m ? m[1] : null, name: t };
 };
+// A paragraph can be a shared passage, the same in several lessons: "<!--shared:id-->" at
+// its start (after "<!--text-only-->"). A change in one copy goes to all of them.
+const SHARED_RE = /<!--shared:([a-z0-9]+)-->/;
+const paraParse = (raw) => {
+  let t = String(raw || ""); const to = isTextOnly(t); if (to) t = t.slice(TEXT_ONLY.length);
+  const m = SHARED_RE.exec(t); if (m) t = t.replace(m[0], "");
+  return { to, sid: m ? m[1] : null, html: t };
+};
+const paraJoin = ({ to, sid, html }) => (to ? TEXT_ONLY : "") + (sid ? `<!--shared:${sid}-->` : "") + html;
 const stJoin = ({ to, part, name }) => (to ? TEXT_ONLY : "") + (part !== null && part !== undefined ? `<!--part:${String(part).replace(/--/g, "- -")}-->` : "") + name;
 // The page and amud of a lesson: "דף ב, עמוד א"; for now dafs ב and ג
 const DAFS = ["ב", "ג"];
@@ -346,8 +362,9 @@ function renderLesson(key, d, q) {
       if (s.kicker) h += `<p><b${ed("kk." + si, s.kicker)}</b></p>`;
       (s.comic || []).forEach((p) => h += `<p${roA}>${clean(p[1])}</p>`);
       (s.text || []).forEach((t, ti) => {
-        const to = isTextOnly(t);
-        h += `<p${to ? ' class="tonly"' : ""}${ed(`tx.${si}.${ti}`, to ? t.slice(TEXT_ONLY.length) : t, "טקסט")}</p>`;
+        const pp = paraParse(t), cls = [pp.to ? "tonly" : "", pp.sid ? "shared" : ""].filter(Boolean).join(" ");
+        if (pp.sid) h += `<p class="shlbl"${roA}>קטע כפול: ${esc(sharedIn(pp.sid, key).map((k) => plain(lessonOf(k).title)).join(" · ") || "—")}</p>`;
+        h += `<p${cls ? ` class="${cls}"` : ""}${ed(`tx.${si}.${ti}`, pp.html, "טקסט")}</p>`;
       });
       if (s.quote) h += `<p${roA}>${clean(s.quote)}</p>`;
       // the site's boxes; each box's pieces carry its place as "<si>.<side>.<bi>"
@@ -759,6 +776,9 @@ document.addEventListener("selectionchange", () => {
   to.hidden = !whole.length;
   to.classList.toggle("on", whole.length > 0 && whole.every((p) => p.classList.contains("tonly")));
   // one whole heading selected, not a part yet: it can start a new part
+  const wp = whole.filter((p) => p.tagName === "P"), sh = fmt.querySelector(".sh");
+  sh.hidden = !wp.length || wp.length !== whole.length;
+  sh.classList.toggle("on", wp.length > 0 && wp.every((p) => p.classList.contains("shared")));
   const ph = whole.length === 1 && whole[0].tagName === "H2" ? whole[0] : null;
   fmt.querySelector(".pt").hidden = !ph || stParse(DATA[ph.dataset.h].L.stations[+ph.dataset.p.split(".")[1]]).part !== null;
   fmt.hidden = false;
@@ -841,6 +861,17 @@ fmt.addEventListener("click", (e) => {
     keys.forEach((k) => commit(k, null));
     return;
   }
+  // the selected paragraphs become shared passages, linked to the same paragraph in every
+  // other lesson; or, if they're shared already, they stop being shared (in all of them)
+  if (b.dataset.cmd === "shared") {
+    const ps = wholeParas().filter((p) => p.tagName === "P");
+    if (!ps.length) return;
+    const off = ps.every((p) => p.classList.contains("shared"));
+    fmt.hidden = true;
+    getSelection().removeAllRanges();
+    markShared(ps.map((p) => ({ key: p.dataset.h, si: +p.dataset.p.split(".")[1], ti: +p.dataset.p.split(".")[2] })), off);
+    return;
+  }
   // the selected heading starts a new part; its title is written above it
   if (b.dataset.cmd === "part") {
     const ps = wholeParas(), h2 = ps.length === 1 && ps[0].tagName === "H2" ? ps[0] : null;
@@ -903,7 +934,7 @@ function setValue(L, p, v) {
     case "pt": L.stations[n(1)] = stJoin({ ...stParse(L.stations[n(1)]), part: plain(v) }); break;
     case "kk": L.screens[n(1)].kicker = v; break;
     // a paragraph marked to stay on this page only keeps its mark
-    case "tx": L.screens[n(1)].text[n(2)] = (isTextOnly(L.screens[n(1)].text[n(2)] || "") ? TEXT_ONLY : "") + v; break;
+    case "tx": L.screens[n(1)].text[n(2)] = paraJoin({ ...paraParse(L.screens[n(1)].text[n(2)]), html: v }); break;  // keeps its marks
     case "gl": L.screens[n(1)][a[2]][n(3)].items[n(4)] = v; break;
     case "pl": L.screens[n(1)][a[2]][n(3)].items[n(4)] = plain(v); break;
     // a verse is shown as before + word + after, so the spaces around the word are kept in the data
@@ -1488,10 +1519,82 @@ page.addEventListener("change", (e) => {
   changed(key);
 });
 
+// ---------- shared passages ----------
+// Every lesson and draft, to find where a shared passage is: the loaded ones from DATA, the
+// others as the site has them (ALL; loaded in the background when the admin opens the page).
+const ALL = {};
+const allKeys = () => GROUPS.flatMap((g) => g.lessons.map((l) => l.key)).concat(DRAFTS.map((d) => "draft:" + d.id));
+const lessonOf = (k) => (DATA[k] && DATA[k].L) || ALL[k] || { title: k, screens: [] };
+async function loadAll() {
+  for (const k of allKeys()) {
+    if (DATA[k] || ALL[k] || isDraft(k)) continue;
+    try { ALL[k] = (await loadLesson(k)).L; } catch (e) {}
+  }
+}
+// Where a passage is: [{ key, si, ti }] (in every lesson but `except`, if given).
+function sharedAt(sid) {
+  const out = [];
+  allKeys().forEach((k) => (lessonOf(k).screens || []).forEach((s, si) => (s.text || []).forEach((t, ti) => {
+    if (paraParse(t).sid === sid) out.push({ key: k, si, ti });
+  })));
+  return out;
+}
+const sharedIn = (sid, except) => [...new Set(sharedAt(sid).map((x) => x.key))].filter((k) => k !== except);
+// A lesson ready to change and save (site lessons are read again from the repository).
+async function editable(k) {
+  if (isDraft(k)) return DATA[k] ? DATA[k].L : null;
+  await loadForEdit(k);
+  return DATA[k] && !DATA[k].noEdit ? DATA[k].L : null;
+}
+// A shared paragraph changed: the same text goes to its other copies, which keep their own marks.
+// (Typing fast starts several of these at once; each copies the newest text, LATEST.)
+const LATEST = {};
+async function shareChange(key, si, ti, sid, html) {
+  LATEST[sid] = html;
+  for (const x of sharedAt(sid)) {
+    if (x.key === key && x.si === si && x.ti === ti) continue;
+    const L = await editable(x.key);
+    if (!L) continue;
+    const at = sharedAt(sid).filter((y) => y.key === x.key);  // the place may have moved while loading
+    for (const y of at) {
+      if (y.key === key && y.si === si && y.ti === ti) continue;
+      const T = L.screens[y.si].text, pp = paraParse(T[y.ti]);
+      html = LATEST[sid];
+      if (pp.html === html) continue;
+      T[y.ti] = paraJoin({ ...pp, html });
+      changed(x.key);
+      const el = page.querySelector(`[data-h="${CSS.escape(x.key)}"][data-p="tx.${y.si}.${y.ti}"]`);
+      if (el && el !== CUR) { el.innerHTML = html; BASE.set(el, cleanHtml(el)); }
+    }
+  }
+}
+// Marking: every paragraph in any lesson with the same text joins the passage.
+async function markShared(places, off) {
+  await loadAll();
+  for (const p of places) {
+    const L0 = DATA[p.key].L, pp0 = paraParse(L0.screens[p.si].text[p.ti]);
+    const sid = off ? pp0.sid : pp0.sid || Math.random().toString(36).slice(2, 10);
+    const same = (t) => (off ? paraParse(t).sid === sid : plain(paraParse(t).html) === plain(pp0.html));
+    for (const k of allKeys()) {
+      if (!(lessonOf(k).screens || []).some((s) => (s.text || []).some(same))) continue;
+      const L = await editable(k);
+      if (!L) continue;
+      snapshot(k);
+      L.screens.forEach((s) => (s.text || []).forEach((t, ti) => { if (same(t)) s.text[ti] = paraJoin({ ...paraParse(t), sid: off ? null : sid }); }));
+      changed(k);
+    }
+  }
+  render();
+}
+
 // One edited piece -> the lesson data.
 function applyEdit(el, v, now = false) {
   const key = el.dataset.h;
   setValue(DATA[key].L, el.dataset.p, v);
+  if (/^tx\./.test(el.dataset.p)) {
+    const [, si, ti] = el.dataset.p.split(".").map(Number), pp = paraParse(DATA[key].L.screens[si].text[ti]);
+    if (pp.sid) shareChange(key, si, ti, pp.sid, pp.html);
+  }
   if (LAZY(el) && !now) {
     DIRTY.add(key);
     clearTimeout(TIMERS[key]);
@@ -1858,6 +1961,7 @@ async function startAdmin() {
   await restoreBackups();
   await indexReady.catch(() => {});
   isAdmin = true;
+  loadAll().then(() => { if (SELECTED.some((k) => DATA[k] && JSON.stringify(DATA[k].L.screens).includes("<!--shared:"))) render(); });
   SELECTED = (loadSelection() || defaultSelection()).filter((k) => !isDraft(k) || DATA[k]);
   drawMenus();
   render();
