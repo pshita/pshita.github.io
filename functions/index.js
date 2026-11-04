@@ -95,7 +95,14 @@ async function sendSms({ key, user, pass, sender, recipient, msg }) {
 }
 
 // Every message sent (or tried) is kept in smsLog, shown on the admin page ("ארכיון").
+// For now no message actually goes out to the parents (the owner's request). Everything
+// else goes on as usual: the students see how many answers are left and that a message
+// "was sent", and the milestone counts as sent (no flood of messages once this is false).
+// Nothing is written to the archive (smsLog) for a message that wasn't sent.
+const SMS_PAUSED = true;
+
 async function sendAndLog({ kind, uid = null, name = "", to, msg, count = null, sender }) {
+  if (SMS_PAUSED) { logger.info(`SMS paused: not sent to ${to.join(";")}`); return; }
   const entry = { at: new Date().toISOString(), kind, uid, name, to, msg, count, sender: sender || "", ok: true };
   try {
     await sendSms({ ...smsSecrets(sender), recipient: to.join(";"), msg });
