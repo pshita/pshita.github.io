@@ -112,12 +112,16 @@ function introScreen(s){
  <div class="iband"><div class="iline"><div>${s.daf}</div><div>${s.series}</div></div><div class="ititle">${LESSON.title}</div><div class="iq">${s.question}</div></div>
  <div class="ibody">
   <div class="icards">${s.cards.map(c=>`<div class="icard" style="border-color:${c.c}">${(ICONS[c.icon]||ICONS.book)(c.c)}<div class="it" style="color:${c.c}">${c.t}</div><div class="is">${c.s}</div><div class="iw" style="background:${c.c}">${c.w}</div></div>`).join('')}</div>
-  <button class="go" id="go">יוצאים לדרך</button>
+  ${answeredLine()}<button class="go" id="go">יוצאים לדרך</button>
  </div></div>`}
+// "ענית על 3 מתוך 12 שאלות": the lesson's questions answered in this round (here or before:
+// locked), on the opening screen and on the question screens
+function answeredLine(){const qs=screens().filter(x=>!NONQ.includes(x.type));if(!qs.length)return '';
+ const n=qs.filter(x=>st(x).done||locked(x)).length;return `<div class="qcount">ענית על ${n} מתוך ${qs.length} שאלות</div>`}
 function drawPlay(){const list=screens();if(cur>=list.length)cur=list.length-1;const s=list[cur];
  if(s.type==='intro'){view.innerHTML=introScreen(s);document.getElementById('go').onclick=()=>{cur++;draw();window.scrollTo(0,0)};return}
  const tabs=LESSON.stations.map((n,i)=>`<b class="${i===s.st&&s.type!=='summary'?'c':(s.type==='summary'||i<s.st?'d':'')}" title="${n}">${i+1}</b>`).join('');
- const label=(s.type==='summary'||s.type==='intro'||s.type==='gate')?'':s.type==='read'?'':`<div class="chiprow"><span class="chip">${s.final?'סיכום':LESSON.stations[s.st]}</span><span class="kind">${KIND[s.type]}</span></div>`+(grp(s)?`<div class="qcount">שאלה ${grp(s).i+1} מתוך ${grp(s).n}</div>`:'');
+ const label=(s.type==='summary'||s.type==='intro'||s.type==='gate')?'':s.type==='read'?'':`<div class="chiprow"><span class="chip">${s.final?'סיכום':LESSON.stations[s.st]}</span><span class="kind">${KIND[s.type]}</span></div>`+answeredLine();
  const isQ=!NONQ.includes(s.type);
  const segs=list.map((x,i)=>['intro','read','summary'].includes(x.type)?`<button class="seg ${i<=cur?'f':''}" data-goto="${i}" ${i<=cur?'':'disabled'} aria-label="${x.type==='intro'?'פתיחה':x.type==='summary'?'סיכום':LESSON.stations[x.st]}"><i></i></button>`:'').join('');
  view.innerHTML=`<div class="screen"><div class="top"><div class="prog">${segs}</div></div>
@@ -127,7 +131,8 @@ function drawPlay(){const list=screens();if(cur>=list.length)cur=list.length-1;c
  const sk=document.getElementById('skipq');if(sk)sk.onclick=()=>{let i=cur+1;while(i<list.length&&!NONQ.includes(list[i].type))i++;cur=Math.min(i,list.length-1);draw();window.scrollTo(0,0)};
  document.getElementById('go').onclick=()=>{if(s.type==='summary'){cur=0;R={};FIN=false;Object.keys(SENT).forEach(k=>delete SENT[k]);Object.keys(ANS).forEach(k=>delete ANS[k])}else cur++;draw();window.scrollTo(0,0)};
  wire(s);
- if(locked(s)){const b=view.querySelector('.body');b.classList.add('locked');b.querySelectorAll('button,input').forEach(x=>{x.disabled=true})}}
+ if(locked(s)){const b=view.querySelector('.body');b.classList.add('locked');b.querySelectorAll('button,input').forEach(x=>{x.disabled=true});
+  b.insertAdjacentHTML('afterend','<div class="lockn">אפשר לענות שוב אחרי סיום כל השיעור</div>')}}
 // Tell the page (student.js) about each question answered correctly, and about finishing
 // the lesson: reaching the end with every question answered (none skipped). Each round
 // from the start ("מתחילים מחדש") counts again.
