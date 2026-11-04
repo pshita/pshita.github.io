@@ -92,11 +92,10 @@ async function sendSms({ key, user, pass, sender, recipient, msg }) {
 }
 
 // Every message sent (or tried) is kept in smsLog, shown on the admin page ("ארכיון").
-// For now no message actually goes out to the parents (the owner's request). Everything
-// else goes on as usual: the students see what their parents will get, the day's count
-// starts over as if it was sent (no flood of old counts once this is false).
-// Nothing is written to the archive (smsLog) for a message that wasn't sent.
-const SMS_PAUSED = true;
+// true: no message actually goes out (everything else goes on as usual: the students see
+// what their parents will get, the day's count starts over as if it was sent, so there's no
+// flood of old counts afterwards). Nothing is written to the archive for a message not sent.
+const SMS_PAUSED = false;
 
 async function sendAndLog({ kind, uid = null, name = "", to, msg, count = null, sender }) {
   if (SMS_PAUSED) { logger.info(`SMS paused: not sent to ${to.join(";")}`); return; }
