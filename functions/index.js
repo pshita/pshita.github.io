@@ -1,5 +1,6 @@
 const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
@@ -26,47 +27,40 @@ const GITHUB_TOKEN = defineSecret("GITHUB_TOKEN");
 // Parent SMS settings, edited on the admin page (admin.html) and stored in
 // settings/sms - the default for every student:
 //   enabled  - whether messages go out (off until the admin turns it on)
-//   step     - every how many correct answers
-//   template - the text; {כינוי} is the student's nickname (asked for at registration,
-//              kept as firstName) and {תשובות} the number of correct answers (the
-//              older {פרטי}, {שם}, {שם מלא}, {מספר} still work)
+//   template - the text; {כינוי} is the student's nickname (kept as firstName),
+//              {היום} the correct answers since the last message, {סהכ} (or {תשובות})
+//              all of them (the older {פרטי}, {שם}, {שם מלא}, {מספר} still work)
 //   sender   - the number (or name) the message comes from, sent with each message
 //   copyToMe - every message to parents also goes to the sender number
 // A student may have their own: users/{uid}.smsMode ("on" / "off"; none = the
-// default; the older notify === false also means off) and users/{uid}.smsStep.
+// default; the older notify === false also means off).
 const SMS_DEFAULTS = {
-  step: 10,
-  template: "{כינוי} ענה נכון על {תשובות} שאלות בשיעורי הגמרא באתר ארבעה אבות 🎉",
+  template: "{כינוי} ענה היום נכון על {היום} שאלות בשיעורי הגמרא באתר ארבעה אבות, ובסך הכול על {סהכ} 🎉",
 };
 
 async function smsSettings() {
   const snap = await db.collection("settings").doc("sms").get();
   const v = snap.exists ? snap.data() : {};
-  const step = Number.isInteger(v.step) && v.step > 0 ? v.step : SMS_DEFAULTS.step;
   const template = typeof v.template === "string" && v.template.trim() ? v.template : SMS_DEFAULTS.template;
   const sender = typeof v.sender === "string" ? v.sender.trim() : "";
-  return { step, template, enabled: v.enabled === true, sender, copyToMe: v.copyToMe === true };
+  return { template, enabled: v.enabled === true, sender, copyToMe: v.copyToMe === true };
 }
 
-// This student's messages: on or off, and every how many answers.
+// Whether this student's parents get messages.
 function studentPlan(settings, userData) {
   const mode = userData.smsMode === "on" || userData.smsMode === "off" ? userData.smsMode
     : userData.notify === false ? "off" : "default";
-  const on = mode === "on" || (mode === "default" && settings.enabled);
-  const step = Number.isInteger(userData.smsStep) && userData.smsStep > 0 ? userData.smsStep : settings.step;
-  return { on, step };
+  return { on: mode === "on" || (mode === "default" && settings.enabled) };
 }
 
-function smsText(template, userData, count) {
+function smsText(template, userData, today, total) {
   const first = (userData.firstName || "").trim();
   const full = `${first} ${(userData.lastName || "").trim()}`.trim();
   return template.split("{שם מלא}").join(full).split("{שם}").join(first).split("{פרטי}").join(first).split("{כינוי}").join(first)
-    .split("{מספר}").join(String(count)).split("{תשובות}").join(String(count));
+    .split("{היום}").join(String(today)).split("{סהכ}").join(String(total))
+    .split("{מספר}").join(String(total)).split("{תשובות}").join(String(total));
 }
 
-// A question answered correctly counts up to 3 times (once per round of the whole lesson:
-// see student.js). Older records hold true for one time.
-const MAX_PER_QUESTION = 3;
 function countCorrect(sections) {
   if (!sections) return 0;
   return Object.values(sections).reduce((n, v) => n + (v === true ? 1 : Number.isFinite(v) && v > 0 ? Math.min(v, MAX_PER_QUESTION) : 0), 0);
@@ -96,8 +90,8 @@ async function sendSms({ key, user, pass, sender, recipient, msg }) {
 
 // Every message sent (or tried) is kept in smsLog, shown on the admin page ("ארכיון").
 // For now no message actually goes out to the parents (the owner's request). Everything
-// else goes on as usual: the students see how many answers are left and that a message
-// "was sent", and the milestone counts as sent (no flood of messages once this is false).
+// else goes on as usual: the students see what their parents will get, the day's count
+// starts over as if it was sent (no flood of old counts once this is false).
 // Nothing is written to the archive (smsLog) for a message that wasn't sent.
 const SMS_PAUSED = true;
 
@@ -114,89 +108,52 @@ async function sendAndLog({ kind, uid = null, name = "", to, msg, count = null, 
   if (!entry.ok) throw new Error(entry.error);
 }
 
-// Texts a student's parents if they're due a message: messages are on for the
-// student, there's a phone number, and the student has reached a multiple of
-// their step that no message went out for yet (users/{uid}.smsSentFor; before
-// that field existed, lastSms.count). So a student who reached it while messages
-// were off gets it once they're turned on. The number is claimed in a
-// transaction first, so two triggers at once never send twice; a failed send
-// gives it back. With settings/sms.copyToMe, the sender number gets a copy.
-async function notifyIfDue(uid) {
-  const userRef = db.collection("users").doc(uid);
-  const quizRef = userRef.collection("progress").doc("quiz");
+// Once a day the parents get a message: how many questions their child answered correctly
+// since the last message ("today"; answers after the hour wait for the next one) and in all.
+// users/{uid}.smsBase is the total at the last message (set when the student first answers,
+// below). No message when nothing was answered, or when messages are off for the student.
+async function sendDaily() {
   const settings = await smsSettings();
-  const claim = await db.runTransaction(async (tx) => {
-    const [userSnap, quizSnap] = await Promise.all([tx.get(userRef), tx.get(quizRef)]);
-    if (!userSnap.exists) return null;
-    const userData = userSnap.data();
-    const { on, step } = studentPlan(settings, userData);
-    const recipients = [userData.fatherPhone, userData.motherPhone].filter(Boolean);
-    if (!on || !recipients.length) return null;
-    const score = countCorrect(quizSnap.exists ? quizSnap.data().sections : null);
-    const milestone = Math.floor(score / step) * step;
-    const sentFor = Number.isInteger(userData.smsSentFor) ? userData.smsSentFor : (userData.lastSms && userData.lastSms.count) || 0;
-    if (milestone === 0 || milestone <= sentFor) return null;
-    tx.update(userRef, { smsSentFor: milestone });
-    return { userData, recipients, milestone, sentFor };
-  });
-  if (!claim) return;
-
-  const { userData, recipients, milestone, sentFor } = claim;
-  const to = [...recipients];
-  if (settings.copyToMe && /^0\d{8,9}$/.test(settings.sender) && !to.includes(settings.sender)) to.push(settings.sender);
-  const name = `${userData.firstName || ""} ${userData.lastName || ""}`.trim();
-  try {
-    await sendAndLog({ kind: "milestone", uid, name, to, msg: smsText(settings.template, userData, milestone), count: milestone, sender: settings.sender });
-    await userRef.update({ lastSms: { at: new Date().toISOString(), count: milestone, seen: false } });
-    logger.info(`Notified parents of ${uid} at ${milestone} points`);
-  } catch (err) {
-    await userRef.update({ smsSentFor: sentFor }).catch(() => {});
-    logger.error(`Failed to notify parents of ${uid} at ${milestone} points`, err);
+  const users = await db.collection("users").get();
+  for (const u of users.docs) {
+    try {
+      const userData = u.data();
+      const quiz = await u.ref.collection("progress").doc("quiz").get();
+      const total = countCorrect(quiz.exists ? quiz.data().sections : null);
+      const base = Number.isInteger(userData.smsBase) ? userData.smsBase : total;
+      const today = total - base;
+      if (!Number.isInteger(userData.smsBase) || today <= 0) {
+        if (!Number.isInteger(userData.smsBase)) await u.ref.update({ smsBase: total });
+        continue;
+      }
+      const recipients = [userData.fatherPhone, userData.motherPhone].filter(Boolean);
+      if (!studentPlan(settings, userData).on || !recipients.length) { await u.ref.update({ smsBase: total }); continue; }
+      const to = [...recipients];
+      if (settings.copyToMe && /^0\d{8,9}$/.test(settings.sender) && !to.includes(settings.sender)) to.push(settings.sender);
+      const name = `${userData.firstName || ""} ${userData.lastName || ""}`.trim();
+      await sendAndLog({ kind: "daily", uid: u.id, name, to, msg: smsText(settings.template, userData, today, total), count: total, sender: settings.sender });
+      await u.ref.update({ smsBase: total, lastSms: { at: new Date().toISOString(), count: total, today, seen: false } });
+    } catch (err) {
+      logger.error(`daily message for ${u.id} failed`, err);
+    }
   }
 }
 
 const SMS_SECRETS = [SMS4FREE_KEY, SMS4FREE_USER, SMS4FREE_PASS];
+const DAILY = { timeZone: "Asia/Jerusalem", secrets: SMS_SECRETS, timeoutSeconds: 540 };
+// Sunday to Thursday at 19:00, Friday at 15:00, Saturday night at 21:30
+exports.parentsDailyWeekdays = onSchedule({ ...DAILY, schedule: "0 19 * * 0-4" }, sendDaily);
+exports.parentsDailyFriday = onSchedule({ ...DAILY, schedule: "0 15 * * 5" }, sendDaily);
+exports.parentsDailySaturday = onSchedule({ ...DAILY, schedule: "30 21 * * 6" }, sendDaily);
 
-// A student answered more questions correctly (users/{uid}/progress/quiz holds
-// one entry per question answered correctly, see student.js).
-exports.notifyParentsOnQuizMilestone = onDocumentWritten(
-  { document: "users/{uid}/progress/quiz", secrets: SMS_SECRETS },
-  async (event) => {
-    const before = event.data.before.exists ? event.data.before.data() : null;
-    const after = event.data.after.exists ? event.data.after.data() : null;
-    if (!after || countCorrect(after.sections) <= countCorrect(before?.sections)) return;
-    await notifyIfDue(event.params.uid);
-  }
-);
-
-// The admin changed a student's messages (on / off, every how many answers) or
-// phone numbers: whatever is due now goes out.
-exports.notifyParentsOnStudentChange = onDocumentWritten(
-  { document: "users/{uid}", secrets: SMS_SECRETS },
-  async (event) => {
-    const before = event.data.before.exists ? event.data.before.data() : {};
-    const after = event.data.after.exists ? event.data.after.data() : null;
-    if (!after) return;
-    const keys = ["smsMode", "notify", "smsStep", "fatherPhone", "motherPhone"];
-    if (!keys.some((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k]))) return;
-    await notifyIfDue(event.params.uid);
-  }
-);
-
-// The admin turned messages on, or changed every how many answers: everyone due
-// a message gets it.
-exports.notifyParentsOnSettingsChange = onDocumentWritten(
-  { document: "settings/sms", secrets: SMS_SECRETS, timeoutSeconds: 540 },
-  async (event) => {
-    const before = event.data.before.exists ? event.data.before.data() : {};
-    const after = event.data.after.exists ? event.data.after.data() : null;
-    if (!after || (before.enabled === after.enabled && before.step === after.step)) return;
-    const users = await db.collection("users").listDocuments();
-    for (const ref of users) {
-      await notifyIfDue(ref.id).catch((err) => logger.error(`notifyIfDue ${ref.id} failed`, err));
-    }
-  }
-);
+// The first correct answer since this began: the count before it is where "today" starts.
+exports.parentsDailyStart = onDocumentWritten("users/{uid}/progress/quiz", async (event) => {
+  const before = event.data.before.exists ? event.data.before.data() : null;
+  const userRef = db.collection("users").doc(event.params.uid);
+  const user = await userRef.get();
+  if (!user.exists || Number.isInteger(user.get("smsBase"))) return;
+  await userRef.update({ smsBase: countCorrect(before && before.sections) });
+});
 
 // Admin page: a student's first and last name. Changes the profile and the
 // account's display name (shown in the login list and in "שלום ..."); the

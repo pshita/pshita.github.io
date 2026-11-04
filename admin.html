@@ -93,7 +93,7 @@
           <table class="adm-table">
             <thead><tr>
               <th>כינוי</th><th>משפחה</th><th>אבא</th><th>אמא</th>
-              <th>שיעורים</th><th>נכונות</th><th>זמן</th><th>שליחה</th><th>תשובות</th>
+              <th>שיעורים</th><th>נכונות</th><th>זמן</th><th>שליחה</th>
             </tr></thead>
             <tbody id="adm-list"></tbody>
           </table>
@@ -104,7 +104,6 @@
       <section id="tab-sms" hidden>
         <div class="adm-card">
           <label class="adm-switch"><input type="checkbox" id="sms-enabled"> שליחה פעילה</label>
-          <label class="adm-step">שליחה כל <input type="number" id="sms-step" min="1" max="500" inputmode="numeric"> תשובות נכונות</label>
           <div class="adm-row">
             <label class="adm-step">השולח: <input type="text" id="sms-sender" class="adm-field" placeholder="05XXXXXXXX" autocomplete="off" dir="ltr"></label>
             <label class="adm-switch"><input type="checkbox" id="sms-copy"> עותק לשולח</label>
@@ -114,7 +113,8 @@
           <div class="adm-chips">
             <span>להוספה:</span>
             <button type="button" data-ins="{כינוי}">{כינוי}</button>
-            <button type="button" data-ins="{תשובות}">{תשובות}</button>
+            <button type="button" data-ins="{היום}">{היום}</button>
+            <button type="button" data-ins="{סהכ}">{סהכ}</button>
           </div>
         </div>
         <p class="adm-status" id="sms-status"></p>
@@ -141,8 +141,8 @@
   <footer class="site-footer"></footer>
 
   <script src="assets/js/main.js?v=3"></script>
-  <script type="module" src="assets/js/header-auth.js?v=14"></script>
+  <script type="module" src="assets/js/header-auth.js?v=15"></script>
   <script type="module" src="assets/js/score.js"></script>
-  <script type="module" src="assets/js/admin.js?v=15"></script>
+  <script type="module" src="assets/js/admin.js?v=16"></script>
 </body>
 </html>

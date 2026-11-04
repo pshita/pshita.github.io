@@ -4,17 +4,18 @@
 //   all the lesson's other questions were answered (a "round", progress/quiz.round);
 //   and each time a lesson is finished with all its questions (users/{uid}/progress/lessons:
 //   times), from the player's events;
-// - says how many correct answers are left until the next message to the parents
-//   (every `step` answers: the default in settings/sms, or the student's own,
-//   both set on the admin page; nothing is said while messages are off for them);
+// - says what the parents will get in today's message (sent once a day by the server:
+//   the correct answers since the last one, users/{uid}.smsBase); nothing is said while
+//   messages are off for the student;
 // - once a message was sent (the server sets users/{uid}.lastSms), tells the student.
 import { watchAuthState, getDb, isReady } from "./auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, onSnapshot, increment, arrayUnion, deleteField,
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
+// the score badge and the achievements page mark every 10 correct answers
 const STEP_DEFAULT = 10;
-let USER = null, INFO = null, SECTIONS = null, ROUND = {}, STEP = STEP_DEFAULT, ENABLED = false;
+let USER = null, INFO = null, SECTIONS = null, ROUND = {}, ENABLED = false, START = 0;
 // A question answered correctly counts up to 3 times, and again only after the student
 // answered all the lesson's questions (a "round"; ROUND[lesson] = the questions counted
 // in the current one). true = counted once (from before rounds began).
@@ -28,28 +29,27 @@ async function smsSettings() {
   try {
     const snap = await getDoc(doc(getDb(), "settings", "sms"));
     const v = snap.exists() ? snap.data() : {};
-    return { step: Number.isInteger(v.step) && v.step > 0 ? v.step : STEP_DEFAULT, enabled: v.enabled === true };
+    return { enabled: v.enabled === true };
   } catch (e) {
-    return { step: STEP_DEFAULT, enabled: false };
+    return { enabled: false };
   }
 }
 
-// Messages for this student: on or off, and every how many answers (the same rule
-// as studentPlan in functions/index.js).
+// Messages for this student: on or off (the same rule as studentPlan in functions/index.js).
 function plan(info = INFO) {
   const v = info || {};
   const mode = v.smsMode === "on" || v.smsMode === "off" ? v.smsMode : v.notify === false ? "off" : "default";
-  const on = (mode === "on" || (mode === "default" && ENABLED)) && Boolean(v.fatherPhone || v.motherPhone);
-  const step = Number.isInteger(v.smsStep) && v.smsStep > 0 ? v.smsStep : STEP;
-  return { on, step };
+  return { on: (mode === "on" || (mode === "default" && ENABLED)) && Boolean(v.fatherPhone || v.motherPhone), step: STEP_DEFAULT };
 }
 
-// "עוד 3 תשובות נכונות ונשלח הודעה להורים", or "" when no message will be sent.
+// "ההורים כבר יקבלו הודעה על 4 תשובות נכונות": the correct answers since the last message
+// (the server keeps where it starts in smsBase; before that is set, from when the page
+// opened). "" when no message will be sent or there's nothing yet.
 export function remainingText(count) {
-  const { on, step } = plan();
-  if (!on) return "";
-  const left = step - (count % step);
-  return left === 1 ? "עוד תשובה נכונה אחת ונשלח הודעה להורים" : `עוד ${left} תשובות נכונות ונשלח הודעה להורים`;
+  if (!plan().on) return "";
+  const base = INFO && Number.isInteger(INFO.smsBase) ? INFO.smsBase : START;
+  const n = count - base;
+  return n === 1 ? "ההורים כבר יקבלו הודעה על תשובה נכונה אחת" : n > 0 ? `ההורים כבר יקבלו הודעה על ${n} תשובות נכונות` : "";
 }
 
 // The current student's details, once loaded: { user, info, step } (user null when signed out).
@@ -92,7 +92,7 @@ if (isReady()) {
       ]);
       SECTIONS = (quiz && quiz.exists() && quiz.data().sections) || {};
       ROUND = (quiz && quiz.exists() && quiz.data().round) || {};
-      STEP = sms.step;
+      START = total();
       ENABLED = sms.enabled;
       await new Promise((resolve) => {
         unwatch = onSnapshot(doc(db, "users", user.uid), (snap) => {
@@ -100,7 +100,9 @@ if (isReady()) {
           resolve();
           const sms = INFO.lastSms;
           if (sms && sms.seen === false) {
-            toast(`נשלחה הודעה להורים שלך: ענית נכון על ${sms.count} שאלות! כל הכבוד 🎉`, 8000);
+            toast(Number.isInteger(sms.today)
+              ? `נשלחה הודעה להורים שלך: ענית נכון על ${sms.today} שאלות, ובסך הכול על ${sms.count}! כל הכבוד 🎉`
+              : `נשלחה הודעה להורים שלך: ענית נכון על ${sms.count} שאלות! כל הכבוד 🎉`, 8000);
             updateDoc(snap.ref, { "lastSms.seen": true }).catch(() => {});
           }
         }, () => resolve());
@@ -141,8 +143,7 @@ if (lessonId) {
     setDoc(ref, { sections: { [q]: n + 1 }, round: { [lessonId]: arrayUnion(k) }, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
     const count = total();
     const left = remainingText(count);
-    if (left && count % plan().step === 0) toast(`כל הכבוד! ענית נכון על ${count} שאלות. שולחים הודעה להורים 🎉`, 6000);
-    else if (left) toast(`נכון! ${left}`);
+    if (left) toast(`נכון! ${left}`);
   });
   // answered wrong: still in this round (it comes back once the rest are answered)
   addEventListener("pshita:answered", (e) => {

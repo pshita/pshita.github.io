@@ -14,9 +14,9 @@ import {
 
 const ADMIN_EMAIL = "ufd5a4a70e876fc8672e3d112e6866c55@arba-avot-users.local";
 // the same defaults as the server (functions/index.js)
-const SMS_DEFAULTS = { enabled: false, step: 10, sender: "", template: "{כינוי} ענה נכון על {תשובות} שאלות בשיעורי הגמרא באתר ארבעה אבות 🎉" };
-// the older names of the placeholders, shown with the current ones
-const newTokens = (t) => t.split("{שם מלא}").join("{כינוי}").split("{שם}").join("{כינוי}").split("{פרטי}").join("{כינוי}").split("{מספר}").join("{תשובות}");
+const SMS_DEFAULTS = { enabled: false, sender: "", template: "{כינוי} ענה היום נכון על {היום} שאלות בשיעורי הגמרא באתר ארבעה אבות, ובסך הכול על {סהכ} 🎉" };
+// the older names of the placeholders, shown with the current ones ({תשובות} = {סהכ})
+const newTokens = (t) => t.split("{שם מלא}").join("{כינוי}").split("{שם}").join("{כינוי}").split("{פרטי}").join("{כינוי}").split("{מספר}").join("{סהכ}").split("{תשובות}").join("{סהכ}");
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
@@ -144,8 +144,7 @@ function rowHtml(s) {
       <option value="default"${mode === "default" ? " selected" : ""}>ברירת מחדל</option>
       <option value="on"${mode === "on" ? " selected" : ""}>פתוחה</option>
       <option value="off"${mode === "off" ? " selected" : ""}>סגורה</option>
-    </select></td>
-    <td><input type="number" class="step" data-f="smsStep" min="1" max="500" inputmode="numeric" value="${Number.isInteger(s.smsStep) ? s.smsStep : ""}" placeholder="${SMS.step}"><span class="adm-status"></span></td>
+    </select><span class="adm-status"></span></td>
   </tr>`;
 }
 
@@ -183,11 +182,6 @@ $("adm-list").addEventListener("change", async (e) => {
       await updateDoc(doc(getDb(), "users", s.id), v === "default" ? { smsMode: deleteField(), notify: deleteField() } : { smsMode: v, notify: deleteField() });
       if (v === "default") delete s.smsMode; else s.smsMode = v;
       delete s.notify;
-    } else if (f === "smsStep") {
-      const raw = input.value.trim(), v = Math.round(+raw);
-      if (raw && !(v >= 1 && v <= 500)) return bad("בין 1 ל-500");
-      await updateDoc(doc(getDb(), "users", s.id), { smsStep: raw ? v : deleteField() });
-      if (raw) { s.smsStep = v; input.value = v; } else delete s.smsStep;
     } else {
       const v = input.value.replace(/[^0-9]/g, "");
       if (v && !/^05\d{8}$/.test(v)) return bad("10 ספרות, מתחיל ב-05");
@@ -202,10 +196,10 @@ $("adm-list").addEventListener("change", async (e) => {
 });
 
 // ---------- the message to the parents ----------
-const fillTemplate = (t, count) => newTokens(t).split("{כינוי}").join("ישראל").split("{תשובות}").join(String(count));
+// with an example: today 12, in all 140
+const fillTemplate = (t) => newTokens(t).split("{כינוי}").join("ישראל").split("{היום}").join("12").split("{סהכ}").join("140");
 function fillSms() {
   $("sms-enabled").checked = SMS.enabled === true;
-  $("sms-step").value = SMS.step;
   $("sms-sender").value = SMS.sender || "";
   $("sms-copy").checked = SMS.copyToMe === true;
   $("sms-template").value = newTokens(SMS.template);
@@ -214,11 +208,10 @@ function fillSms() {
 }
 // Length of the message as sent (with an example name).
 function countChars() {
-  const text = fillTemplate($("sms-template").value, +$("sms-step").value || SMS_DEFAULTS.step);
+  const text = fillTemplate($("sms-template").value);
   const n = [...text].length;
   $("sms-length").textContent = `(${n} תווים)`;
 }
-$("sms-step").addEventListener("input", countChars);
 $("sms-template").addEventListener("input", countChars);
 document.querySelector(".adm-chips").addEventListener("click", (e) => {
   const b = e.target.closest("[data-ins]");
@@ -232,24 +225,23 @@ document.querySelector(".adm-chips").addEventListener("click", (e) => {
 let SAVE_T;
 async function saveSms() {
   clearTimeout(SAVE_T);
-  const step = Math.round(+$("sms-step").value), template = $("sms-template").value.trim();
+  const template = $("sms-template").value.trim();
   const sender = $("sms-sender").value.trim().replace(/[\s-]/g, ""), status = $("sms-status");
   const fail = (t) => { status.className = "adm-status err"; status.textContent = t; };
-  if (!(step >= 1 && step <= 500)) return fail("מספר התשובות צריך להיות בין 1 ל-500.");
   if (!template) return fail("נוסח ההודעה ריק.");
   if (sender && !/^0\d{8,9}$/.test(sender) && !/^[A-Za-z][A-Za-z0-9]{1,10}$/.test(sender)) return fail("מספר השולח לא תקין.");
   status.textContent = "";
   try {
     const enabled = $("sms-enabled").checked, copyToMe = $("sms-copy").checked;
-    await setDoc(doc(getDb(), "settings", "sms"), { enabled, step, template, sender, copyToMe, updatedAt: new Date().toISOString() }, { merge: true });
-    SMS = { ...SMS, enabled, step, template, sender, copyToMe };
+    await setDoc(doc(getDb(), "settings", "sms"), { enabled, template, sender, copyToMe, updatedAt: new Date().toISOString() }, { merge: true });
+    SMS = { ...SMS, enabled, template, sender, copyToMe };
     $("sms-sender").value = sender;
     drawStudents();
   } catch (err) {
     fail("השמירה לא הצליחה: " + errText(err));
   }
 }
-["sms-enabled", "sms-step", "sms-sender", "sms-copy"].forEach((id) => $(id).addEventListener("change", saveSms));
+["sms-enabled", "sms-sender", "sms-copy"].forEach((id) => $(id).addEventListener("change", saveSms));
 $("sms-template").addEventListener("input", () => { clearTimeout(SAVE_T); SAVE_T = setTimeout(saveSms, 800); });
 $("sms-template").addEventListener("change", saveSms);
 document.querySelector(".adm-chips").addEventListener("click", (e) => { if (e.target.closest("[data-ins]")) saveSms(); });

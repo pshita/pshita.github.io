@@ -1832,7 +1832,7 @@ import("./assets/js/auth.js").then((m) => {
 function say(t) { $("msg").textContent = t; }  // shown only when something went wrong
 
 // ---------- the site's menu, the same as on every page (site-menu.js) ----------
-import("./assets/js/site-menu.js?v=4").then(async (m) => {
+import("./assets/js/site-menu.js?v=5").then(async (m) => {
   const box = await m.buildMenu();
   $("siteMenu").appendChild(box);
   box.addEventListener("menu-toggle", () => closePanels());
