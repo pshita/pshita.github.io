@@ -153,10 +153,10 @@ async function sendDaily() {
 
 const SMS_SECRETS = [SMS4FREE_KEY, SMS4FREE_USER, SMS4FREE_PASS];
 const DAILY = { timeZone: "Asia/Jerusalem", secrets: SMS_SECRETS, timeoutSeconds: 540 };
-// Sunday to Thursday at 19:00, Friday at 15:00, Saturday night at 21:30
-exports.parentsDailyWeekdays = onSchedule({ ...DAILY, schedule: "0 19 * * 0-4" }, sendDaily);
-exports.parentsDailyFriday = onSchedule({ ...DAILY, schedule: "0 15 * * 5" }, sendDaily);
-exports.parentsDailySaturday = onSchedule({ ...DAILY, schedule: "30 21 * * 6" }, sendDaily);
+// Sunday to Thursday at 18:00, Friday at 13:00, Saturday night at 19:30
+exports.parentsDailyWeekdays = onSchedule({ ...DAILY, schedule: "0 18 * * 0-4" }, sendDaily);
+exports.parentsDailyFriday = onSchedule({ ...DAILY, schedule: "0 13 * * 5" }, sendDaily);
+exports.parentsDailySaturday = onSchedule({ ...DAILY, schedule: "30 19 * * 6" }, sendDaily);
 
 // The first correct answer since this began: the count before it is where "today" starts.
 exports.parentsDailyStart = onDocumentWritten("users/{uid}/progress/quiz", async (event) => {
