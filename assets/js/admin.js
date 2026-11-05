@@ -146,6 +146,7 @@ function rowHtml(s) {
       <option value="on"${mode === "on" ? " selected" : ""}>פתוחה</option>
       <option value="off"${mode === "off" ? " selected" : ""}>סגורה</option>
     </select><span class="adm-status"></span></td>
+    <td><button type="button" class="adm-del" title="מחיקת התלמיד">✕</button></td>
   </tr>`;
 }
 
@@ -162,6 +163,29 @@ function rowStatus(row, text, bad = false) {
 }
 
 // Every change in the table saves right away.
+// Deleting a student: ✕, then "אישור מחיקה" (a click anywhere else leaves it). The account,
+// the profile and all the progress go (deleteStudent in functions/index.js).
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest(".adm-del");
+  document.querySelectorAll(".adm-del.sure").forEach((x) => { if (x !== b) { x.classList.remove("sure"); x.textContent = "✕"; } });
+  if (!b) return;
+  if (!b.classList.contains("sure")) { b.classList.add("sure"); b.textContent = "אישור מחיקה"; return; }
+  const row = b.closest("tr"), id = row.dataset.id;
+  b.disabled = true;
+  b.textContent = "מוחק…";
+  try {
+    const fns = await import("https://www.gstatic.com/firebasejs/10.13.0/firebase-functions.js");
+    await fns.httpsCallable(fns.getFunctions(getApp()), "deleteStudent")({ uid: id });
+    STUDENTS = STUDENTS.filter((s) => s.id !== id);
+    row.remove();
+  } catch (err) {
+    b.disabled = false;
+    b.classList.remove("sure");
+    b.textContent = "✕";
+    rowStatus(row, "לא נמחק: " + errText(err), true);
+  }
+});
+
 $("adm-list").addEventListener("change", async (e) => {
   const input = e.target.closest("[data-f]");
   if (!input) return;

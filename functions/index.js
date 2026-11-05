@@ -1,4 +1,4 @@
-const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onDocumentWritten, onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
@@ -186,6 +186,31 @@ exports.renameStudent = onCall(async (request) => {
   await getAuth().updateUser(uid, { displayName: `${firstName} ${lastName}` });
   await ref.update({ firstName, lastName });
   return { firstName, lastName };
+});
+
+// Admin page: a student is deleted - the account, the profile and all their progress.
+exports.deleteStudent = onCall(async (request) => {
+  requireAdmin(request);
+  const { uid } = request.data || {};
+  if (typeof uid !== "string" || !uid) throw new HttpsError("invalid-argument", "תלמיד לא מוכר.");
+  const user = await getAuth().getUser(uid).catch(() => null);
+  if (user && user.email === ALLOWED_EMAIL) throw new HttpsError("failed-precondition", "אי אפשר למחוק את המנהל.");
+  await db.recursiveDelete(db.collection("users").doc(uid));
+  if (user) await getAuth().deleteUser(uid);
+  return { ok: true };
+});
+
+// A new student registered: the admin gets a message (to the sender number on the admin
+// page) with what the student filled in. Kept in the archive like the other messages.
+exports.notifyAdminOnNewStudent = onDocumentCreated({ document: "users/{uid}", secrets: [SMS4FREE_KEY, SMS4FREE_USER, SMS4FREE_PASS] }, async (event) => {
+  const v = event.data ? event.data.data() : null;
+  if (!v) return;
+  const settings = await smsSettings();
+  if (!/^0\d{8,9}$/.test(settings.sender)) return;
+  const name = `${v.firstName || ""} ${v.lastName || ""}`.trim();
+  const msg = [`נרשם תלמיד חדש: ${name}`, v.fatherPhone && `אבא: ${v.fatherPhone}`, v.motherPhone && `אמא: ${v.motherPhone}`, v.childPhone && `ילד: ${v.childPhone}`].filter(Boolean).join("\n");
+  await sendAndLog({ kind: "newStudent", uid: event.params.uid, name, to: [settings.sender], msg, sender: settings.sender })
+    .catch((err) => logger.error("new student message failed", err));
 });
 
 // Login page: the list of everyone registered, so a student picks their name and
