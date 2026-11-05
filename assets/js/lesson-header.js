@@ -1,6 +1,7 @@
 // The site's header on a lesson page: the "📖 ארבעה אבות" button with the same menu as
 // every other page (site-menu.js). It looks the same thanks to site-header.css.
 import { buildMenu, activateMenu } from "./site-menu.js?v=7";
+import "./pull-refresh.js";
 
 const header = document.createElement("header");
 header.className = "site-header";
