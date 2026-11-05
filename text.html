@@ -1465,9 +1465,21 @@ page.addEventListener("click", (e) => {
     publishDraft(el.dataset.h, el);
     return;
   }
+  openPreview(el.dataset.h);
+});
+// The lesson as students see it. Each screen carries its place in the lesson (_i), so the
+// preview can join two pages or split one (PSHITA_EDIT below).
+let PV_KEY = null;
+function previewData(key) {
+  const L = DATA[key].L, screens = L.screens.map((x, i) => ({ ...x, _i: i }));
   // the questions only when "שאלות" is ticked, as on this page
-  const L = DATA[el.dataset.h].L;
-  window.PSHITA_PREVIEW = SHOWQ ? L : { ...L, screens: L.screens.filter((x) => ["intro", "read", "summary", "gate"].includes(x.type)) };
+  return { ...L, screens: SHOWQ ? screens : screens.filter((x) => ["intro", "read", "summary", "gate"].includes(x.type)) };
+}
+function openPreview(key, keepScroll = false) {
+  PV_KEY = key;
+  window.PSHITA_PREVIEW = previewData(key);
+  const d = DATA[key];
+  window.PSHITA_EDIT = d && (d.draft || (!d.noEdit && d.base)) ? PREVIEW_EDIT : null;
   let box = $("pvBox");
   if (!box) {
     box = document.createElement("div");
@@ -1476,9 +1488,47 @@ page.addEventListener("click", (e) => {
     document.body.appendChild(box);
     box.addEventListener("click", (ev) => { if (ev.target === box || ev.target.closest(".x")) closePreview(); });
   }
-  box.querySelector("iframe").src = "lessons/preview.html?preview=" + Date.now();
+  const fr = box.querySelector("iframe");
+  let y = 0;
+  try { y = keepScroll ? fr.contentWindow.scrollY : 0; } catch (e) {}
+  fr.onload = () => { try { if (y) fr.contentWindow.scrollTo(0, y); } catch (e) {} };
+  fr.src = "lessons/preview.html?preview=" + Date.now();
   box.hidden = false;
-});
+}
+// Joining two reading pages into one, or splitting a page into one page per paragraph.
+// (On a lesson that's on the site, the questions after the change move one place in the
+// lesson's list of screens, which is where students' answers are kept.)
+const PREVIEW_EDIT = {
+  merge(i) {
+    const key = PV_KEY, L = DATA[key] && DATA[key].L, a = L && L.screens[i], b = L && L.screens[i + 1];
+    if (!a || !b || a.type !== "read" || b.type !== "read" || a.st !== b.st) return;
+    snapshot(key);
+    a.text = (a.text || []).concat(b.text || []);
+    if (b.hl) a.hl = (a.hl || []).concat(b.hl);
+    const more = [...(b.before || []), ...(b.after || [])];
+    if (more.length) a.after = (a.after || []).concat(more);
+    if (b.quote && !a.quote) a.quote = b.quote;
+    L.screens.splice(i + 1, 1);
+    commit(key, null);
+    openPreview(key, true);
+  },
+  split(i) {
+    const key = PV_KEY, L = DATA[key] && DATA[key].L, a = L && L.screens[i];
+    if (!a || a.type !== "read" || !a.text || a.text.length < 2) return;
+    snapshot(key);
+    const { text, after, quote, hl, ...rest } = a;
+    const pages = text.map((t, n) => {
+      const x = n === 0 ? { ...rest, text: [t] } : { type: "read", st: a.st, text: [t] };
+      const h = (hl || []).filter((w) => t.includes(w));
+      if (h.length) x.hl = h;
+      if (n === text.length - 1) { if (after) x.after = after; if (quote) x.quote = quote; }
+      return x;
+    });
+    L.screens.splice(i, 1, ...pages);
+    commit(key, null);
+    openPreview(key, true);
+  },
+};
 function closePreview() { const box = $("pvBox"); if (box) { box.hidden = true; box.querySelector("iframe").src = "about:blank"; } }
 addEventListener("keydown", (e) => { if (e.key === "Escape") closePreview(); });
 // The answer of a true / false question: a click switches it.

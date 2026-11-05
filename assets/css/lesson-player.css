@@ -220,3 +220,8 @@ body{margin:0}@media (min-width:700px){.screen .qhead{padding:6px 28px 0;font-si
 .pstations span{width:34px;height:34px;border-radius:10px;background:var(--sand);display:grid;place-items:center;flex:none}
 .pstations div:first-child span{background:var(--gold)}
 .allpv .iband{border-top-left-radius:20px;border-top-right-radius:20px}
+/* "מעוצב" on the text page: join two pages, split one */
+.allpv .pvj{display:flex;justify-content:center;margin:-30px 0 -14px}
+.allpv .pvt{display:flex;justify-content:center;padding:0 0 12px}
+.allpv .pved{font:700 13px var(--ui);color:var(--navy);background:var(--amber-l);border:1px dashed var(--gold-d);border-radius:999px;padding:5px 16px;cursor:pointer}
+.allpv .pved:hover{background:var(--gold)}

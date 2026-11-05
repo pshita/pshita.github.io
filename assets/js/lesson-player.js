@@ -149,10 +149,17 @@ function report(){if(cur!==LASTCUR){LASTCUR=cur;dispatchEvent(new CustomEvent('p
 // the text page's "מעוצב": every screen of the lesson one under the other, to look over
 // (nothing to answer, nothing counted)
 function drawAll(){const list=screens();
- view.innerHTML=`<div class="allpv">${list.map(s=>{if(s.type==='intro')return introScreen(s);
+ // on the text page, the admin can join two reading pages or split one (PSHITA_EDIT there)
+ let ed=null;try{ed=window.parent!==window&&window.parent.PSHITA_EDIT}catch(e){}
+ const canJoin=(a,b)=>ed&&a&&b&&a.type==='read'&&b.type==='read'&&a.st===b.st&&Number.isInteger(a._i)&&b._i===a._i+1;
+ view.innerHTML=`<div class="allpv">${list.map((s,n)=>{if(s.type==='intro')return introScreen(s);
   const label=(s.type==='summary'||s.type==='read'||s.type==='gate')?'':`<div class="chiprow"><span class="chip">${s.final?'סיכום':LESSON.stations[s.st]}</span><span class="kind">${KIND[s.type]||''}</span></div>`;
-  return `<div class="screen">${label}<div class="body">${body(s)}</div></div>`}).join('')}</div>`;
- view.querySelectorAll('button,input').forEach(x=>{x.disabled=true})}
+  const split=ed&&s.type==='read'&&(s.text||[]).length>1&&Number.isInteger(s._i)?`<div class="pvt"><button class="pved" data-split="${s._i}">הפרדה</button></div>`:'';
+  const join=canJoin(s,list[n+1])?`<div class="pvj"><button class="pved" data-join="${s._i}">איחוד</button></div>`:'';
+  return `<div class="screen">${label}<div class="body">${body(s)}</div>${split}</div>${join}`}).join('')}</div>`;
+ view.querySelectorAll('button,input').forEach(x=>{x.disabled=!x.classList.contains('pved')});
+ view.querySelectorAll('[data-join]').forEach(b=>b.onclick=()=>ed.merge(+b.dataset.join));
+ view.querySelectorAll('[data-split]').forEach(b=>b.onclick=()=>ed.split(+b.dataset.split))}
 function draw(){if(preview){drawAll();return}drawPlay();report()}
 draw();
 }
