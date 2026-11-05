@@ -64,6 +64,9 @@ function smsText(template, userData, today, total) {
     .split("{מספר}").join(String(total)).split("{תשובות}").join(String(total));
 }
 
+// A question answered correctly counts up to 3 times (once per round of the whole lesson:
+// see student.js). Older records hold true for one time.
+const MAX_PER_QUESTION = 3;
 function countCorrect(sections) {
   if (!sections) return 0;
   return Object.values(sections).reduce((n, v) => n + (v === true ? 1 : Number.isFinite(v) && v > 0 ? Math.min(v, MAX_PER_QUESTION) : 0), 0);
