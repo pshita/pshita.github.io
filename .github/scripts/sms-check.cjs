@@ -20,8 +20,8 @@ const timesOf = (v) => (v === true ? 1 : Number.isFinite(v) && v > 0 ? Math.min(
     console.log("   time by day (min):", Object.entries(days).sort().slice(-4).map(([d, x]) => `${d}:${Math.round(x / 60)}`).join(" "),
       "| correct by day:", JSON.stringify((q.exists && q.get("days")) || {}));
   }
-  const since = new Date(Date.now() - 36 * 3600 * 1000).toISOString();
+  const since = new Date(Date.now() - 72 * 3600 * 1000).toISOString();
   const log = await db.collection("smsLog").where("at", ">=", since).get();
   console.log("smsLog since", since, ":", log.size);
-  log.forEach((d) => { const x = d.data(); console.log(" ", x.at, x.kind, "ok", x.ok, x.error || ""); });
+  log.forEach((d) => { const x = d.data(); console.log(" ", x.at, x.kind, "ok", x.ok, "student", String(x.uid || "").slice(0, 5), "count", x.count, x.error || ""); });
 })().catch((e) => { console.error(e); process.exit(1); });
