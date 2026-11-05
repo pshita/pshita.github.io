@@ -370,12 +370,12 @@ function renderLesson(key, d, q) {
       // the site's boxes; each box's pieces carry its place as "<si>.<side>.<bi>"
       ["before", "after"].forEach((side) => (s[side] || []).forEach((b, bi) => {
         const at = `${si}.${side}.${bi}`, lbl = (t) => ro(`<span class="lbl">${t}:</span> `);
-        if (b.k === "gloss") b.items.forEach((g, gi) => h += `<p class="blk">${gi ? "" : lbl("מונחים")}<span${ed(`gl.${at}.${gi}`, g, "מונח: הסבר")}</span></p>`);
-        else if (b.k === "short") h += `<p class="blk">${lbl("בקיצור")}<span${ed(`sh.${at}`, b.text, "המשפט המסכם")}</span></p>`;
-        else if (b.k === "cards") h += `<p class="blk">${lbl("השוואה")}${b.items.map((c, ci) => `<b${ed(`ct.${at}.${ci}`, c.t, "כותרת")}</b>${ro(": ")}<span${ed(`cs.${at}.${ci}`, c.s, "הסבר")}</span>`).join(ro(" · "))}</p>`;
-        else if (b.k === "pills") h += `<p class="blk">${lbl("מילים מסומנות")}${b.items.map((w, wi) => `<span${ed(`pl.${at}.${wi}`, w, "מילה")}</span>`).join(ro(" · "))}</p>`;
-        else if (b.k === "verses") b.items.forEach((v, vi) => h += `<p class="blk">${vi ? "" : lbl("פסוקים")}<span${ed(`vb.${at}.${vi}`, v.before, "לפני")}</span><b${ed(`vw.${at}.${vi}`, v.word, "המילה")}</b><span${ed(`va.${at}.${vi}`, v.after, "אחרי")}</span> ${ro("(")}<span${ed(`vs.${at}.${vi}`, v.src, "מקור")}</span>${ro(")")}</p>`);
-        else if (b.k === "bars") h += `<p class="blk"${roA}>${b.rows.map((r) => clean(r[0] + ": " + r[1])).join(" · ")}</p>`;
+        if (b.k === "gloss") b.items.forEach((g, gi) => h += `<p class="blk" data-blk="${at}">${gi ? "" : lbl("מונחים")}<span${ed(`gl.${at}.${gi}`, g, "מונח: הסבר")}</span></p>`);
+        else if (b.k === "short") h += `<p class="blk" data-blk="${at}">${lbl("בקיצור")}<span${ed(`sh.${at}`, b.text, "המשפט המסכם")}</span></p>`;
+        else if (b.k === "cards") h += `<p class="blk" data-blk="${at}">${lbl("השוואה")}${b.items.map((c, ci) => `<b${ed(`ct.${at}.${ci}`, c.t, "כותרת")}</b>${ro(": ")}<span${ed(`cs.${at}.${ci}`, c.s, "הסבר")}</span>`).join(ro(" · "))}</p>`;
+        else if (b.k === "pills") h += `<p class="blk" data-blk="${at}">${lbl("מילים מסומנות")}${b.items.map((w, wi) => `<span${ed(`pl.${at}.${wi}`, w, "מילה")}</span>`).join(ro(" · "))}</p>`;
+        else if (b.k === "verses") b.items.forEach((v, vi) => h += `<p class="blk" data-blk="${at}">${vi ? "" : lbl("פסוקים")}<span${ed(`vb.${at}.${vi}`, v.before, "לפני")}</span><b${ed(`vw.${at}.${vi}`, v.word, "המילה")}</b><span${ed(`va.${at}.${vi}`, v.after, "אחרי")}</span> ${ro("(")}<span${ed(`vs.${at}.${vi}`, v.src, "מקור")}</span>${ro(")")}</p>`);
+        else if (b.k === "bars") h += `<p class="blk" data-blk="${at}"${roA}>${b.rows.map((r) => clean(r[0] + ": " + r[1])).join(" · ")}</p>`;
       }));
       return;
     }
@@ -1815,6 +1815,54 @@ page.addEventListener("beforeinput", (e) => {
 // Pasting from Word, Google Docs or a website keeps headings, bold, red and the
 // split into paragraphs; everything else about the formatting is dropped.
 // In a heading, a question or an answer it goes in as one line of plain text.
+// ---------- copying a design box (בקיצור, השוואה, פסוקים...) ----------
+// Copying a box's line copies the box itself; pasting it in a lesson adds the same box
+// under the paragraph where the caret is (not as text). Kept three ways, so it works in
+// any browser: a type of its own, a mark in the copied HTML, and in this page (COPIED).
+let COPIED = null;
+const BOX_TYPE = "application/x-pshita-boxes";
+page.addEventListener("copy", (e) => {
+  const s = getSelection();
+  if (!s.rangeCount || s.isCollapsed) return;
+  const r = s.getRangeAt(0), seen = new Set(), boxes = [];
+  page.querySelectorAll("p.blk[data-blk]").forEach((p) => {
+    if (!r.intersectsNode(p)) return;
+    const key = p.closest("[data-key]").dataset.key, id = key + "|" + p.dataset.blk;
+    if (seen.has(id)) return;
+    seen.add(id);
+    const [si, side, bi] = p.dataset.blk.split("."), b = DATA[key] && DATA[key].L.screens[+si][side][+bi];
+    if (b) boxes.push(JSON.parse(JSON.stringify(b)));
+  });
+  if (!boxes.length) return;
+  e.preventDefault();
+  const text = s.toString(), json = JSON.stringify(boxes);
+  COPIED = { text: text.trim(), boxes };
+  e.clipboardData.setData("text/plain", text);
+  e.clipboardData.setData(BOX_TYPE, json);
+  e.clipboardData.setData("text/html", `<span data-pshita-boxes="${esc(json)}">${esc(text)}</span>`);
+});
+function copiedBoxes(cd) {
+  try {
+    const own = cd.getData(BOX_TYPE);
+    if (own) return JSON.parse(own);
+    const m = /data-pshita-boxes="([^"]*)"/.exec(cd.getData("text/html") || "");
+    if (m) { tpl.innerHTML = `<i title="${m[1]}"></i>`; return JSON.parse(tpl.content.firstChild.title); }
+  } catch (e) {}
+  if (COPIED && (cd.getData("text/plain") || "").trim() === COPIED.text) return COPIED.boxes;
+  return null;
+}
+// The boxes go under the paragraph screen the caret is in (or the reading screen before it).
+function pasteBoxes(el, boxes) {
+  const key = el.dataset.h, L = DATA[key] && DATA[key].L, [kind, a] = el.dataset.p.split(".");
+  if (!L) return;
+  let si = kind === "st" ? L.screens.findIndex((x) => x.st === +a && x.type === "read") : Number.isInteger(+a) ? +a : -1;
+  while (si > 0 && L.screens[si] && L.screens[si].type !== "read") si--;
+  if (si < 0 || !L.screens[si] || L.screens[si].type !== "read") { say("אפשר להדביק תבנית רק בתוך הטקסט של שיעור."); return; }
+  snapshot(key);
+  L.screens[si].after = (L.screens[si].after || []).concat(JSON.parse(JSON.stringify(boxes)));
+  commit(key, null);
+}
+
 page.addEventListener("paste", async (e) => {
   if (!EDIT) return;
   e.preventDefault();
@@ -1822,6 +1870,8 @@ page.addEventListener("paste", async (e) => {
   if (!s.rangeCount) return;
   const a = elOf(s.getRangeAt(0).startContainer), b = elOf(s.getRangeAt(0).endContainer);
   if (!a || !b) return;
+  const boxes = copiedBoxes(e.clipboardData);
+  if (boxes) { pasteBoxes(a, boxes); return; }
   const text0 = e.clipboardData.getData("text/plain") || "", html0 = e.clipboardData.getData("text/html");
   if (a !== b && !(await deleteAcross(s.getRangeAt(0), a, b))) return;
   s = getSelection();
