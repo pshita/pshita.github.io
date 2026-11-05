@@ -8,6 +8,9 @@ const timesOf = (v) => (v === true ? 1 : Number.isFinite(v) && v > 0 ? Math.min(
 (async () => {
   const sms = (await db.doc("settings/sms").get()).data() || {};
   console.log("settings: step", sms.step, "enabled", sms.enabled, "sender is phone", /^0\d{8,9}$/.test(sms.sender || ""), "template has {היום}", String(sms.template || "").includes("{היום}"));
+  console.log("copyToMe", sms.copyToMe === true);
+  console.log("template:", sms.template || "(default)");
+  console.log("welcome:", sms.welcome || "(default)");
   const users = await db.collection("users").get();
   for (const u of users.docs) {
     const v = u.data(), q = await u.ref.collection("progress").doc("quiz").get();
@@ -16,6 +19,8 @@ const timesOf = (v) => (v === true ? 1 : Number.isFinite(v) && v > 0 ? Math.min(
       "mode", v.smsMode || "default", "notify", v.notify, "phones", [v.fatherPhone, v.motherPhone, v.childPhone].filter(Boolean).length,
       "quizUpdated", q.exists ? q.get("updatedAt") : "-", "lastSms", v.lastSms ? `${v.lastSms.at} count ${v.lastSms.count}` : "-",
       "smsSentFor", v.smsSentFor, "smsStep", v.smsStep);
+    console.log("   child phone", !!v.childPhone, "welcomed", v.smsWelcomed === true, "new (gets welcome)", v.smsWelcomed !== true && typeof v.createdAt === "string" && v.createdAt >= "2026-11-04T16:50:00Z",
+      "registered", typeof v.createdAt === "string" ? v.createdAt.slice(0, 10) : "-");
     const t = await u.ref.collection("progress").doc("time").get(), days = (t.exists && t.get("days")) || {};
     console.log("   time by day (min):", Object.entries(days).sort().slice(-4).map(([d, x]) => `${d}:${Math.round(x / 60)}`).join(" "),
       "| correct by day:", JSON.stringify((q.exists && q.get("days")) || {}));
