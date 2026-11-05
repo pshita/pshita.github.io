@@ -1499,16 +1499,18 @@ function openPreview(key, keepScroll = false) {
 // (On a lesson that's on the site, the questions after the change move one place in the
 // lesson's list of screens, which is where students' answers are kept.)
 const PREVIEW_EDIT = {
-  merge(i) {
-    const key = PV_KEY, L = DATA[key] && DATA[key].L, a = L && L.screens[i], b = L && L.screens[i + 1];
-    if (!a || !b || a.type !== "read" || b.type !== "read" || a.st !== b.st) return;
+  // the second page joins the first; questions between them (if any) now come after the joined page
+  merge(i, j = i + 1) {
+    const key = PV_KEY, L = DATA[key] && DATA[key].L, a = L && L.screens[i], b = L && L.screens[j];
+    if (!a || !b || a.type !== "read" || b.type !== "read" || a.st !== b.st || j <= i) return;
+    if (L.screens.slice(i + 1, j).some((x) => ["read", "intro", "summary", "gate"].includes(x.type))) return;
     snapshot(key);
     a.text = (a.text || []).concat(b.text || []);
     if (b.hl) a.hl = (a.hl || []).concat(b.hl);
     const more = [...(b.before || []), ...(b.after || [])];
     if (more.length) a.after = (a.after || []).concat(more);
     if (b.quote && !a.quote) a.quote = b.quote;
-    L.screens.splice(i + 1, 1);
+    L.screens.splice(j, 1);
     commit(key, null);
     openPreview(key, true);
   },
