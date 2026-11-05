@@ -67,6 +67,7 @@ async function start(admin) {
     ]);
     s.time = (time && time.exists() && time.data()) || {};
     s.correct = (quiz && quiz.exists() && quiz.data().sections) || {};
+    s.correctDays = (quiz && quiz.exists() && quiz.data().days) || {};
     s.finished = (lessons && lessons.exists() && lessons.data().lessons) || {};
   }));
   STUDENTS = list.sort((a, b) => fullName(a).localeCompare(fullName(b), "he"));
@@ -115,6 +116,13 @@ const timeOf = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLo
 const modeOf = (s) => (s.smsMode === "on" || s.smsMode === "off" ? s.smsMode : s.notify === false ? "off" : "default");
 // Time spent learning (see student.js): the total, and opened, each day newest first.
 const hm = (secs) => { const m = Math.round((secs || 0) / 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
+// Correct answers: the total, and opened, each day newest first (counted by day since 5.11.26).
+function correctHtml(s) {
+  const days = Object.entries(s.correctDays || {}).filter(([, v]) => v > 0).sort((a, b) => b[0].localeCompare(a[0]));
+  if (!days.length) return `<span class="num">${countOf(s)}</span>`;
+  const day = (k) => { const [y, m, d] = k.split("-"); return `${+d}.${+m}.${y.slice(2)}`; };
+  return `<details><summary class="num">${countOf(s)}</summary><div class="adm-pills">${days.map(([k, v]) => `<span>${day(k)} <i>${v}</i></span>`).join("")}</div></details>`;
+}
 function timeHtml(t) {
   const days = Object.entries(t.days || {}).filter(([, v]) => v > 0).sort((a, b) => b[0].localeCompare(a[0]));
   if (!days.length) return '<span class="adm-dim">—</span>';
@@ -139,7 +147,7 @@ function rowHtml(s) {
     <td><input type="tel" data-f="motherPhone" value="${esc(s.motherPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></td>
     <td><input type="tel" data-f="childPhone" value="${esc(s.childPhone || "")}" placeholder="05XXXXXXXX" inputmode="tel" autocomplete="off"></td>
     <td>${lessons}</td>
-    <td class="num">${countOf(s)}</td>
+    <td>${correctHtml(s)}</td>
     <td>${timeHtml(s.time)}</td>
     <td><select data-f="smsMode">
       <option value="default"${mode === "default" ? " selected" : ""}>ברירת מחדל</option>

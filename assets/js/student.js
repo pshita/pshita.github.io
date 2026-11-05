@@ -140,7 +140,9 @@ if (lessonId) {
       return;
     }
     SECTIONS[q] = n + 1;
-    setDoc(ref, { sections: { [q]: n + 1 }, round: { [lessonId]: arrayUnion(k) }, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
+    // also by day (progress/quiz.days: { "2026-11-05": 12 }), shown on the admin page
+    const d = new Date(), day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    setDoc(ref, { sections: { [q]: n + 1 }, round: { [lessonId]: arrayUnion(k) }, days: { [day]: increment(1) }, updatedAt: new Date().toISOString() }, { merge: true }).catch(() => {});
     const count = total();
     const left = remainingText(count);
     if (left) toast(`נכון! ${left}`);
