@@ -1,0 +1,28 @@
+# One-off, by hand: set where "today" starts for some students, then run today's parent messages now.
+name: SMS send now
+on:
+  workflow_dispatch:
+    inputs:
+      bases:
+        description: "uidPrefix=number,... (empty: none)"
+        required: false
+        default: ""
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --prefix functions --no-audit --no-fund
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Where today starts
+        env:
+          BASES: ${{ inputs.bases }}
+        run: NODE_PATH=functions/node_modules node .github/scripts/sms-base.cjs
+      - name: Send
+        run: gcloud scheduler jobs run firebase-schedule-parentsDailyWeekdays-us-central1 --project avot-926d7 --location us-central1
