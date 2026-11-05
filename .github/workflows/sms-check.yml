@@ -1,0 +1,22 @@
+# One-off, by hand: why the daily parent messages did or didn't go out (no names or phones printed).
+name: SMS check
+on: workflow_dispatch
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --prefix functions --no-audit --no-fund
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Students and the archive
+        run: NODE_PATH=functions/node_modules node .github/scripts/sms-check.cjs
+      - name: The daily function's runs (last 30 hours; phone numbers hidden)
+        run: |
+          gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name=~"parentsdaily"' --project avot-926d7 --freshness=30h --limit 60 --format='value(timestamp,severity,textPayload,jsonPayload.message)' | sed -E 's/0[0-9]{8,9}/0*********/g' || true
+          gcloud scheduler jobs list --project avot-926d7 --location us-central1 --format='table(name,schedule,timeZone,state,lastAttemptTime,status.code)' || true
