@@ -139,11 +139,10 @@ async function sendDaily() {
       const to = [...recipients];
       if (settings.copyToMe && /^0\d{8,9}$/.test(settings.sender) && !to.includes(settings.sender)) to.push(settings.sender);
       const name = `${userData.firstName || ""} ${userData.lastName || ""}`.trim();
-      // a new student: the first message explains what these are; today's answers go in the next one
+      // a new student: first a message that explains what these are, then (if answered) today's
       if (needsWelcome(userData)) {
         await sendAndLog({ kind: "welcome", uid: u.id, name, to, msg: smsText(settings.welcome, userData, today, total), count: total, sender: settings.sender });
         if (!SMS_PAUSED) await u.ref.update({ smsWelcomed: true });  // while paused it waits to really go out
-        continue;
       }
       if (!Number.isInteger(userData.smsBase) || today <= 0) continue;
       await sendAndLog({ kind: "daily", uid: u.id, name, to, msg: smsText(settings.template, userData, today, total), count: total, sender: settings.sender });

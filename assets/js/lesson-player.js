@@ -163,7 +163,11 @@ function drawAll(){const list=screens();
  view.querySelectorAll('button,input').forEach(x=>{x.disabled=!x.classList.contains('pved')});
  view.querySelectorAll('[data-join]').forEach(b=>b.onclick=()=>{const [i,j]=b.dataset.join.split(',').map(Number);ed.merge(i,j)});
  view.querySelectorAll('[data-split]').forEach(b=>b.onclick=()=>ed.split(+b.dataset.split))}
-function draw(){if(preview){drawAll();return}drawPlay();report()}
+// where the student is in the lesson, so a reload (pulling the page down) comes back to it;
+// opening the lesson again (not a reload) starts from the beginning, as before
+const POS='pshita.pos.'+id;
+try{const nav=performance.getEntriesByType('navigation')[0],p=nav&&nav.type==='reload'?+sessionStorage.getItem(POS):0;if(Number.isInteger(p)&&p>0&&!preview)cur=Math.min(p,screens().length-1)}catch(e){}
+function draw(){if(preview){drawAll();return}drawPlay();report();try{sessionStorage.setItem(POS,String(cur))}catch(e){}}
 draw();
 }
 })();

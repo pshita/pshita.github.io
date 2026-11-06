@@ -9,7 +9,7 @@
 //   assets/js/lesson-player.js - the one shared lesson engine
 //   assets/css/lesson-player.css
 
-const PLAYER_VERSION = 25;
+const PLAYER_VERSION = 26;
 
 function escapeHtml(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
